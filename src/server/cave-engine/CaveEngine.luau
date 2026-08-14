@@ -9,9 +9,26 @@ export type BoundingBoxDefinition = {
 
 -- Cilindro finito ao longo do eixo X.
 export type CylinderDefinition = {
+	kind: "cylinder",
 	center: Vector3, -- centro do cilindro (eixo passa por center.X)
 	lengthStuds: number, -- comprimento total em X
 	radiusStuds: number, -- raio no plano YZ
+}
+
+-- Esfera definida pelo centro e pelo raio.
+export type SphereDefinition = {
+	kind: "sphere",
+	center: Vector3,
+	radiusStuds: number,
+}
+
+-- Forma suportada por uma sala.
+export type RoomShape = SphereDefinition | CylinderDefinition
+
+-- Sala limitada por uma forma interna e uma forma externa.
+export type RoomDefinition = {
+	inner: RoomShape,
+	outer: RoomShape,
 }
 
 -- Plano horizontal (chão) em y fixo, com ruído de baixa amplitude.
@@ -32,6 +49,7 @@ export type CaveTemplate = {
 	bounds: BoundingBoxDefinition,
 	innerCylinder: CylinderDefinition,
 	outerCylinder: CylinderDefinition,
+	rooms: { RoomDefinition },
 	floorPlane: PlaneDefinition,
 	wallNoise: WallNoiseDefinition,
 }

@@ -107,22 +107,25 @@ local template: CaveEngine.CaveTemplate = {
 		max = Vector3.new(116, 16, 68),
 	},
 	innerCylinder = {
+		kind = "cylinder",
 		center = Vector3.new(0, -52, 0),
-		lengthStuds = 160,
-		radiusStuds = 28,
+		lengthStuds = 120,
+		radiusStuds = 18,
 	},
 	outerCylinder = {
+		kind = "cylinder",
 		center = Vector3.new(0, -52, 0),
 		lengthStuds = 200,
 		radiusStuds = 52,
 	},
+	rooms = {},
 	floorPlane = {
 		yStuds = -72,
 		noiseAmplitudeStuds = 4,
 		noiseFrequency = 0.035,
 	},
 	wallNoise = {
-		amplitudeStuds = 20,
+		amplitudeStuds = 30,
 		frequency = 0.045,
 	},
 }
