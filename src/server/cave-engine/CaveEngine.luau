@@ -66,6 +66,12 @@ export type CaveEngine = {
 	generate: (self: CaveEngine, template: CaveTemplate) -> CaveGenerationResult,
 }
 
+-- Offsets determinísticos de ruído (wall: parede; floor: chão).
+export type NoiseOffsets = {
+	wall: Vector3,
+	floor: Vector3,
+}
+
 local CaveEngine = {}
 CaveEngine.__index = CaveEngine
 
@@ -285,6 +291,97 @@ local function countStats(grid: Types.Grid3D): CaveStats
 	}
 end
 
+-- SDF de cilindro finito ao longo do eixo X. Negativo = dentro.
+local function sdfCylinderX(p: Vector3, cyl: CylinderDefinition): number
+	local dx = p.X - cyl.center.X
+	local dy = p.Y - cyl.center.Y
+	local dz = p.Z - cyl.center.Z
+
+	local qx = math.abs(dx) - cyl.lengthStuds / 2 -- axial: <0 dentro
+	local qr = math.sqrt(dy * dy + dz * dz) - cyl.radiusStuds -- radial: <0 dentro
+
+	local outside = math.sqrt(math.max(qx, 0) ^ 2 + math.max(qr, 0) ^ 2)
+	local inside = math.min(math.max(qx, qr), 0)
+	return outside + inside
+end
+
+-- Gera offsets determinísticos para math.noise (que não aceita seed).
+-- wall: ruído da parede; floor: ruído do chão.
+local function generateNoiseOffsets(random: Random): NoiseOffsets
+	local function nextVector()
+		return Vector3.new(
+			random:NextNumber(-10000, 10000),
+			random:NextNumber(-10000, 10000),
+			random:NextNumber(-10000, 10000)
+		)
+	end
+	return { wall = nextVector(), floor = nextVector() }
+end
+
+-- Esculpe a caverna no grid usando SDF dos cilindros + math.noise.
+-- Ordem de decisão por célula:
+--   1. getCell != "Rock" → mantém (protege Outside e OOB)
+--   2. abaixo do piso ruidoso → Rock (piso corta tudo, inclusive o inner)
+--   3. dentro do inner → Air (espaço acima do chão garantido)
+--   4. fora do outer → Rock (limite duro; noise nunca cria ar aqui)
+--   5. noise na faixa intermediária decide a parede orgânica
+--   6. senão → Air
+local function carveCavern(
+	grid: Types.Grid3D,
+	template: CaveTemplate,
+	offsets: NoiseOffsets
+)
+	local inner = template.innerCylinder
+	local outer = template.outerCylinder
+	local floor = template.floorPlane
+	local wn = template.wallNoise
+
+	local wallOffset = offsets.wall
+	local floorOffset = offsets.floor
+
+	grid:forEachCell(function(cell)
+		if grid:getCell(cell) ~= "Rock" then
+			return
+		end
+
+		local p = grid:cellToWorld(cell)
+
+		-- piso (antes de tudo, inclusive do inner)
+		local nFloor = math.noise(
+			p.X * floor.noiseFrequency + floorOffset.X,
+			0,
+			p.Z * floor.noiseFrequency + floorOffset.Z
+		)
+		local floorHeight = floor.yStuds + nFloor * floor.noiseAmplitudeStuds
+		if p.Y < floorHeight then
+			return -- abaixo do chão → mantém Rock
+		end
+
+		local sdfInner = sdfCylinderX(p, inner)
+		if sdfInner < 0 then
+			grid:setCell(cell, "Air")
+			return
+		end
+
+		local sdfOuter = sdfCylinderX(p, outer)
+		if sdfOuter > 0 then
+			return -- fora do outer → mantém Rock
+		end
+
+		local nWall = math.noise(
+			p.X * wn.frequency + wallOffset.X,
+			p.Y * wn.frequency + wallOffset.Y,
+			p.Z * wn.frequency + wallOffset.Z
+		)
+		local sdfWallNoisy = sdfOuter + nWall * wn.amplitudeStuds
+		if sdfWallNoisy > 0 then
+			return -- parede orgânica → mantém Rock
+		end
+
+		grid:setCell(cell, "Air")
+	end)
+end
+
 -- Constrói a engine. Guarda config, seed e Random.new(seed) (determinismo).
 function CaveEngine.new(config: CaveEngineConfig): CaveEngine
 	local err = validateConfig(config)
@@ -306,9 +403,35 @@ function CaveEngine:getSeed(): number
 	return self.seed
 end
 
--- Implementado na task 4.
-function CaveEngine:generate(_template: CaveTemplate): CaveGenerationResult
-	error("generate ainda não implementado")
+-- Gera a caverna a partir de um template. Não escreve no Terrain.
+function CaveEngine:generate(template: CaveTemplate): CaveGenerationResult
+	local startTime = os.clock()
+
+	local err = validateTemplate(template, self.config)
+	if err then
+		return {
+			success = false,
+			error = err,
+			elapsedSeconds = os.clock() - startTime,
+		}
+	end
+
+	local grid = buildGrid(template, self.config)
+
+	local shellCells = self.config.shellThicknessStuds / self.config.resolution
+	applyShell(grid, shellCells)
+
+	local offsets = generateNoiseOffsets(self.random)
+	carveCavern(grid, template, offsets)
+
+	local stats = countStats(grid)
+
+	return {
+		success = true,
+		grid = grid,
+		stats = stats,
+		elapsedSeconds = os.clock() - startTime,
+	}
 end
 
 return CaveEngine
