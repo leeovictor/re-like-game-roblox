@@ -504,14 +504,47 @@ local function generateNoiseOffsets(random: Random): NoiseOffsets
 	return { wall = nextVector(), floor = nextVector() }
 end
 
--- Esculpe a caverna no grid usando SDF dos cilindros + math.noise.
+local function isInsideBounds(p: Vector3, bounds: { min: Vector3, max: Vector3 }): boolean
+	return p.X >= bounds.min.X
+		and p.X <= bounds.max.X
+		and p.Y >= bounds.min.Y
+		and p.Y <= bounds.max.Y
+		and p.Z >= bounds.min.Z
+		and p.Z <= bounds.max.Z
+end
+
+-- Decide se uma forma deve abrir uma célula acima do piso.
+local function canCarveShape(
+	p: Vector3,
+	inner: RoomShape,
+	outer: RoomShape,
+	wallNoise: WallNoiseDefinition,
+	wallOffset: Vector3
+): boolean
+	local sdfInner = sdfShape(p, inner)
+	if sdfInner < 0 then
+		return true
+	end
+
+	local sdfOuter = sdfShape(p, outer)
+	if sdfOuter > 0 then
+		return false
+	end
+
+	local nWall = math.noise(
+		p.X * wallNoise.frequency + wallOffset.X,
+		p.Y * wallNoise.frequency + wallOffset.Y,
+		p.Z * wallNoise.frequency + wallOffset.Z
+	)
+	return sdfOuter + nWall * wallNoise.amplitudeStuds <= 0
+end
+
+-- Esculpe a caverna-base e salas adicionais usando união de volumes.
 -- Ordem de decisão por célula:
 --   1. getCell != "Rock" → mantém (protege Outside e OOB)
 --   2. abaixo do piso ruidoso → Rock (piso corta tudo, inclusive o inner)
---   3. dentro do inner → Air (espaço acima do chão garantido)
---   4. fora do outer → Rock (limite duro; noise nunca cria ar aqui)
---   5. noise na faixa intermediária decide a parede orgânica
---   6. senão → Air
+--   3. base ou qualquer sala decide Air pela regra inner/outer + noise
+--   4. senão → Rock
 local function carveCavern(
 	grid: Types.Grid3D,
 	template: CaveTemplate,
@@ -524,6 +557,10 @@ local function carveCavern(
 
 	local wallOffset = offsets.wall
 	local floorOffset = offsets.floor
+	local roomOuterBounds: { { min: Vector3, max: Vector3 } } = {}
+	for index, room in ipairs(template.rooms) do
+		roomOuterBounds[index] = getShapeBounds(room.outer)
+	end
 
 	grid:forEachCell(function(cell)
 		if grid:getCell(cell) ~= "Rock" then
@@ -543,28 +580,19 @@ local function carveCavern(
 			return -- abaixo do chão → mantém Rock
 		end
 
-		local sdfInner = sdfCylinderX(p, inner)
-		if sdfInner < 0 then
+		if canCarveShape(p, inner, outer, wn, wallOffset) then
 			grid:setCell(cell, "Air")
 			return
 		end
 
-		local sdfOuter = sdfCylinderX(p, outer)
-		if sdfOuter > 0 then
-			return -- fora do outer → mantém Rock
+		for index, room in ipairs(template.rooms) do
+			if isInsideBounds(p, roomOuterBounds[index])
+				and canCarveShape(p, room.inner, room.outer, wn, wallOffset)
+			then
+				grid:setCell(cell, "Air")
+				return
+			end
 		end
-
-		local nWall = math.noise(
-			p.X * wn.frequency + wallOffset.X,
-			p.Y * wn.frequency + wallOffset.Y,
-			p.Z * wn.frequency + wallOffset.Z
-		)
-		local sdfWallNoisy = sdfOuter + nWall * wn.amplitudeStuds
-		if sdfWallNoisy > 0 then
-			return -- parede orgânica → mantém Rock
-		end
-
-		grid:setCell(cell, "Air")
 	end)
 end
 
