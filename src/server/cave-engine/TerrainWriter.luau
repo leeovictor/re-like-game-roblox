@@ -102,9 +102,16 @@ function TerrainWriter.write(grid: Types.Grid3D, opts: WriteOptions?): (boolean,
 				local minCell = Vector3int16.new(segX.start, segY.start, segZ.start)
 				local maxCell = Vector3int16.new(segX.stop, segY.stop, segZ.stop)
 
-				local chunkMinWorld = grid.worldMin
-					+ (minCell - Vector3int16.new(1, 1, 1)) * res
-				local chunkMaxWorld = grid.worldMin + maxCell * res
+				local chunkMinWorld = Vector3.new(
+					grid.worldMin.X + (minCell.X - 1) * res,
+					grid.worldMin.Y + (minCell.Y - 1) * res,
+					grid.worldMin.Z + (minCell.Z - 1) * res
+				)
+				local chunkMaxWorld = Vector3.new(
+					grid.worldMin.X + maxCell.X * res,
+					grid.worldMin.Y + maxCell.Y * res,
+					grid.worldMin.Z + maxCell.Z * res
+				)
 				local region = Region3.new(chunkMinWorld, chunkMaxWorld):ExpandToGrid(res)
 
 				local channels = buildVoxelChannels(grid, minCell, maxCell)

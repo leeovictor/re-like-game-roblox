@@ -88,3 +88,65 @@
 -- else
 -- 	print("Terrain escrito")
 -- end
+
+-- ---------------------------------------------------------------------------
+-- Protótipo cave-engine: caverna por SDF (cilindros + plano) + math.noise
+-- ---------------------------------------------------------------------------
+local CaveEngine = require(script["cave-engine"].CaveEngine)
+local TerrainWriter = require(script["cave-engine"].TerrainWriter)
+
+local engine = CaveEngine.new({
+	seed = 1337,
+	resolution = 4,
+	shellThicknessStuds = 12,
+})
+
+local template: CaveEngine.CaveTemplate = {
+	bounds = {
+		min = Vector3.new(-116, -120, -68),
+		max = Vector3.new(116, 16, 68),
+	},
+	innerCylinder = {
+		center = Vector3.new(0, -52, 0),
+		lengthStuds = 160,
+		radiusStuds = 28,
+	},
+	outerCylinder = {
+		center = Vector3.new(0, -52, 0),
+		lengthStuds = 200,
+		radiusStuds = 52,
+	},
+	floorPlane = {
+		yStuds = -72,
+		noiseAmplitudeStuds = 4,
+		noiseFrequency = 0.035,
+	},
+	wallNoise = {
+		amplitudeStuds = 20,
+		frequency = 0.045,
+	},
+}
+
+print("seed:", engine:getSeed())
+
+local result = engine:generate(template)
+if not result.success then
+	warn("Falha na caverna:", result.error)
+	return
+end
+
+print("Caverna gerada em", result.elapsedSeconds, "s")
+print("Rock:", result.stats.rockCells)
+print("Air:", result.stats.airCells)
+print("Outside:", result.stats.outsideCells)
+print(result.grid:toDebugString())
+
+local ok, err = TerrainWriter.write(result.grid, {
+	chunkSizeCells = 64,
+	clear = true,
+})
+if not ok then
+	warn("Falha na escrita:", err)
+else
+	print("Terrain escrito")
+end
