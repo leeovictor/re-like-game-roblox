@@ -323,6 +323,36 @@ local function sdfCylinderX(p: Vector3, cyl: CylinderDefinition): number
 	return outside + inside
 end
 
+-- SDF de esfera. Negativo = dentro.
+local function sdfSphere(p: Vector3, sphere: SphereDefinition): number
+	return (p - sphere.center).Magnitude - sphere.radiusStuds
+end
+
+-- Avalia o SDF da forma declarada pela sala.
+local function sdfShape(p: Vector3, shape: RoomShape): number
+	if shape.kind == "sphere" then
+		return sdfSphere(p, shape)
+	end
+	return sdfCylinderX(p, shape)
+end
+
+-- Retorna uma AABB conservativa da forma em coordenadas de mundo.
+local function getShapeBounds(shape: RoomShape): { min: Vector3, max: Vector3 }
+	if shape.kind == "sphere" then
+		local extent = Vector3.new(shape.radiusStuds, shape.radiusStuds, shape.radiusStuds)
+		return {
+			min = shape.center - extent,
+			max = shape.center + extent,
+		}
+	end
+
+	local extent = Vector3.new(shape.lengthStuds / 2, shape.radiusStuds, shape.radiusStuds)
+	return {
+		min = shape.center - extent,
+		max = shape.center + extent,
+	}
+end
+
 -- Gera offsets determinísticos para math.noise (que não aceita seed).
 -- wall: ruído da parede; floor: ruído do chão.
 local function generateNoiseOffsets(random: Random): NoiseOffsets
