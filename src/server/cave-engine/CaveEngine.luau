@@ -1,4 +1,5 @@
 local Types = require(script.Parent.Parent.world.types)
+local Grid3D = require(script.Parent.Parent.world.grid)
 
 -- Caixa delimitadora total do volume de geração (coordenadas de mundo).
 export type BoundingBoxDefinition = {
@@ -237,6 +238,51 @@ local function validateTemplate(template: CaveTemplate, config: CaveEngineConfig
 	end
 
 	return nil
+end
+
+-- Cria o Grid3D a partir dos bounds do template, 100% preenchido com "Rock".
+local function buildGrid(template: CaveTemplate, config: CaveEngineConfig): Types.Grid3D
+	return Grid3D.new(
+		config.resolution,
+		template.bounds.min,
+		template.bounds.max - template.bounds.min
+	)
+end
+
+-- Marca a casca externa como "Outside" (faixas de shellCells células por face).
+local function applyShell(grid: Types.Grid3D, shellCells: number)
+	grid:forEachCell(function(cell)
+		local x, y, z = cell.X, cell.Y, cell.Z
+		local isBorder =
+			x <= shellCells or x >= grid.size.X - shellCells + 1
+			or y <= shellCells or y >= grid.size.Y - shellCells + 1
+			or z <= shellCells or z >= grid.size.Z - shellCells + 1
+		if isBorder then
+			grid:setCell(cell, "Outside")
+		end
+	end)
+end
+
+-- Conta células Rock, Air e Outside do grid.
+local function countStats(grid: Types.Grid3D): CaveStats
+	local rock = 0
+	local air = 0
+	local outside = 0
+	grid:forEachCell(function(_cell, value)
+		if value == "Rock" then
+			rock += 1
+		elseif value == "Air" then
+			air += 1
+		else
+			outside += 1
+		end
+	end)
+	return {
+		totalCells = grid.size.X * grid.size.Y * grid.size.Z,
+		rockCells = rock,
+		airCells = air,
+		outsideCells = outside,
+	}
 end
 
 -- Constrói a engine. Guarda config, seed e Random.new(seed) (determinismo).
