@@ -113,6 +113,170 @@ local function validateConfig(config: CaveEngineConfig): string?
 	return nil
 end
 
+-- SDF de cilindro finito ao longo do eixo X. Negativo = dentro.
+local function sdfCylinderX(p: Vector3, cyl: CylinderDefinition): number
+	local dx = p.X - cyl.center.X
+	local dy = p.Y - cyl.center.Y
+	local dz = p.Z - cyl.center.Z
+
+	local qx = math.abs(dx) - cyl.lengthStuds / 2 -- axial: <0 dentro
+	local qr = math.sqrt(dy * dy + dz * dz) - cyl.radiusStuds -- radial: <0 dentro
+
+	local outside = math.sqrt(math.max(qx, 0) ^ 2 + math.max(qr, 0) ^ 2)
+	local inside = math.min(math.max(qx, qr), 0)
+	return outside + inside
+end
+
+-- SDF de esfera. Negativo = dentro.
+local function sdfSphere(p: Vector3, sphere: SphereDefinition): number
+	return (p - sphere.center).Magnitude - sphere.radiusStuds
+end
+
+-- Avalia o SDF da forma declarada pela sala.
+local function sdfShape(p: Vector3, shape: RoomShape): number
+	if shape.kind == "sphere" then
+		return sdfSphere(p, shape)
+	end
+	return sdfCylinderX(p, shape)
+end
+
+-- Retorna uma AABB conservativa da forma em coordenadas de mundo.
+local function getShapeBounds(shape: RoomShape): { min: Vector3, max: Vector3 }
+	if shape.kind == "sphere" then
+		local extent = Vector3.new(shape.radiusStuds, shape.radiusStuds, shape.radiusStuds)
+		return {
+			min = shape.center - extent,
+			max = shape.center + extent,
+		}
+	end
+
+	local extent = Vector3.new(shape.lengthStuds / 2, shape.radiusStuds, shape.radiusStuds)
+	return {
+		min = shape.center - extent,
+		max = shape.center + extent,
+	}
+end
+
+local function isFiniteNumber(value: any): boolean
+	return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+-- Valida uma forma antes de acessar seus parâmetros geométricos.
+local function validateShape(shape: any, label: string): string?
+	if type(shape) ~= "table" then
+		return label .. " deve ser uma forma"
+	end
+	if shape.kind ~= "sphere" and shape.kind ~= "cylinder" then
+		return label .. ".kind deve ser sphere ou cylinder"
+	end
+	if typeof(shape.center) ~= "Vector3" then
+		return label .. ".center deve ser Vector3"
+	end
+	if not isFiniteNumber(shape.radiusStuds) or shape.radiusStuds <= 0 then
+		return label .. ".radiusStuds deve ser um número > 0"
+	end
+	if shape.kind == "cylinder"
+		and (not isFiniteNumber(shape.lengthStuds) or shape.lengthStuds <= 0)
+	then
+		return label .. ".lengthStuds deve ser um número > 0"
+	end
+	return nil
+end
+
+local function sameCenter(a: Vector3, b: Vector3): boolean
+	return a.X == b.X and a.Y == b.Y and a.Z == b.Z
+end
+
+-- Espessura mínima da faixa entre inner e outer, em studs.
+local function getShapeThickness(inner: RoomShape, outer: RoomShape): number
+	if inner.kind == "cylinder" and outer.kind == "cylinder" then
+		return math.min(
+			outer.radiusStuds - inner.radiusStuds,
+			(outer.lengthStuds - inner.lengthStuds) / 2
+		)
+	end
+	return outer.radiusStuds - inner.radiusStuds
+end
+
+local function validateRoom(
+	room: any,
+	index: number,
+	bounds: BoundingBoxDefinition,
+	shell: number,
+	noiseAmplitude: number
+): string?
+	local label = string.format("rooms[%d]", index)
+	if type(room) ~= "table" then
+		return label .. " deve ser uma tabela"
+	end
+
+	local inner = room.inner
+	local outer = room.outer
+	local innerError = validateShape(inner, label .. ".inner")
+	if innerError ~= nil then
+		return innerError
+	end
+	local outerError = validateShape(outer, label .. ".outer")
+	if outerError ~= nil then
+		return outerError
+	end
+
+	if inner.kind ~= outer.kind then
+		return label .. ".inner e .outer devem ter o mesmo kind"
+	end
+	if not sameCenter(inner.center, outer.center) then
+		return label .. ".inner e .outer devem compartilhar o mesmo centro"
+	end
+
+	if outer.kind == "sphere" then
+		if outer.radiusStuds <= inner.radiusStuds then
+			return label .. ".outer.radiusStuds deve ser > .inner.radiusStuds"
+		end
+	else
+		if outer.radiusStuds <= inner.radiusStuds then
+			return label .. ".outer.radiusStuds deve ser > .inner.radiusStuds"
+		end
+		if outer.lengthStuds < inner.lengthStuds then
+			return label .. ".outer.lengthStuds deve ser >= .inner.lengthStuds"
+		end
+	end
+
+	local outerBounds = getShapeBounds(outer)
+	if outerBounds.min.X < bounds.min.X or outerBounds.max.X > bounds.max.X then
+		return label .. ".outer extrapola bounds em X"
+	end
+	if outerBounds.min.Y < bounds.min.Y or outerBounds.max.Y > bounds.max.Y then
+		return label .. ".outer extrapola bounds em Y"
+	end
+	if outerBounds.min.Z < bounds.min.Z or outerBounds.max.Z > bounds.max.Z then
+		return label .. ".outer extrapola bounds em Z"
+	end
+
+	if shell > 0 then
+		local gapX = math.min(
+			outerBounds.min.X - bounds.min.X,
+			bounds.max.X - outerBounds.max.X
+		)
+		local gapY = math.min(
+			outerBounds.min.Y - bounds.min.Y,
+			bounds.max.Y - outerBounds.max.Y
+		)
+		local gapZ = math.min(
+			outerBounds.min.Z - bounds.min.Z,
+			bounds.max.Z - outerBounds.max.Z
+		)
+		if gapX < shell or gapY < shell or gapZ < shell then
+			return label .. ".outer deixa espaço insuficiente para a casca"
+		end
+	end
+
+	if noiseAmplitude > getShapeThickness(inner, outer) then
+		return label .. " não possui espessura suficiente para wallNoise.amplitudeStuds"
+	end
+
+	return nil
+end
+
 -- Valida o template contra a config. Retorna string de erro ou nil.
 -- Template pode ser dinâmico → erro retornado (não error()) e reportado no result.
 local function validateTemplate(template: CaveTemplate, config: CaveEngineConfig): string?
@@ -149,6 +313,9 @@ local function validateTemplate(template: CaveTemplate, config: CaveEngineConfig
 	end
 	if outer == nil then
 		return "outerCylinder não pode ser nil"
+	end
+	if inner.kind ~= "cylinder" or outer.kind ~= "cylinder" then
+		return "innerCylinder e outerCylinder devem ter kind cylinder"
 	end
 	if inner.radiusStuds <= 0 then
 		return "innerCylinder.radiusStuds deve ser > 0"
@@ -254,11 +421,26 @@ local function validateTemplate(template: CaveTemplate, config: CaveEngineConfig
 	if wn.amplitudeStuds < 0 then
 		return "wallNoise.amplitudeStuds deve ser >= 0"
 	end
-	if wn.amplitudeStuds > outer.radiusStuds - inner.radiusStuds then
-		return "wallNoise.amplitudeStuds deve ser <= (outerRadius - innerRadius)"
+	if wn.amplitudeStuds > getShapeThickness(inner, outer) then
+		return "wallNoise.amplitudeStuds deve ser <= a espessura mínima entre inner e outer"
 	end
 	if wn.frequency <= 0 then
 		return "wallNoise.frequency deve ser > 0"
+	end
+
+	-- Salas adicionais ----------------------------------------------------------
+	local rooms = template.rooms
+	if rooms == nil then
+		return "rooms não pode ser nil"
+	end
+	if type(rooms) ~= "table" then
+		return "rooms deve ser uma tabela"
+	end
+	for index, room in ipairs(rooms) do
+		local roomError = validateRoom(room, index, b, shell, wn.amplitudeStuds)
+		if roomError ~= nil then
+			return roomError
+		end
 	end
 
 	return nil
@@ -306,50 +488,6 @@ local function countStats(grid: Types.Grid3D): CaveStats
 		rockCells = rock,
 		airCells = air,
 		outsideCells = outside,
-	}
-end
-
--- SDF de cilindro finito ao longo do eixo X. Negativo = dentro.
-local function sdfCylinderX(p: Vector3, cyl: CylinderDefinition): number
-	local dx = p.X - cyl.center.X
-	local dy = p.Y - cyl.center.Y
-	local dz = p.Z - cyl.center.Z
-
-	local qx = math.abs(dx) - cyl.lengthStuds / 2 -- axial: <0 dentro
-	local qr = math.sqrt(dy * dy + dz * dz) - cyl.radiusStuds -- radial: <0 dentro
-
-	local outside = math.sqrt(math.max(qx, 0) ^ 2 + math.max(qr, 0) ^ 2)
-	local inside = math.min(math.max(qx, qr), 0)
-	return outside + inside
-end
-
--- SDF de esfera. Negativo = dentro.
-local function sdfSphere(p: Vector3, sphere: SphereDefinition): number
-	return (p - sphere.center).Magnitude - sphere.radiusStuds
-end
-
--- Avalia o SDF da forma declarada pela sala.
-local function sdfShape(p: Vector3, shape: RoomShape): number
-	if shape.kind == "sphere" then
-		return sdfSphere(p, shape)
-	end
-	return sdfCylinderX(p, shape)
-end
-
--- Retorna uma AABB conservativa da forma em coordenadas de mundo.
-local function getShapeBounds(shape: RoomShape): { min: Vector3, max: Vector3 }
-	if shape.kind == "sphere" then
-		local extent = Vector3.new(shape.radiusStuds, shape.radiusStuds, shape.radiusStuds)
-		return {
-			min = shape.center - extent,
-			max = shape.center + extent,
-		}
-	end
-
-	local extent = Vector3.new(shape.lengthStuds / 2, shape.radiusStuds, shape.radiusStuds)
-	return {
-		min = shape.center - extent,
-		max = shape.center + extent,
 	}
 end
 
