@@ -96,6 +96,7 @@
 -- ---------------------------------------------------------------------------
 local CaveEngine = require(script["cave-engine"].CaveEngine)
 local TerrainWriter = require(script["cave-engine"].TerrainWriter)
+local WallWalkerController = require(script.world.WallWalkerController)
 
 local engine = CaveEngine.new({
 	seed = 1337,
@@ -239,4 +240,95 @@ if not ok then
 	warn("Falha na escrita:", err)
 else
 	print("Terrain escrito")
+
+	-- -----------------------------------------------------------------------
+	-- Protótipo técnico: movimento cinemático aderido à superfície via raycast
+	-- -----------------------------------------------------------------------
+	local previousPrototype = workspace:FindFirstChild("WallWalkerPrototype")
+	if previousPrototype ~= nil then
+		previousPrototype:Destroy()
+	end
+
+	local prototypeFolder = Instance.new("Folder")
+	prototypeFolder.Name = "WallWalkerPrototype"
+	prototypeFolder.Parent = workspace
+
+	local targetMarker = Instance.new("Part")
+	targetMarker.Name = "TargetMarker"
+	targetMarker.Shape = Enum.PartType.Ball
+	targetMarker.Size = Vector3.new(3, 3, 3)
+	targetMarker.Color = Color3.fromRGB(70, 255, 120)
+	targetMarker.Material = Enum.Material.Neon
+	targetMarker.Anchored = true
+	targetMarker.CanCollide = false
+	targetMarker.Position = Vector3.new(0, -68, 0)
+	targetMarker.Parent = prototypeFolder
+
+	local walker = Instance.new("Part")
+	walker.Name = "RaycastWallWalker"
+	walker.Shape = Enum.PartType.Ball
+	walker.Size = Vector3.new(3, 3, 3)
+	walker.Color = Color3.fromRGB(255, 80, 80)
+	walker.Material = Enum.Material.Neon
+	walker.Anchored = true
+	walker.CanCollide = false
+	walker.Parent = prototypeFolder
+
+	local spawnParams = RaycastParams.new()
+	spawnParams.FilterType = Enum.RaycastFilterType.Exclude
+	spawnParams.FilterDescendantsInstances = { prototypeFolder }
+	spawnParams.IgnoreWater = true
+
+	local function findInitialSurface(): RaycastResult?
+		local origin = Vector3.new(0, -52, 0)
+		local directions = {
+			Vector3.zAxis,
+			-Vector3.zAxis,
+			Vector3.xAxis,
+			-Vector3.xAxis,
+			Vector3.yAxis,
+			-Vector3.yAxis,
+		}
+
+		-- WriteVoxels pode terminar antes da colisão do Terrain estar consultável.
+		for _attempt = 1, 10 do
+			for _, direction in directions do
+				local hit = workspace:Raycast(origin, direction * 160, spawnParams)
+				if hit ~= nil then
+					return hit
+				end
+			end
+			task.wait()
+		end
+		return nil
+	end
+
+	local wallHit = findInitialSurface()
+	if wallHit == nil then
+		warn("WallWalker: não foi possível encontrar uma superfície inicial após 10 tentativas")
+	else
+		local initialNormal = wallHit.Normal
+		walker.Position = wallHit.Position + initialNormal * (walker.Size.X / 2 + 0.1)
+
+		local Players = game:GetService("Players")
+		local controller = WallWalkerController.new(walker, {
+			targetProvider = function(): Vector3?
+				local player = Players:GetPlayers()[1]
+				local character = if player then player.Character else nil
+				local playerRoot = if character
+					then character:FindFirstChild("HumanoidRootPart")
+					else nil
+				if playerRoot ~= nil and playerRoot:IsA("BasePart") then
+					return playerRoot.Position
+				end
+				return targetMarker.Position
+			end,
+			initialNormal = initialNormal,
+			speed = 12,
+			surfaceOffset = walker.Size.X / 2 + 0.1,
+			probeDistance = 12,
+			normalSmoothing = 0.35,
+		})
+		controller:start()
+	end
 end
