@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 local Stats = require(script.Parent.stats)
 
@@ -151,7 +153,8 @@ local function pickRoomCenters(
 	local rooms: { Types.RoomData } = {}
 
 	local centerCell = grid:worldToCell(grid.center)
-	local room = {
+	assert(centerCell ~= nil, "grid center must be inside the grid")
+	local room: Types.RoomData = {
 		index = 1,
 		centerCell = centerCell,
 		centerWorld = grid:cellToWorld(centerCell),
@@ -180,7 +183,7 @@ local function pickRoomCenters(
 			end
 			if farEnough then
 				local isPit = random:NextNumber() < config.pitProbability
-				local newRoom = {
+				local newRoom: Types.RoomData = {
 					index = index,
 					centerCell = candidate,
 					centerWorld = posCandidate,

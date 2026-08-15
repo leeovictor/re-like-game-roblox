@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 
 -- Conta células "Rock", "Air" e "Outside".

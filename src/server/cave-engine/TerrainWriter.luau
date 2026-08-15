@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.Parent.world.types)
 
 -- Opções de escrita.

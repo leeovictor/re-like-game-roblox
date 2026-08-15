@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 
 local Grid3D = {}
@@ -27,7 +29,7 @@ function Grid3D.new(resolution: number, worldMin: Vector3, sizeStuds: Vector3): 
 		math.round(sizeStuds.Z / resolution)
 	)
 
-	local self = setmetatable({
+	local self: any = setmetatable({
 		resolution = resolution,
 		minCell = Vector3int16.new(1, 1, 1),
 		size = size,
@@ -41,7 +43,7 @@ function Grid3D.new(resolution: number, worldMin: Vector3, sizeStuds: Vector3): 
 end
 
 -- Converte posição em studs para célula. Retorna nil se fora dos limites.
-function Grid3D:worldToCell(position: Vector3): Vector3int16?
+function Grid3D.worldToCell(self: Types.Grid3D, position: Vector3): Vector3int16?
 	local cell = Vector3int16.new(
 		math.floor((position.X - self.worldMin.X) / self.resolution) + 1,
 		math.floor((position.Y - self.worldMin.Y) / self.resolution) + 1,
@@ -54,7 +56,7 @@ function Grid3D:worldToCell(position: Vector3): Vector3int16?
 end
 
 -- Converte célula para o CENTRO da célula em studs.
-function Grid3D:cellToWorld(cell: Vector3int16): Vector3
+function Grid3D.cellToWorld(self: Types.Grid3D, cell: Vector3int16): Vector3
 	local half = self.resolution / 2
 	return Vector3.new(
 		self.worldMin.X + (cell.X - 1) * self.resolution + half,
@@ -64,14 +66,14 @@ function Grid3D:cellToWorld(cell: Vector3int16): Vector3
 end
 
 -- true se 1 <= x <= size.X (e idem y, z).
-function Grid3D:inBounds(cell: Vector3int16): boolean
+function Grid3D.inBounds(self: Types.Grid3D, cell: Vector3int16): boolean
 	return cell.X >= 1 and cell.X <= self.size.X
 		and cell.Y >= 1 and cell.Y <= self.size.Y
 		and cell.Z >= 1 and cell.Z <= self.size.Z
 end
 
 -- Define o material de uma célula. Ignora células fora de bounds.
-function Grid3D:setCell(cell: Vector3int16, value: Types.GridCell): ()
+function Grid3D.setCell(self: Types.Grid3D, cell: Vector3int16, value: Types.GridCell): ()
 	if not self:inBounds(cell) then
 		return
 	end
@@ -79,7 +81,7 @@ function Grid3D:setCell(cell: Vector3int16, value: Types.GridCell): ()
 end
 
 -- Retorna o material da célula. Fora de bounds retorna "Outside" (defensivo).
-function Grid3D:getCell(cell: Vector3int16): Types.GridCell
+function Grid3D.getCell(self: Types.Grid3D, cell: Vector3int16): Types.GridCell
 	if not self:inBounds(cell) then
 		return "Outside"
 	end
@@ -87,7 +89,10 @@ function Grid3D:getCell(cell: Vector3int16): Types.GridCell
 end
 
 -- Itera todas as células na ordem x → y → z.
-function Grid3D:forEachCell(callback: (cell: Vector3int16, value: Types.GridCell) -> ()): ()
+function Grid3D.forEachCell(
+	self: Types.Grid3D,
+	callback: (cell: Vector3int16, value: Types.GridCell) -> ()
+): ()
 	for x = 1, self.size.X do
 		for y = 1, self.size.Y do
 			for z = 1, self.size.Z do
@@ -98,7 +103,7 @@ function Grid3D:forEachCell(callback: (cell: Vector3int16, value: Types.GridCell
 end
 
 -- Resumo legível, ex.: "Grid 32x16x32 | Rock 6760 | Outside 9624".
-function Grid3D:toDebugString(): string
+function Grid3D.toDebugString(self: Types.Grid3D): string
 	local rockCount = 0
 	local airCount = 0
 	local outsideCount = 0

@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.Parent.world.types)
 local Grid3D = require(script.Parent.Parent.world.grid)
 
@@ -603,7 +605,7 @@ function CaveEngine.new(config: CaveEngineConfig): CaveEngine
 		error(err, 2)
 	end
 
-	local self = setmetatable({
+	local self: any = setmetatable({
 		config = config,
 		seed = config.seed,
 		random = Random.new(config.seed),

@@ -1,3 +1,5 @@
+--!strict
+
 -- Material de uma célula do grid lógico.
 export type GridCell = "Rock" | "Air" | "Outside"
 -- "Rock"    : sólido gerado

@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 local Stats = require(script.Parent.stats)
 
@@ -27,7 +29,6 @@ end
 
 -- MST (Prim's) + loops; retorna as arestas da rede.
 local function buildTunnelGraph(
-	rooms: { Types.RoomData },
 	connected: { Types.RoomData },
 	config: Types.WorldConfig,
 	random: Random
@@ -173,7 +174,7 @@ local function generateTunnels(
 	end
 
 	local connected = pickConnectedRooms(rooms, config, random)
-	local edges = buildTunnelGraph(rooms, connected, config, random)
+	local edges = buildTunnelGraph(connected, config, random)
 
 	for _, edge in ipairs(edges) do
 		carveTube(grid, edge.a.centerWorld, edge.b.centerWorld, config, random)

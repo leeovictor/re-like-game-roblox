@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 local Grid3D = require(script.Parent.grid)
 local Config = require(script.Parent.config)

@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 
 -- Valida a config. Retorna string de erro ou nil.

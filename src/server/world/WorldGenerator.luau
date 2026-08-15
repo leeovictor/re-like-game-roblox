@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 local RockVolume = require(script.Parent.rockVolume)
 local Rooms = require(script.Parent.rooms)

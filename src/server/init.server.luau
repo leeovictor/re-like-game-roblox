@@ -1,3 +1,5 @@
+--!strict
+
 -- local WorldGenerator = require(script.world.WorldGenerator)
 
 -- local generator = WorldGenerator.new({
@@ -103,8 +105,8 @@ local engine = CaveEngine.new({
 
 local template: CaveEngine.CaveTemplate = {
 	bounds = {
-		min = Vector3.new(-116, -120, -68),
-		max = Vector3.new(116, 16, 68),
+		min = Vector3.new(-220, -140, -160),
+		max = Vector3.new(220, 60, 160),
 	},
 	innerCylinder = {
 		kind = "cylinder",
@@ -118,7 +120,86 @@ local template: CaveEngine.CaveTemplate = {
 		lengthStuds = 200,
 		radiusStuds = 52,
 	},
-	rooms = {},
+	rooms = {
+		{
+			inner = {
+				kind = "sphere",
+				center = Vector3.new(0, -40, 60),
+				radiusStuds = 8,
+			},
+			outer = {
+				kind = "sphere",
+				center = Vector3.new(0, -40, 60),
+				radiusStuds = 40,
+			},
+		},
+		{
+			inner = {
+				kind = "cylinder",
+				center = Vector3.new(118, -40, 0),
+				lengthStuds = 32,
+				radiusStuds = 8,
+			},
+			outer = {
+				kind = "cylinder",
+				center = Vector3.new(118, -40, 0),
+				lengthStuds = 96,
+				radiusStuds = 40,
+			},
+		},
+		{
+			inner = {
+				kind = "sphere",
+				center = Vector3.new(-120, -40, 0),
+				radiusStuds = 8,
+			},
+			outer = {
+				kind = "sphere",
+				center = Vector3.new(-120, -40, 0),
+				radiusStuds = 40,
+			},
+		},
+		{
+			inner = {
+				kind = "sphere",
+				center = Vector3.new(0, -40, -80),
+				radiusStuds = 10,
+			},
+			outer = {
+				kind = "sphere",
+				center = Vector3.new(0, -40, -80),
+				radiusStuds = 44,
+			},
+		},
+		{
+			inner = {
+				kind = "cylinder",
+				center = Vector3.new(-120, -40, 80),
+				lengthStuds = 32,
+				radiusStuds = 8,
+			},
+			outer = {
+				kind = "cylinder",
+				center = Vector3.new(-120, -40, 80),
+				lengthStuds = 96,
+				radiusStuds = 40,
+			},
+		},
+		{
+			inner = {
+				kind = "cylinder",
+				center = Vector3.new(120, -40, -80),
+				lengthStuds = 40,
+				radiusStuds = 10,
+			},
+			outer = {
+				kind = "cylinder",
+				center = Vector3.new(120, -40, -80),
+				lengthStuds = 112,
+				radiusStuds = 44,
+			},
+		},
+	},
 	floorPlane = {
 		yStuds = -72,
 		noiseAmplitudeStuds = 4,
@@ -131,6 +212,7 @@ local template: CaveEngine.CaveTemplate = {
 }
 
 print("seed:", engine:getSeed())
+print("Salas extras:", #template.rooms)
 
 local result = engine:generate(template)
 if not result.success then
@@ -139,12 +221,17 @@ if not result.success then
 end
 
 print("Caverna gerada em", result.elapsedSeconds, "s")
-print("Rock:", result.stats.rockCells)
-print("Air:", result.stats.airCells)
-print("Outside:", result.stats.outsideCells)
-print(result.grid:toDebugString())
+local stats = result.stats
+local grid = result.grid
+if stats == nil or grid == nil then
+	error("CaveEngine retornou sucesso sem grid ou estatísticas", 0)
+end
+print("Rock:", stats.rockCells)
+print("Air:", stats.airCells)
+print("Outside:", stats.outsideCells)
+print(grid:toDebugString())
 
-local ok, err = TerrainWriter.write(result.grid, {
+local ok, err = TerrainWriter.write(grid, {
 	chunkSizeCells = 64,
 	clear = true,
 })

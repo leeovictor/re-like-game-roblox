@@ -1,3 +1,5 @@
+--!strict
+
 local Types = require(script.Parent.types)
 
 -- Tamanho padrão do chunk de escrita (células por eixo) quando a config

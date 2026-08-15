@@ -15,3 +15,147 @@ rojo serve
 ```
 
 For more help, check out [the Rojo documentation](https://rojo.space/docs).
+
+## Unit Tests with Lune
+
+The project uses [Rokit](https://github.com/rojo-rbx/rokit) as the recommended
+toolchain manager. [Aftman](https://github.com/LPGhatguy/aftman) is also kept in
+the repository for workflows that use it. Install the pinned tools from the
+project root with:
+
+```bash
+rokit install
+```
+
+Check the installed Lune version and available scripts with:
+
+```bash
+lune --version
+lune list
+```
+
+Run the unit tests with:
+
+```bash
+lune run test
+```
+
+Test files belong under `tests/` and must use the `*.spec.luau` suffix. The
+runner discovers them recursively, so a new test can be placed alongside the
+matching production area, for example `tests/server/world/example.spec.luau`.
+Tests can use the small harness in `tests/support/harness.luau` and load Roblox
+modules through `tests/support/roblox-loader.luau` without changing the imports
+used by scripts in `src/`.
+
+Lune tests cover pure Luau logic and the Roblox datatypes provided by
+`@lune/roblox`. They do not run a complete Roblox game: APIs such as
+`workspace.Terrain`, `Terrain:WriteVoxels`, and Studio initialization remain
+integration concerns and must be tested from Roblox Studio through Rojo.
+
+## Luau Linting
+
+The project uses [Selene](https://kampfkarren.github.io/selene/) 0.29.0 to lint
+Luau code in `src/`, `tests/`, and `lune/`. Install the pinned tools with the
+recommended Rokit workflow:
+
+```bash
+rokit install
+```
+
+The equivalent Aftman workflow is also supported:
+
+```bash
+aftman install
+```
+
+Check the installed Selene version with:
+
+```bash
+selene --version
+```
+
+Lint Roblox code with its Roblox standard library:
+
+```bash
+selene --config selene.roblox.toml src
+```
+
+Lint Lune tests and scripts with the Lune-specific standard library:
+
+```bash
+selene --config selene.lune.toml tests lune
+```
+
+The two areas use different standard libraries: `src/` recognizes Roblox APIs
+such as `game`, `workspace`, `Instance`, and `Vector3`, while `tests/` and
+`lune/` only declare the Lune globals that the runner provides. The Lune
+configuration does not make Roblox globals available outside Roblox. Linting
+checks source diagnostics such as unused variables, undefined globals, and
+invalid syntax; it is separate from the runtime unit tests executed by
+`lune run test`.
+
+## Luau Typechecking
+
+The project uses [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp) 1.69.0
+for semantic Luau typechecking. Install the pinned tools with Rokit:
+
+```bash
+rokit install
+```
+
+The equivalent Aftman workflow is also supported:
+
+```bash
+aftman install
+```
+
+Check the installed typechecker version with:
+
+```bash
+luau-lsp --version
+```
+
+Roblox code is analyzed separately with the Roblox definitions and the Rojo
+sourcemap. Generate the sourcemap before running the analysis:
+
+```bash
+rojo sourcemap \
+  --include-non-scripts \
+  default.project.json \
+  --output sourcemap.json
+
+luau-lsp analyze \
+  --platform roblox \
+  --settings typecheck/luau-lsp.roblox.json \
+  --base-luaurc typecheck/roblox.luaurc \
+  --definitions @roblox=typecheck/globalTypes.None.d.luau \
+  --sourcemap sourcemap.json \
+  --formatter gnu \
+  src
+```
+
+Lune tests and scripts use the standard Luau platform and Lune definitions,
+without loading Roblox globals or the Rojo sourcemap:
+
+```bash
+lune setup
+
+luau-lsp analyze \
+  --platform standard \
+  --base-luaurc typecheck/lune.luaurc \
+  --formatter gnu \
+  tests lune
+```
+
+Run `lune setup` from a disposable directory when generating the local
+definitions so it does not create a shared root `.luaurc`. The generated
+definitions must match the pinned Lune 0.10.4 version. The checked-in Roblox
+definitions are tied to luau-lsp 1.69.0 and have SHA-256
+`12cc962e8387c6b66e57b356cfecae6a0957e5cc14376e0b17a661ddf1493c1d`.
+`sourcemap.json` is generated and ignored by Git.
+
+The two analyses have different responsibilities: the Roblox command resolves
+`script` imports, Roblox datatypes, services, and the Rojo instance tree, while
+the Lune command checks the test harness and `@lune/*` APIs. Typechecking is
+separate from Selene linting, `lune run test`, `rojo build`, and Roblox Studio
+integration checks.
