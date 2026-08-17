@@ -7,6 +7,8 @@ local remotes = require(ReplicatedStorage.Shared.remotes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 type InventoryState = items.InventoryState
+type UseRequest = items.UseRequest
+type UseResult = items.UseResult
 type Connection = RBXScriptConnection
 type SignalConnection = {
 	Disconnect: (self: SignalConnection) -> (),
@@ -18,6 +20,7 @@ type ChangedSignal = {
 
 local inventoryChanged = remotes.InventoryChanged :: RemoteEvent
 local getInventory = remotes.GetInventory :: RemoteFunction
+local useItem = remotes.UseItem :: RemoteFunction
 
 local changed = (Signal.new() :: any) :: ChangedSignal
 
@@ -25,6 +28,7 @@ export type InventoryController = {
 	start: () -> (),
 	stop: () -> (),
 	getState: () -> InventoryState?,
+	use: (request: UseRequest) -> UseResult,
 	changed: typeof(changed),
 }
 local state: InventoryState? = nil
@@ -74,6 +78,10 @@ end
 
 function controller.getState(): InventoryState?
 	return state
+end
+
+function controller.use(request: UseRequest): UseResult
+	return useItem:InvokeServer(request) :: UseResult
 end
 
 return controller

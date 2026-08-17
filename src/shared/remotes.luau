@@ -39,5 +39,6 @@ end
 return {
 	InventoryChanged = _ensureRemote("InventoryChanged", "RemoteEvent"),
 	GetInventory = _ensureRemote("GetInventory", "RemoteFunction"),
+	UseItem = _ensureRemote("UseItem", "RemoteFunction"),
 	PickupCollected = _ensureRemote("PickupCollected", "RemoteEvent"),
 }

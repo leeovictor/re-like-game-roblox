@@ -5,6 +5,7 @@ local inventoryTypes = require(script.Parent.Parent.Parent.Parent.ReplicatedStor
 local behaviorTypes = require(script.Parent.ItemBehaviorRegistry)
 
 type ItemInstance = inventoryTypes.ItemInstance
+type InventoryState = inventoryTypes.InventoryState
 type UseRequest = inventoryTypes.UseRequest
 type UseResult = inventoryTypes.UseResult
 type UseContext = inventoryTypes.UseContext
@@ -19,7 +20,7 @@ type UseMutations = {
 
 type InventoryService = {
 	find: (self: InventoryService, player: Player, uid: string) -> ItemInstance?,
-	getSnapshot: (self: InventoryService, player: Player) -> { items: { ItemInstance } }?,
+	getSnapshot: (self: InventoryService, player: Player) -> InventoryState?,
 	removeInstance: (self: InventoryService, player: Player, uid: string) -> boolean,
 	removeQuantity: (self: InventoryService, player: Player, uid: string, quantity: number) -> boolean,
 	updateAttributes: (self: InventoryService, player: Player, uid: string, attributes: ItemAttributes) -> boolean,
@@ -34,6 +35,7 @@ type Registry = {
 export type Service = {
 	findCompatibleItem: (self: Service, player: Player, request: UseRequest) -> ItemInstance?,
 	use: (self: Service, player: Player, request: UseRequest) -> UseResult,
+	bind: (self: Service, remote: RemoteFunction) -> (),
 }
 
 local ItemUseService = {}
@@ -209,6 +211,15 @@ function ItemUseService.new(inventory: InventoryService, registry: Registry): Se
 			return failure("use_failed")
 		end
 		return result
+	end
+
+	function service:bind(remote: RemoteFunction): ()
+		remote.OnServerInvoke = function(player: Player, request: any): UseResult
+			if not validRequest(request) then
+				return failure("invalid_request")
+			end
+			return service:use(player, request :: UseRequest)
+		end
 	end
 
 	return service
