@@ -1,0 +1,6 @@
+{
+  "name": "camera-system-plugin",
+  "tree": {
+    "$path": "plugin"
+  }
+}
