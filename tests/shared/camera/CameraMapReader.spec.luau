@@ -104,6 +104,16 @@ harness.describe("CameraMapReader", function()
 		harness.assert.equal(config.zones[1].shotId, "North")
 	end)
 
+	harness.it("ordena zonas alfabeticamente quando Order empata", function()
+		local root = newCameraSystem()
+		root.Zones.First.attributes.Order = 1
+		root.Zones.children = { root.Zones.Second, root.Zones.First }
+
+		local config = CameraMapReader.read(root)
+		harness.assert.equal(config.zones[1].id, "First")
+		harness.assert.equal(config.zones[2].id, "Second")
+	end)
+
 	harness.it("preserva CFrame e Size das instancias", function()
 		local root = newCameraSystem()
 		local config = CameraMapReader.read(root)
