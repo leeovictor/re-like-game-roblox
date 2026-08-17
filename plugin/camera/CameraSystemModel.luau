@@ -7,6 +7,8 @@ local DEFAULT_SHOT_ID = "DefaultShotId"
 local FIELD_OF_VIEW = "FieldOfView"
 local SHOT_ID = "ShotId"
 local ORDER = "Order"
+local EDITOR_SHOT_TRANSPARENCY = 0
+local EDITOR_ZONE_TRANSPARENCY = 0.75
 
 type Hierarchy = {
 	root: Folder,
@@ -323,11 +325,16 @@ end
 function CameraSystemModel.setPartsVisible(self: Model, visible: boolean)
 	local hierarchy = self:_hierarchy()
 	setWaypoint(self.changeHistoryService, "Camera System: Begin set visibility")
-	for _, folder in { hierarchy.shots, hierarchy.zones } do
-		for _, child in folder:GetChildren() do
-			if child:IsA("BasePart") then
-				(child :: BasePart).Transparency = if visible then 0 else 1
-			end
+	local shotTransparency = if visible then EDITOR_SHOT_TRANSPARENCY else 1
+	local zoneTransparency = if visible then EDITOR_ZONE_TRANSPARENCY else 1
+	for _, child in hierarchy.shots:GetChildren() do
+		if child:IsA("BasePart") then
+			(child :: BasePart).Transparency = shotTransparency
+		end
+	end
+	for _, child in hierarchy.zones:GetChildren() do
+		if child:IsA("BasePart") then
+			(child :: BasePart).Transparency = zoneTransparency
 		end
 	end
 	setWaypoint(self.changeHistoryService, "Camera System: End set visibility")
