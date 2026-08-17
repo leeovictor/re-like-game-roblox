@@ -77,8 +77,7 @@ local function makeInput(parent: Instance, placeholder: string): TextBox
 	return input
 end
 
-function CameraSystemWidget.new(widgetInfo: DockWidgetPluginGuiInfo, callbacks: Callbacks): Widget
-	local gui = (plugin :: any):CreateDockWidgetPluginGui("CameraSystem", widgetInfo) :: DockWidgetPluginGui
+function CameraSystemWidget.new(gui: DockWidgetPluginGui, callbacks: Callbacks): Widget
 	gui.Title = "Camera System"
 
 	local root = make("ScrollingFrame", gui) :: ScrollingFrame

@@ -174,7 +174,8 @@ local function openWidget()
 		end,
 	}
 
-	widget = CameraSystemWidget.new(widgetInfo, callbacks)
+	local gui = pluginApi:CreateDockWidgetPluginGui("CameraSystem", widgetInfo) :: DockWidgetPluginGui
+	widget = CameraSystemWidget.new(gui, callbacks)
 	widget.gui.BindToClose(function()
 		closeWidget()
 	end)
