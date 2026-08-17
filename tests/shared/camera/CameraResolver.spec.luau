@@ -22,7 +22,6 @@ type LuneRoblox = {
 local roblox = require("@lune/roblox") :: LuneRoblox
 local Vector3 = roblox.Vector3
 local CFrame = roblox.CFrame
-local CameraConfig = loader.load("src/shared/camera/CameraConfig.luau")
 local CameraResolver = loader.load("src/shared/camera/CameraResolver.luau")
 
 local function newConfig(): any
@@ -57,25 +56,6 @@ local function assertInvalid(config: any): ()
 end
 
 harness.describe("CameraResolver", function()
-	harness.it("carrega uma configuracao inicial valida", function()
-		harness.assert.truthy(CameraConfig.shots[CameraConfig.defaultShotId])
-		for _, zone in ipairs(CameraConfig.zones) do
-			harness.assert.truthy(CameraConfig.shots[zone.shotId])
-			harness.assert.truthy(zone.volume.size.X > 0)
-			harness.assert.truthy(zone.volume.size.Y > 0)
-			harness.assert.truthy(zone.volume.size.Z > 0)
-		end
-	end)
-
-	harness.it("resolve os centros das zonas adicionais", function()
-		local resolver = CameraResolver.new(CameraConfig)
-		harness.assert.equal(resolver:resolve(Vector3.new(-80, 0, 0)), "WestChamber")
-		harness.assert.equal(resolver:resolve(Vector3.new(0, 0, 60)), "NorthGallery")
-		harness.assert.equal(resolver:resolve(Vector3.new(0, 0, -64)), "SouthGallery")
-		harness.assert.equal(resolver:resolve(Vector3.new(0, 40, 0)), "UpperGallery")
-		harness.assert.equal(resolver:resolve(Vector3.new(80, 0, 0)), "EastChamber")
-	end)
-
 	harness.it("retorna o shot de um ponto dentro do volume", function()
 		local resolver = CameraResolver.new(newConfig())
 		harness.assert.equal(resolver:resolve(Vector3.new(0, 0, 0)), "First")

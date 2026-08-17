@@ -2,7 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local CameraConfig = require(ReplicatedStorage.Shared.camera.CameraConfig)
+local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
 local CameraDebugger = require(script.camera.CameraDebugger)
 local InventoryController = require(script.inventory.InventoryController)
@@ -13,10 +13,12 @@ local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local Players = game:GetService("Players")
 local App = require(script.ui.App)
 
-local controller = CameraController.new(CameraConfig)
+local cameraSystem = workspace:FindFirstChild("CameraSystem")
+local cameraConfig = CameraMapReader.read(cameraSystem)
+local controller = CameraController.new(cameraConfig)
 controller:start()
 
-local debugger = CameraDebugger.new(CameraConfig)
+local debugger = CameraDebugger.new(cameraConfig)
 debugger:start()
 
 PickupNotificationController.start()
