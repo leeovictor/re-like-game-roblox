@@ -69,6 +69,7 @@ local function setPersistedPartsTransparency(transparency: number)
 			for _, child in folder:GetChildren() do
 				if child:IsA("BasePart") then
 					child.Transparency = transparency
+					child.Locked = true
 				end
 			end
 		end
