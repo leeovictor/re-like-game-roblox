@@ -8,7 +8,7 @@ local items = require(ReplicatedStorage.Shared.inventory.items)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 
 type InventoryService = {
-	addItem: (self: InventoryService, player: Player, itemId: string) -> boolean,
+	addInstance: (self: InventoryService, player: Player, instance: items.ItemInstance) -> boolean,
 }
 
 type PickupDefinition = {
@@ -73,7 +73,12 @@ local function createPickup(
 
 		collected = true
 		prompt.Enabled = false
-		if inventoryService:addItem(player, itemId) then
+		local instance = {
+			uid = part.Name,
+			itemId = itemId,
+			quantity = if item.stackable then 1 else nil,
+		} :: items.ItemInstance
+		if inventoryService:addInstance(player, instance) then
 			part:Destroy()
 			pickupCollected:FireClient(player, itemId)
 		else

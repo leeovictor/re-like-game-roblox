@@ -23,10 +23,10 @@ harness.describe("Pickup notification server contract", function()
 
 	harness.it("sends the item only after a successful inventory mutation", function()
 		local source = read("src/server/pickups/PickupService.luau")
-		local mutationStart = string.find(source, "if inventoryService:addItem(player, itemId) then", 1, true) or 0
+		local mutationStart = string.find(source, "if inventoryService:addInstance(player, instance) then", 1, true) or 0
 		local eventStart = string.find(source, "pickupCollected:FireClient(player, itemId)", 1, true) or 0
 
-		harness.assert.truthy(mutationStart > 0, "pickup service must guard collection with addItem")
+		harness.assert.truthy(mutationStart > 0, "pickup service must guard collection with addInstance")
 		harness.assert.truthy(eventStart > 0, "pickup service must notify the collecting player")
 		harness.assert.truthy(eventStart > mutationStart, "pickup event must be sent after addItem succeeds")
 	end)

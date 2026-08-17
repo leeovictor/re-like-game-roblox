@@ -4,8 +4,14 @@ local InventoryStore = require(script.Parent.Parent.InventoryStore)
 
 type InventoryState = {
 	version: number,
-	items: { string },
-	equipped: { [string]: string }?,
+	items: { ItemInstance },
+	equipped: { [string]: string },
+}
+type ItemInstance = {
+	uid: string,
+	itemId: string,
+	quantity: number?,
+	attributes: { [string]: string | number | boolean }?,
 }
 
 export type Persistence = {
@@ -16,11 +22,7 @@ export type Persistence = {
 local MemoryPersistence = {}
 
 local function copyState(state: InventoryState): InventoryState
-	return {
-		version = state.version,
-		items = table.clone(state.items),
-		equipped = if state.equipped == nil then {} else table.clone(state.equipped),
-	}
+	return InventoryStore.copyState(state)
 end
 
 function MemoryPersistence.new(): Persistence
@@ -34,7 +36,7 @@ function MemoryPersistence.new(): Persistence
 				state = InventoryStore.defaultInventory()
 				states[userId] = state
 			end
-			return state
+			return copyState(state)
 		end,
 		save = function(_: Persistence, userId: number, state: InventoryState): ()
 			states[userId] = copyState(state)

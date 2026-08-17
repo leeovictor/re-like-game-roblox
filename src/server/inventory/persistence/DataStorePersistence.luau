@@ -5,8 +5,14 @@ local InventoryStore = require(script.Parent.Parent.InventoryStore)
 
 type InventoryState = {
 	version: number,
-	items: { string },
-	equipped: { [string]: string }?,
+	items: { ItemInstance },
+	equipped: { [string]: string },
+}
+type ItemInstance = {
+	uid: string,
+	itemId: string,
+	quantity: number?,
+	attributes: { [string]: string | number | boolean }?,
 }
 
 export type Persistence = {
