@@ -136,15 +136,17 @@ function PickupService.new(inventoryService: InventoryService): Service
 		end
 		started = true
 
-		for _, player in Players:GetPlayers() do
-			if player.Character ~= nil then
-				onCharacter(player.Character)
-			end
-			player.CharacterAdded:Connect(onCharacter)
-		end
 		Players.PlayerAdded:Connect(function(player: Player)
 			player.CharacterAdded:Connect(onCharacter)
 		end)
+		for _, player in Players:GetPlayers() do
+			player.CharacterAdded:Connect(onCharacter)
+		end
+		for _, player in Players:GetPlayers() do
+			if player.Character ~= nil then
+				task.spawn(onCharacter, player.Character)
+			end
+		end
 	end
 
 	return service
