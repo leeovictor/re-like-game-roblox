@@ -6,3 +6,6 @@
 /*.rbxl.lock
 
 sourcemap.json
+
+# Wally's generated package links
+/Packages

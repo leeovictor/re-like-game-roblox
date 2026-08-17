@@ -2,8 +2,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Cria (ou reutiliza) um RemoteEvent dentro de ReplicatedStorage.Remotes.
-local function _ensureRemote(name: string): RemoteEvent
+-- Cria (ou reutiliza) um remoto dentro de ReplicatedStorage.Remotes.
+local function _ensureRemote(name: string, className: "RemoteEvent" | "RemoteFunction"): RemoteEvent | RemoteFunction
 	local folder = ReplicatedStorage:FindFirstChild("Remotes")
 	if folder == nil then
 		local newFolder = Instance.new("Folder")
@@ -17,7 +17,7 @@ local function _ensureRemote(name: string): RemoteEvent
 
 	local remote = folder:FindFirstChild(name)
 	if remote == nil then
-		local newRemote = Instance.new("RemoteEvent")
+		local newRemote = Instance.new(className)
 		newRemote.Name = name
 		newRemote.Parent = folder
 		remote = newRemote
@@ -26,10 +26,17 @@ local function _ensureRemote(name: string): RemoteEvent
 		error(string.format("failed to create Remotes.%s", name), 2)
 	end
 
-	if not remote:IsA("RemoteEvent") then
-		error(string.format("Remotes.%s must be a RemoteEvent", name), 2)
+	if not remote:IsA(className) then
+		error(string.format("Remotes.%s must be a %s", name, className), 2)
 	end
-	return remote
+
+	if className == "RemoteEvent" then
+		return remote :: RemoteEvent
+	end
+	return remote :: RemoteFunction
 end
 
-return {}
+return {
+	InventoryChanged = _ensureRemote("InventoryChanged", "RemoteEvent"),
+	GetInventory = _ensureRemote("GetInventory", "RemoteFunction"),
+}

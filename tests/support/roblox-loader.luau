@@ -5,6 +5,10 @@ local luau = require("@lune/luau")
 type LuneRoblox = {
 	Vector3: { new: (number, number, number) -> any },
 	Vector3int16: { new: (number, number, number) -> any },
+	CFrame: {
+		new: (...any) -> any,
+		lookAt: (any, any, any?) -> any,
+	},
 	Region3: any,
 	Enum: any,
 }
@@ -44,7 +48,11 @@ local function createNode(name: string, path: string?, parent: VirtualNode?): Vi
 end
 
 local function buildTree(): (VirtualNode, { [string]: VirtualNode })
-	local root = createNode("src", "src", nil)
+	local dataModel = createNode("game", nil, nil)
+	local replicatedStorage = createNode("ReplicatedStorage", nil, dataModel)
+	local root = createNode("ServerScriptService", "src", dataModel)
+	dataModel.ReplicatedStorage = replicatedStorage
+	dataModel.ServerScriptService = root
 	local nodes: { [string]: VirtualNode } = {
 		["src"] = root,
 	}
@@ -55,8 +63,14 @@ local function buildTree(): (VirtualNode, { [string]: VirtualNode })
 		for _, entry in entries do
 			local path = directory .. "/" .. entry
 			if fs.isDir(path) then
-				local node = createNode(entry, path, parent)
-				parent[entry] = node
+				local nodeParent = parent
+				local nodeName = entry
+				if directory == "src" and entry == "shared" then
+					nodeParent = replicatedStorage
+					nodeName = "Shared"
+				end
+				local node = createNode(nodeName, path, nodeParent)
+				nodeParent[nodeName] = node
 				nodes[path] = node
 				visit(path, node)
 			elseif fs.isFile(path) and string.match(entry, "%.luau$") then
@@ -127,6 +141,7 @@ local function loadNode(node: VirtualNode): any
 		script = node,
 		Vector3 = roblox.Vector3,
 		Vector3int16 = roblox.Vector3int16,
+		CFrame = roblox.CFrame,
 		Region3 = roblox.Region3,
 		Enum = roblox.Enum,
 		Random = createRandom(),
