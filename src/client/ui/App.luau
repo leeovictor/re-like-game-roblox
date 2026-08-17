@@ -1,13 +1,37 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local useInventory = require(script.Parent.Parent.inventory.useInventory)
+local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 
 local function App()
+	local inventoryVisible, setInventoryVisible = React.useState(false)
+	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
+
+	React.useEffect(function()
+		local connection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+			if input.KeyCode ~= Enum.KeyCode.T then
+				return
+			end
+			if gameProcessedEvent and UserInputService:GetFocusedTextBox() then
+				return
+			end
+
+			setInventoryVisible(function(previousVisible: boolean): boolean
+				return not previousVisible
+			end)
+		end)
+
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
+
 	local inventoryRows = {}
 
 	if inventory ~= nil then
@@ -50,12 +74,7 @@ local function App()
 		}
 	end
 
-	return React.createElement("ScreenGui", {
-		Name = "DungeonGui",
-		ResetOnSpawn = false,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	}, {
-		InventoryPanel = React.createElement("Frame", {
+	local inventoryPanel = if inventoryVisible then React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0, 0),
 			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
 			BackgroundTransparency = 0.08,
@@ -94,6 +113,43 @@ local function App()
 				ScrollBarThickness = 4,
 			}, listChildren),
 		})
+		else nil
+
+	local notificationItem = if notificationItemId ~= nil then items[notificationItemId] else nil
+	local notificationName = if notificationItem ~= nil then notificationItem.name else notificationItemId
+
+	return React.createElement("ScreenGui", {
+		Name = "DungeonGui",
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	}, {
+		InventoryPanel = inventoryPanel,
+		PickupNotification = if notificationName ~= nil
+			then React.createElement("TextLabel", {
+				AnchorPoint = Vector2.new(0, 1),
+				BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+				BackgroundTransparency = 0.08,
+				Position = UDim2.new(0, 24, 1, -24),
+				Size = UDim2.fromOffset(240, 42),
+				Font = Enum.Font.GothamBold,
+				Text = "Pegou " .. notificationName,
+				TextColor3 = Color3.fromRGB(241, 237, 255),
+				TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}, {
+				Padding = React.createElement("UIPadding", {
+					PaddingLeft = UDim.new(0, 14),
+					PaddingRight = UDim.new(0, 14),
+				}),
+				Corner = React.createElement("UICorner", {
+					CornerRadius = UDim.new(0, 8),
+				}),
+				Stroke = React.createElement("UIStroke", {
+					Color = Color3.fromRGB(107, 92, 168),
+					Transparency = 0.25,
+				}),
+			})
+			else nil,
 	})
 end
 

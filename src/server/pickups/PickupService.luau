@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local items = require(ReplicatedStorage.Shared.inventory.items)
+local remotes = require(ReplicatedStorage.Shared.remotes)
 
 type InventoryService = {
 	addItem: (self: InventoryService, player: Player, itemId: string) -> boolean,
@@ -20,6 +21,7 @@ local pickupDefinitions = {
 	{ itemId = "crystal", count = 10 },
 }
 local spawnRadius = 30
+local pickupCollected = remotes.PickupCollected :: RemoteEvent
 
 local visuals = {
 	torch = { color = Color3.fromRGB(255, 170, 0), material = Enum.Material.Neon },
@@ -71,6 +73,7 @@ local function createPickup(
 		prompt.Enabled = false
 		if inventoryService:addItem(player, itemId) then
 			part:Destroy()
+			pickupCollected:FireClient(player, itemId)
 		else
 			collected = false
 			prompt.Enabled = true
