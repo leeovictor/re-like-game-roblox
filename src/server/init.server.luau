@@ -5,9 +5,6 @@ local MemoryPersistence = require(script.inventory.persistence.MemoryPersistence
 local DataStorePersistence = require(script.inventory.persistence.DataStorePersistence)
 local InventoryService = require(script.inventory.InventoryService)
 
-local backend = if RunService:IsStudio() then MemoryPersistence.new() else DataStorePersistence.new()
-local inventoryService = InventoryService.new(backend)
+local persistence = if RunService:IsStudio() then MemoryPersistence.new() else DataStorePersistence.new()
+local inventoryService = InventoryService.new(persistence)
 inventoryService:start()
-
-local PickupService = require(script.pickups.PickupService)
-PickupService.new(inventoryService):start()

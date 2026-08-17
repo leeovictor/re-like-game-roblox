@@ -1,6 +1,7 @@
 --!strict
 
-local items = require(script.Parent.Parent.Parent.Parent.ReplicatedStorage.Shared.inventory.items)
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local items = require(ReplicatedStorage.Shared.inventory.items)
 
 type ItemId = string
 type InventoryState = {

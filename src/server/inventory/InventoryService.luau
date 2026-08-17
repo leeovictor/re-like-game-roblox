@@ -1,9 +1,10 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local InventoryStore = require(script.Parent.InventoryStore)
-local remotes = require(script.Parent.Parent.Parent.Parent.ReplicatedStorage.Shared.remotes)
+local remotes = require(ReplicatedStorage.Shared.remotes)
 local inventoryChanged = remotes.InventoryChanged :: RemoteEvent
 local getInventory = remotes.GetInventory :: RemoteFunction
 
