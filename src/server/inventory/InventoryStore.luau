@@ -2,19 +2,9 @@
 
 local items = require(script.Parent.Parent.Parent.Parent.ReplicatedStorage.Shared.inventory.items)
 
-type ItemAttribute = string | number | boolean
-type ItemAttributes = { [string]: ItemAttribute }
-type ItemInstance = {
-	uid: string,
-	itemId: string,
-	quantity: number?,
-	attributes: ItemAttributes?,
-}
-type InventoryState = {
-	version: number,
-	items: { ItemInstance },
-	equipped: { [string]: string },
-}
+type ItemAttributes = items.ItemAttributes
+type ItemInstance = items.ItemInstance
+type InventoryState = items.InventoryState
 
 local InventoryStore = {}
 

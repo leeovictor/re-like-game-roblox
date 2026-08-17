@@ -19,6 +19,7 @@ export type ItemBehaviorResult = {
 
 export type ItemBehavior = {
 	canUse: (player: any, instance: ItemInstance, context: UseContext) -> (boolean, string?),
+	-- Must return data only; domain mutation occurs after inventory confirmation.
 	use: (player: any, instance: ItemInstance, context: UseContext) -> ItemBehaviorResult,
 }
 

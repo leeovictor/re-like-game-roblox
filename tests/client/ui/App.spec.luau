@@ -4,6 +4,12 @@ local fs = require("@lune/fs")
 local harness = require("../../support/harness")
 
 harness.describe("App inventory children", function()
+	harness.it("renders inventory instances by uid and item id", function()
+		local source = fs.readFile("src/client/ui/App.luau")
+		harness.assert.truthy(string.find(source, "instance.uid", 1, true) ~= nil)
+		harness.assert.truthy(string.find(source, "instance.itemId", 1, true) ~= nil)
+	end)
+
 	harness.it("does not pass an element array as a nested React child", function()
 		local source = fs.readFile("src/client/ui/App.luau")
 		harness.assert.equal(

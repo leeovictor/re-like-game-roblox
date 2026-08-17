@@ -9,11 +9,7 @@ local remotes = require(ReplicatedStorage.Shared.remotes)
 local inventoryChanged = remotes.InventoryChanged :: RemoteEvent
 local getInventory = remotes.GetInventory :: RemoteFunction
 
-type InventoryState = {
-	version: number,
-	items: { inventoryTypes.ItemInstance },
-	equipped: { [string]: string },
-}
+type InventoryState = inventoryTypes.InventoryState
 type ItemInstance = inventoryTypes.ItemInstance
 type ItemAttributes = inventoryTypes.ItemAttributes
 type UseMutations = {
@@ -113,7 +109,7 @@ function InventoryService.new(persistence: Persistence): Service
 		if not isCurrent() then
 			return
 		end
-		player:LoadCharacter()
+		player:LoadCharacterAsync()
 	end
 
 	local function beginLoad(player: Player): ()

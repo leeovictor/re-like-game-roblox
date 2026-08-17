@@ -35,16 +35,18 @@ local function App()
 	local inventoryRows = {}
 
 	if inventory ~= nil then
-		for index, itemId in inventory.items do
+		for index, instance in inventory.items do
+			local itemId = instance.itemId
 			local item = items[itemId]
 			local itemName = if item ~= nil then item.name else itemId
+			local quantity = if instance.quantity ~= nil then string.format(" x%d", instance.quantity) else ""
 
-			inventoryRows[tostring(index) .. ":" .. itemId] = React.createElement("TextLabel", {
+			inventoryRows[tostring(index) .. ":" .. instance.uid] = React.createElement("TextLabel", {
 				BackgroundTransparency = 1,
 				LayoutOrder = index,
 				Size = UDim2.new(1, -24, 0, 28),
 				Font = Enum.Font.Gotham,
-				Text = itemName,
+				Text = itemName .. quantity,
 				TextColor3 = Color3.fromRGB(225, 222, 239),
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextSize = 14,

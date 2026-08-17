@@ -69,7 +69,7 @@ local function copyInstance(instance: Instance): Instance
 	}
 end
 
-local function newFakeInventory(items: { Instance }): FakeInventory
+local function newFakeInventory(items: { Instance }): (FakeInventory, Player)
 	local player = { UserId = 1, Name = "Tester" }
 	local inventory = {
 		states = {
@@ -222,7 +222,9 @@ end
 
 local compatible = behavior(
 	function(_player, _instance, context) return context.target == "self", "not_compatible" end,
-	function(_player, _instance, _context) return { success = true, consumeInstance = true, effect = { amount = 25 } } end
+	function(_player, _instance, _context)
+		return { success = true, consumeInstance = true, effect = { amount = 25 } :: { [string]: Attribute } }
+	end
 )
 
 harness.describe("Item use service", function()
@@ -322,18 +324,20 @@ harness.describe("Item use service", function()
 		local result: Result = service:use(player, request("reload-ammo", {}, "a"))
 		harness.assert.truthy(result.success)
 		harness.assert.equal(inventory.removedQuantities, 1)
-		harness.assert.equal(inventory:find(player, "a").quantity, 3)
+		local instance = assert(inventory:find(player, "a"))
+		harness.assert.equal(instance.quantity, 3)
 	end)
 
 	harness.it("updates instance attributes after behavior success", function()
 		local updateBehavior = behavior(
 			function() return true end,
-			function() return { success = true, updateAttributes = { charged = true } } end
+			function() return { success = true, updateAttributes = { charged = true } :: { [string]: Attribute } } end
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "iron_key" } }, "unlock", updateBehavior)
 		service:use(player, request("unlock", {}, "a"))
 		harness.assert.equal(inventory.updatedAttributes, 1)
-		harness.assert.equal(inventory:find(player, "a").attributes.charged, true)
+		local instance = assert(inventory:find(player, "a"))
+		harness.assert.equal(assert(instance.attributes).charged, true)
 	end)
 
 	harness.it("equips the requested uid in the returned mutation", function()
@@ -374,12 +378,16 @@ harness.describe("Item use service", function()
 	harness.it("client healAmount in context is ignored", function()
 		local safe = behavior(function() return true end, function(_player, _instance, context)
 			local serverHealAmount = 25
-			return { success = true, effect = { amount = serverHealAmount, clientValueIgnored = context.healAmount ~= serverHealAmount } }
+			return {
+				success = true,
+				effect = { amount = serverHealAmount, clientValueIgnored = context.healAmount ~= serverHealAmount } :: { [string]: Attribute },
+			}
 		end)
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", safe)
 		local result: Result = service:use(player, request("heal", { healAmount = 999 }, "a"))
-		harness.assert.equal(result.effect.amount, 25)
-		harness.assert.equal(result.effect.clientValueIgnored, true)
+		local effect = assert(result.effect, "use effect")
+		harness.assert.equal(effect.amount, 25)
+		harness.assert.equal(effect.clientValueIgnored, true)
 	end)
 
 	harness.it("a stale compatibility result is revalidated by use", function()
@@ -422,15 +430,15 @@ harness.describe("Item use service", function()
 
 	harness.it("keeps state intact when the second mutation cannot be confirmed", function()
 		local multi = behavior(function() return true end, function()
-			return { success = true, updateAttributes = { charged = true }, equipSlot = "primary" }
+			return { success = true, updateAttributes = { charged = true } :: { [string]: Attribute }, equipSlot = "primary" }
 		end)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "handgun" } }, "equip", multi)
-		local before = inventory:getSnapshot(player)
 		inventory.failEquip = true
 		local result: Result = service:use(player, request("equip", {}, "a"))
 		harness.assert.falsy(result.success)
 		harness.assert.equal(result.reason, "mutation_failed")
-		harness.assert.equal(inventory:getSnapshot(player).items[1].attributes, before.items[1].attributes)
-		harness.assert.isNil(inventory:getSnapshot(player).equipped.primary)
+		local after = assert(inventory:getSnapshot(player))
+		harness.assert.isNil(after.items[1].attributes)
+		harness.assert.isNil(after.equipped.primary)
 	end)
 end)

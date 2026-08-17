@@ -38,6 +38,10 @@ export type Service = {
 local spawnRadius = 30
 local pickupCollected = remotes.PickupCollected :: RemoteEvent
 
+local defaultVisual: PickupVisual = {
+	color = Color3.fromRGB(128, 128, 128),
+	material = Enum.Material.SmoothPlastic,
+}
 local visuals: { [string]: PickupVisual } = {}
 
 local function createPickup(
@@ -50,7 +54,7 @@ local function createPickup(
 ): ()
 	local itemId = instance.itemId
 	local item = assert(items[itemId], string.format("Unknown pickup item: %s", itemId))
-	local visual = assert(visuals[itemId], string.format("Missing pickup visual: %s", itemId))
+	local visual = visuals[itemId] or defaultVisual
 	local offset = Vector3.new(
 		random:NextNumber(-spawnRadius, spawnRadius),
 		2,
@@ -119,7 +123,6 @@ function PickupService.new(
 				string.format("Invalid pickup definition: %s", definition.itemId)
 			)
 			assert(items[definition.itemId], string.format("Unknown pickup item: %s", definition.itemId))
-			assert(visuals[definition.itemId], string.format("Missing pickup visual: %s", definition.itemId))
 			table.insert(prepared, instance)
 		end
 

@@ -40,6 +40,7 @@ local function copyAttributes(attributes: ItemAttributes?): ItemAttributes?
 end
 
 function ItemInstanceFactory.new(uidGenerator: UidGenerator): Factory
+	local issuedUids: { [string]: boolean } = {}
 	local service = {} :: Factory
 
 	function service:create(itemId: ItemId, attributes: ItemAttributes?, quantity: number?): ItemInstance?
@@ -62,9 +63,10 @@ function ItemInstanceFactory.new(uidGenerator: UidGenerator): Factory
 			return nil
 		end
 		local uid = uidGenerator()
-		if type(uid) ~= "string" or uid == "" then
+		if type(uid) ~= "string" or uid == "" or issuedUids[uid] then
 			return nil
 		end
+		issuedUids[uid] = true
 
 		return {
 			uid = uid,

@@ -1,18 +1,9 @@
 --!strict
 
 local InventoryStore = require(script.Parent.Parent.InventoryStore)
+local inventoryTypes = require(script.Parent.Parent.Parent.Parent.Parent.ReplicatedStorage.Shared.inventory.items)
 
-type InventoryState = {
-	version: number,
-	items: { ItemInstance },
-	equipped: { [string]: string },
-}
-type ItemInstance = {
-	uid: string,
-	itemId: string,
-	quantity: number?,
-	attributes: { [string]: string | number | boolean }?,
-}
+type InventoryState = inventoryTypes.InventoryState
 
 export type Persistence = {
 	load: (self: Persistence, userId: number) -> InventoryState,

@@ -32,6 +32,17 @@ harness.describe("Item instance factory", function()
 		harness.assert.truthy(first ~= second)
 	end)
 
+	harness.it("rejects a uid that the factory has already emitted", function()
+		local factory = ItemInstanceFactory.new(function(): string
+			return "repeated-uid"
+		end)
+		local first = factory:create("handgun")
+		local second = factory:create("handgun")
+
+		harness.assert.truthy(first)
+		harness.assert.isNil(second)
+	end)
+
 	harness.it("preserves authored numeric string and boolean attributes", function()
 		local factory = newFactory()
 		local instance = factory:create("handgun", {
@@ -43,6 +54,15 @@ harness.describe("Item instance factory", function()
 		harness.assert.equal(instance.attributes.damage, 18)
 		harness.assert.equal(instance.attributes.quality, "museum")
 		harness.assert.equal(instance.attributes.loaded, false)
+	end)
+
+	harness.it("accepts a valid authored pickup definition", function()
+		local factory = newFactory()
+		local instance = factory:create("handgun_ammo", { quality = "map-authored" }, 3)
+
+		harness.assert.equal(instance.itemId, "handgun_ammo")
+		harness.assert.equal(instance.quantity, 3)
+		harness.assert.equal(instance.attributes.quality, "map-authored")
 	end)
 
 	harness.it("creates a positive stack quantity for stackable items", function()

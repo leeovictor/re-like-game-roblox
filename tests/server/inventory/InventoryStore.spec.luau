@@ -5,6 +5,19 @@ local loader = require("../../support/roblox-loader")
 local InventoryStore = loader.load("src/server/inventory/InventoryStore.luau")
 local items = loader.load("src/shared/inventory/items.luau")
 
+type Attribute = string | number | boolean
+type Instance = {
+	uid: string,
+	itemId: string,
+	quantity: number?,
+	attributes: { [string]: Attribute }?,
+}
+type State = {
+	version: number,
+	items: { Instance },
+	equipped: { [string]: string },
+}
+
 harness.describe("InventoryStore", function()
 	harness.it("creates an empty version two inventory", function()
 		local state = InventoryStore.defaultInventory()
@@ -150,9 +163,9 @@ harness.describe("InventoryStore", function()
 	end)
 
 	harness.it("serializes schema two with deterministic keys", function()
-		local state = { version = 2, items = {
-			{ uid = "handgun-001", itemId = "handgun", attributes = { loadedAmmo = 5, damage = 18 } },
-			{ uid = "ammo-001", itemId = "handgun_ammo", quantity = 24 },
+		local state: State = { version = 2, items = {
+			{ uid = "handgun-001", itemId = "handgun", attributes = { loadedAmmo = 5, damage = 18 } :: { [string]: Attribute } },
+			{ uid = "ammo-001", itemId = "handgun_ammo", quantity = 24, attributes = nil },
 		}, equipped = { z = "handgun-001", weapon = "handgun-001" } }
 		harness.assert.equal(InventoryStore.serialize(state), '{"version":2,"items":[{"attributes":{"damage":18,"loadedAmmo":5},"itemId":"handgun","uid":"handgun-001"},{"itemId":"handgun_ammo","quantity":24,"uid":"ammo-001"}],"equipped":{"weapon":"handgun-001","z":"handgun-001"}}')
 	end)
@@ -216,13 +229,13 @@ harness.describe("InventoryStore", function()
 			harness.assert.isNil(InventoryStore.deserialize(serialized))
 		end
 		local state = InventoryStore.defaultInventory()
-		state.items[2] = { uid = "x", itemId = "handgun" }
+		state.items[2] = { uid = "x", itemId = "handgun", attributes = nil }
 		local ok = pcall(function()
 			InventoryStore.serialize(state)
 		end)
 		harness.assert.falsy(ok)
 		state = InventoryStore.defaultInventory()
-		state.items[0] = { uid = "x", itemId = "handgun" }
+		state.items[0] = { uid = "x", itemId = "handgun", attributes = nil }
 		ok = pcall(function()
 			InventoryStore.serialize(state)
 		end)
@@ -231,8 +244,8 @@ harness.describe("InventoryStore", function()
 
 	harness.it("serializes item order by numeric index", function()
 		local state = InventoryStore.defaultInventory()
-		state.items[1] = { uid = "first", itemId = "handgun" }
-		state.items[2] = { uid = "second", itemId = "medkit" }
+		state.items[1] = { uid = "first", itemId = "handgun", attributes = nil }
+		state.items[2] = { uid = "second", itemId = "medkit", attributes = nil }
 		harness.assert.equal(InventoryStore.serialize(state), '{"version":2,"items":[{"itemId":"handgun","uid":"first"},{"itemId":"medkit","uid":"second"}],"equipped":{}}')
 	end)
 
