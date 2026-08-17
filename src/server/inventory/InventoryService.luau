@@ -16,6 +16,12 @@ type InventoryState = {
 }
 type ItemInstance = inventoryTypes.ItemInstance
 type ItemAttributes = inventoryTypes.ItemAttributes
+type UseMutations = {
+	consumeInstance: boolean?,
+	consumeQuantity: number?,
+	updateAttributes: ItemAttributes?,
+	equipSlot: string?,
+}
 
 type Persistence = {
 	load: (self: Persistence, userId: number) -> InventoryState?,
@@ -31,6 +37,7 @@ export type Service = {
 	removeQuantity: (self: Service, player: Player, uid: string, quantity: number) -> boolean,
 	updateAttributes: (self: Service, player: Player, uid: string, attributes: ItemAttributes) -> boolean,
 	equip: (self: Service, player: Player, slot: string, uid: string) -> boolean,
+	applyUseMutations: (self: Service, player: Player, uid: string, mutations: UseMutations) -> boolean,
 	getSnapshot: (self: Service, player: Player) -> InventoryState?,
 }
 
@@ -216,6 +223,41 @@ function InventoryService.new(persistence: Persistence): Service
 		return applyMutation(player, function(state): InventoryState?
 			return InventoryStore.equip(state, slot, uid)
 		end)
+	end
+
+	function service:applyUseMutations(player: Player, uid: string, mutations: UseMutations): boolean
+		if mutations.consumeInstance == true and mutations.consumeQuantity ~= nil then
+			return false
+		end
+		local state = loadedStates[player]
+		if state == nil then
+			return false
+		end
+
+		local candidate = copyState(state)
+		if mutations.consumeInstance == true then
+			local updated = InventoryStore.removeInstance(candidate, uid)
+			if updated == nil then return false end
+			candidate = updated
+		elseif mutations.consumeQuantity ~= nil then
+			local updated = InventoryStore.removeQuantity(candidate, uid, mutations.consumeQuantity)
+			if updated == nil then return false end
+			candidate = updated
+		end
+		if mutations.updateAttributes ~= nil then
+			local updated = InventoryStore.updateAttributes(candidate, uid, mutations.updateAttributes)
+			if updated == nil then return false end
+			candidate = updated
+		end
+		if mutations.equipSlot ~= nil then
+			local updated = InventoryStore.equip(candidate, mutations.equipSlot, uid)
+			if updated == nil then return false end
+			candidate = updated
+		end
+
+		loadedStates[player] = candidate
+		inventoryChanged:FireClient(player, copyState(candidate))
+		return true
 	end
 
 	function service:getSnapshot(player: Player): InventoryState?
