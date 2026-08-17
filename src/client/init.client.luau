@@ -14,6 +14,10 @@ local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local Players = game:GetService("Players")
 local App = require(script.ui.App)
 
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
 local cameraSystem = workspace:WaitForChild("CameraSystem")
 cameraSystem:WaitForChild("Shots")
 cameraSystem:WaitForChild("Zones")
