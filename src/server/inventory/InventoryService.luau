@@ -19,6 +19,7 @@ type Persistence = {
 
 export type Service = {
 	start: (self: Service) -> (),
+	addItem: (self: Service, player: Player, itemId: string) -> boolean,
 }
 
 local InventoryService = {}
@@ -143,6 +144,22 @@ function InventoryService.new(persistence: Persistence): Service
 		for _, player in Players:GetPlayers() do
 			beginLoad(player)
 		end
+	end
+
+	function service:addItem(player: Player, itemId: string): boolean
+		local state = loadedStates[player]
+		if state == nil then
+			return false
+		end
+
+		local updatedState = InventoryStore.addItem(state, itemId)
+		if updatedState == nil then
+			return false
+		end
+
+		loadedStates[player] = updatedState
+		inventoryChanged:FireClient(player, copyState(updatedState))
+		return true
 	end
 
 	getInventory.OnServerInvoke = function(player: Player): InventoryState?
