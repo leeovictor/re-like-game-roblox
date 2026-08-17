@@ -11,6 +11,7 @@ export type Preview = typeof(setmetatable({} :: {
 }, CameraSystemPreview))
 
 local function configureMarker(part: Part)
+	part.Archivable = false
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanTouch = false

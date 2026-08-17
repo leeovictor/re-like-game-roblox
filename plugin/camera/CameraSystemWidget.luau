@@ -13,6 +13,7 @@ type Callbacks = {
 	onMoveZone: (number) -> (),
 	onFieldOfView: (number) -> (),
 	onSelect: (Instance) -> (),
+	classifySelection: (Instance) -> string?,
 }
 
 export type Widget = typeof(setmetatable({} :: {
@@ -20,6 +21,7 @@ export type Widget = typeof(setmetatable({} :: {
 	callbacks: Callbacks,
 	shotRows: { TextButton },
 	zoneRows: { TextButton },
+	rowInstances: { [TextButton]: BasePart },
 	shotSelection: BasePart?,
 	zoneSelection: BasePart?,
 	nameInput: TextBox,
@@ -137,6 +139,7 @@ function CameraSystemWidget.new(widgetInfo: DockWidgetPluginGuiInfo, callbacks: 
 		callbacks = callbacks,
 		shotRows = {},
 		zoneRows = {},
+		rowInstances = {},
 		shotSelection = nil,
 		zoneSelection = nil,
 		nameInput = nameInput,
@@ -156,22 +159,26 @@ function CameraSystemWidget.new(widgetInfo: DockWidgetPluginGuiInfo, callbacks: 
 end
 
 function CameraSystemWidget.setSelection(self: Widget, instance: Instance?)
-	self.shotSelection = nil
-	self.zoneSelection = nil
-	if instance ~= nil and instance:IsA("BasePart") then
-		if instance.Parent ~= nil and instance.Parent.Name == "Shots" then
-			self.shotSelection = instance
-			self.fovInput.Text = tostring(instance:GetAttribute("FieldOfView") or "")
-		elseif instance.Parent ~= nil and instance.Parent.Name == "Zones" then
-			self.zoneSelection = instance
-			self.shotIdInput.Text = tostring(instance:GetAttribute("ShotId") or "")
-		end
+	local selectionKind = if instance == nil then nil else self.callbacks.classifySelection(instance)
+	if selectionKind == "shot" and instance ~= nil and instance:IsA("BasePart") then
+		self.shotSelection = instance
+		self.fovInput.Text = tostring(instance:GetAttribute("FieldOfView") or "")
+	elseif selectionKind == "zone" and instance ~= nil and instance:IsA("BasePart") then
+		self.zoneSelection = instance
+		self.shotIdInput.Text = tostring(instance:GetAttribute("ShotId") or "")
+	elseif selectionKind == nil then
+		self.shotSelection = nil
+		self.zoneSelection = nil
 	end
+	self:updateSelectionVisuals()
+end
+
+function CameraSystemWidget.updateSelectionVisuals(self: Widget)
 	for _, row in self.shotRows do
-		row.BackgroundColor3 = if row:GetAttribute("InstanceName") == if self.shotSelection then self.shotSelection.Name else "" then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
+		row.BackgroundColor3 = if self.rowInstances[row] == self.shotSelection then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
 	end
 	for _, row in self.zoneRows do
-		row.BackgroundColor3 = if row:GetAttribute("InstanceName") == if self.zoneSelection then self.zoneSelection.Name else "" then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
+		row.BackgroundColor3 = if self.rowInstances[row] == self.zoneSelection then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
 	end
 	local hasShot = self.shotSelection ~= nil
 	local hasZone = self.zoneSelection ~= nil
@@ -192,14 +199,15 @@ function CameraSystemWidget.refresh(self: Widget, shots: { BasePart }, zones: { 
 	end
 	table.clear(self.shotRows)
 	table.clear(self.zoneRows)
+	table.clear(self.rowInstances)
 
 	for _, shot in shots do
 		local row = make("TextButton", self.gui:FindFirstChild("ScrollingFrame") :: Instance) :: TextButton
 		row.Name = "Shot_" .. shot.Name
 		row.Text = string.format("Shot: %s%s", shot.Name, if shot.Name == defaultShotId then " (default)" else "")
 		row.Size = UDim2.new(1, -12, 0, 24)
-		row:SetAttribute("InstanceName", shot.Name)
 		styleButton(row)
+		self.rowInstances[row] = shot
 		row.Activated:Connect(function()
 			self.shotSelection = shot
 			self.callbacks.onSelect(shot)
@@ -212,8 +220,8 @@ function CameraSystemWidget.refresh(self: Widget, shots: { BasePart }, zones: { 
 		row.Name = "Zone_" .. zone.Name
 		row.Text = string.format("Zone: %s -> %s", zone.Name, tostring(zone:GetAttribute("ShotId") or "<unassigned>"))
 		row.Size = UDim2.new(1, -12, 0, 24)
-		row:SetAttribute("InstanceName", zone.Name)
 		styleButton(row)
+		self.rowInstances[row] = zone
 		row.Activated:Connect(function()
 			self.zoneSelection = zone
 			self.callbacks.onSelect(zone)
@@ -222,7 +230,7 @@ function CameraSystemWidget.refresh(self: Widget, shots: { BasePart }, zones: { 
 	end
 
 	self.status.Text = if #errors == 0 then "Valid camera system" else table.concat(errors, "\n")
-	self:setSelection(if self.shotSelection then self.shotSelection else self.zoneSelection)
+	self:updateSelectionVisuals()
 end
 
 function CameraSystemWidget.destroy(self: Widget)

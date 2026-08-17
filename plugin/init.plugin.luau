@@ -26,11 +26,9 @@ local function disconnectAll()
 	table.clear(connections)
 end
 
-local function selectedPart(parentName: string): BasePart?
-	for _, instance in (Selection :: any):Get() do
-		if instance:IsA("BasePart") and instance.Parent ~= nil and instance.Parent.Name == parentName then
-			return instance
-		end
+local function selectedPart(folder: Folder, instance: Instance?): BasePart?
+	if instance ~= nil and instance:IsA("BasePart") and instance.Parent == folder then
+		return instance
 	end
 	return nil
 end
@@ -93,7 +91,8 @@ local function openWidget()
 		end,
 		onCaptureCamera = function()
 			run("Capture Camera", function()
-				local shot = selectedPart("Shots")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
 				local camera = Workspace.CurrentCamera
 				assert(shot ~= nil, "Select a shot first")
 				local currentModel = model :: any
@@ -102,7 +101,8 @@ local function openWidget()
 		end,
 		onApplyCamera = function()
 			run("Apply To Camera", function()
-				local shot = selectedPart("Shots")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
 				local camera = Workspace.CurrentCamera
 				assert(shot ~= nil, "Select a shot first")
 				local currentModel = model :: any
@@ -111,7 +111,8 @@ local function openWidget()
 		end,
 		onSetDefault = function()
 			run("Set Default", function()
-				local shot = selectedPart("Shots")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
 				assert(shot ~= nil, "Select a shot first")
 				local currentModel = model :: any
 				currentModel:setDefaultShot(shot :: BasePart)
@@ -129,8 +130,10 @@ local function openWidget()
 		end,
 		onAssignShot = function()
 			run("Assign Shot", function()
-				local zone = selectedPart("Zones")
-				local shot = selectedPart("Shots")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local currentWidget = widget :: any
+				local zone = selectedPart(hierarchy.zones, currentWidget.zoneSelection)
+				local shot = selectedPart(hierarchy.shots, currentWidget.shotSelection)
 				assert(zone ~= nil and shot ~= nil, "Select a zone and a shot first")
 				local currentModel = model :: any
 				currentModel:assignShot(zone :: BasePart, shot :: BasePart)
@@ -138,7 +141,8 @@ local function openWidget()
 		end,
 		onMoveZone = function(delta: number)
 			run("Move Zone", function()
-				local zone = selectedPart("Zones")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local zone = selectedPart(hierarchy.zones, (widget :: any).zoneSelection)
 				assert(zone ~= nil, "Select a zone first")
 				local currentModel = model :: any
 				currentModel:reorderZone(zone :: BasePart, delta)
@@ -146,7 +150,8 @@ local function openWidget()
 		end,
 		onFieldOfView = function(value: number)
 			run("Set FieldOfView", function()
-				local shot = selectedPart("Shots")
+				local hierarchy = (model :: any):ensureHierarchy()
+				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
 				assert(shot ~= nil, "Select a shot first")
 				local currentModel = model :: any
 				currentModel:setFieldOfView(shot :: BasePart, value)
@@ -157,6 +162,15 @@ local function openWidget()
 			if widget ~= nil then
 				widget:setSelection(instance)
 			end
+		end,
+		classifySelection = function(instance: Instance): string?
+			local hierarchy = (model :: any):ensureHierarchy()
+			if instance:IsA("BasePart") and instance.Parent == hierarchy.shots then
+				return "shot"
+			elseif instance:IsA("BasePart") and instance.Parent == hierarchy.zones then
+				return "zone"
+			end
+			return nil
 		end,
 	}
 
@@ -180,6 +194,7 @@ local function openWidget()
 		if instance:IsA("BasePart") then
 			table.insert(connections, instance:GetPropertyChangedSignal("CFrame"):Connect(refresh))
 			table.insert(connections, instance:GetPropertyChangedSignal("Size"):Connect(refresh))
+			table.insert(connections, instance.AttributeChanged:Connect(refresh))
 		end
 	end
 	for _, instance in hierarchy.root:GetDescendants() do
