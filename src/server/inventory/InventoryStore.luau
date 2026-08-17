@@ -7,11 +7,11 @@ type ItemId = string
 type InventoryState = {
 	version: number,
 	items: { ItemId },
+	equipped: { [string]: string }?,
 }
 
 local InventoryStore = {}
 local objectMarker = {}
-local defaultItemIds = { "torch", "ration", "crystal" }
 
 local function isWhitespace(character: string): boolean
 	return character == " " or character == "\t" or character == "\n" or character == "\r"
@@ -300,12 +300,10 @@ parseValue = function(source: string, position: number): (any?, number)
 end
 
 function InventoryStore.defaultInventory(): InventoryState
-	for _, itemId in defaultItemIds do
-		assert(items[itemId] ~= nil, "default inventory item is missing from catalog")
-	end
 	return {
-		version = 1,
-		items = table.clone(defaultItemIds),
+		version = 2,
+		items = {},
+		equipped = {},
 	}
 end
 
@@ -341,7 +339,7 @@ function InventoryStore.deserialize(serialized: string): InventoryState?
 		return nil
 	end
 
-	if value.version ~= 1 or type(value.version) ~= "number" or type(value.items) ~= "table" or getmetatable(value.items) ~= nil then
+	if value.version ~= 2 or type(value.version) ~= "number" or type(value.items) ~= "table" or getmetatable(value.items) ~= nil then
 		return nil
 	end
 	local parsedItems = {}
@@ -352,7 +350,7 @@ function InventoryStore.deserialize(serialized: string): InventoryState?
 		parsedItems[index] = itemId
 	end
 	return {
-		version = 1,
+		version = 2,
 		items = parsedItems,
 	}
 end

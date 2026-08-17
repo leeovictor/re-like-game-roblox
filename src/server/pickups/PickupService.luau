@@ -11,23 +11,25 @@ type InventoryService = {
 	addItem: (self: InventoryService, player: Player, itemId: string) -> boolean,
 }
 
+type PickupDefinition = {
+	itemId: string,
+	count: number,
+}
+
+type PickupVisual = {
+	color: Color3,
+	material: Enum.Material,
+}
+
 export type Service = {
 	start: (self: Service) -> (),
 }
 
-local pickupDefinitions = {
-	{ itemId = "torch", count = 10 },
-	{ itemId = "ration", count = 10 },
-	{ itemId = "crystal", count = 10 },
-}
+local pickupDefinitions: { PickupDefinition } = {}
 local spawnRadius = 30
 local pickupCollected = remotes.PickupCollected :: RemoteEvent
 
-local visuals = {
-	torch = { color = Color3.fromRGB(255, 170, 0), material = Enum.Material.Neon },
-	ration = { color = Color3.fromRGB(98, 190, 110), material = Enum.Material.SmoothPlastic },
-	crystal = { color = Color3.fromRGB(95, 160, 255), material = Enum.Material.Neon },
-}
+local visuals: { [string]: PickupVisual } = {}
 
 local function createPickup(
 	folder: Folder,

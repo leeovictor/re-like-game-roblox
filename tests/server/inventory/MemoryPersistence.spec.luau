@@ -14,7 +14,7 @@ local function assertItems(actual: { string }, expected: { string }, message: st
 end
 
 harness.describe("MemoryPersistence", function()
-	harness.it("seeds a user on first load without sharing the default seed", function()
+	harness.it("starts a user with an empty state without sharing its tables", function()
 		local persistence = MemoryPersistence.new()
 		local state = persistence:load(42)
 		local defaultState = InventoryStore.defaultInventory()
@@ -31,12 +31,16 @@ harness.describe("MemoryPersistence", function()
 
 		local second = persistence:load(42)
 
-		assertItems(second.items, { "saved-item", "ration", "crystal" }, "saved items")
+		assertItems(second.items, { "saved-item" }, "saved items")
 	end)
 
 	harness.it("saves a replacement independently for each user", function()
 		local persistence = MemoryPersistence.new()
-		local replacement = { version = 1, items = { "replacement" } }
+		local replacement = {
+			version = 2,
+			items = { "replacement" },
+			equipped = { weapon = "handgun-001" },
+		}
 
 		persistence:save(42, replacement)
 		replacement.items[1] = "mutated-after-save"
@@ -45,7 +49,8 @@ harness.describe("MemoryPersistence", function()
 		local otherUser = persistence:load(7)
 
 		assertItems(saved.items, { "replacement" }, "replacement items")
-		assertItems(otherUser.items, { "torch", "ration", "crystal" }, "other user items")
+		harness.assert.equal(saved.equipped.weapon, "handgun-001")
+		assertItems(otherUser.items, {}, "other user items")
 		harness.assert.falsy(saved == replacement)
 		harness.assert.falsy(saved.items == replacement.items)
 	end)

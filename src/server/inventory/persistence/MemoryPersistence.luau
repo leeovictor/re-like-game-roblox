@@ -5,6 +5,7 @@ local InventoryStore = require(script.Parent.Parent.InventoryStore)
 type InventoryState = {
 	version: number,
 	items: { string },
+	equipped: { [string]: string }?,
 }
 
 export type Persistence = {
@@ -18,6 +19,7 @@ local function copyState(state: InventoryState): InventoryState
 	return {
 		version = state.version,
 		items = table.clone(state.items),
+		equipped = if state.equipped == nil then {} else table.clone(state.equipped),
 	}
 end
 

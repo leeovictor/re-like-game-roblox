@@ -6,6 +6,7 @@ local InventoryStore = require(script.Parent.Parent.InventoryStore)
 type InventoryState = {
 	version: number,
 	items: { string },
+	equipped: { [string]: string }?,
 }
 
 export type Persistence = {
