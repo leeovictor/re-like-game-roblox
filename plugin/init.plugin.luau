@@ -18,6 +18,8 @@ local widget: any = nil
 local preview: any = nil
 local model: any = nil
 local connections: { RBXScriptConnection } = {}
+local editorActive = false
+local deactivating = false
 
 local function disconnectAll()
 	for _, connection in connections do
@@ -56,29 +58,68 @@ local function run(label: string, operation: () -> ())
 	refresh()
 end
 
-local function closeWidget()
+local function setPersistedPartsTransparency(transparency: number)
+	local root = Workspace:FindFirstChild("CameraSystem")
+	if root == nil or not root:IsA("Folder") then
+		return
+	end
+	for _, folderName in { "Shots", "Zones" } do
+		local folder = root:FindFirstChild(folderName)
+		if folder ~= nil and folder:IsA("Folder") then
+			for _, child in folder:GetChildren() do
+				if child:IsA("BasePart") then
+					child.Transparency = transparency
+				end
+			end
+		end
+	end
+end
+
+local function deactivateEditor()
+	if deactivating or not editorActive then
+		return
+	end
+	deactivating = true
 	disconnectAll()
 	if preview ~= nil then
 		preview:clear()
 	end
+	if model ~= nil then
+		local success, failure = pcall(function()
+			(model :: any):setPartsVisible(false)
+		end)
+		if not success then
+			warn(string.format("Camera System: hide parts failed: %s", tostring(failure)))
+		end
+	end
+	if widget ~= nil and (widget :: any).gui.Enabled then
+		(widget :: any).gui.Enabled = false
+	end
+	editorActive = false
+	deactivating = false
+end
+
+local function destroyEditor()
+	deactivateEditor()
 	if widget ~= nil then
-		widget:destroy()
+		(widget :: any):destroy()
 	end
 	widget = nil
 	preview = nil
 	model = nil
 end
 
-local function openWidget()
-	if widget ~= nil then
+local function activateEditor()
+	if editorActive then
 		return
 	end
 
-	model = CameraSystemModel.new(Workspace, Selection, ChangeHistoryService)
-	model:ensureHierarchy()
-	preview = CameraSystemPreview.new(Workspace)
+	if widget == nil then
+		model = CameraSystemModel.new(Workspace, Selection, ChangeHistoryService)
+		model:ensureHierarchy()
+		preview = CameraSystemPreview.new(Workspace)
 
-	local callbacks = {
+		local callbacks = {
 		onNewShot = function()
 			local name = widget :: any
 			run("New Shot", function()
@@ -174,11 +215,17 @@ local function openWidget()
 		end,
 	}
 
-	local gui = pluginApi:CreateDockWidgetPluginGui("CameraSystem", widgetInfo) :: DockWidgetPluginGui
-	widget = CameraSystemWidget.new(gui, callbacks)
-	widget.gui.BindToClose(function()
-		closeWidget()
-	end)
+		local gui = pluginApi:CreateDockWidgetPluginGui("CameraSystem", widgetInfo) :: DockWidgetPluginGui
+		widget = CameraSystemWidget.new(gui, callbacks)
+		widget.gui:BindToClose(function()
+			deactivateEditor()
+		end)
+	end
+
+	editorActive = true
+	local currentModel = model :: any
+	currentModel:ensureHierarchy()
+	currentModel:setPartsVisible(true)
 	table.insert(connections, Selection.SelectionChanged:Connect(function()
 		local instances = (Selection :: any):Get()
 		local instance = instances[1]
@@ -206,16 +253,17 @@ local function openWidget()
 		refresh()
 	end))
 	refresh()
-	widget.gui.Enabled = true
+	local currentWidget = widget :: any
+	currentWidget.gui.Enabled = true
 end
 
 toolbarButton.Click:Connect(function()
-	if widget == nil then
-		openWidget()
+	if widget == nil or not editorActive then
+		activateEditor()
 	else
-		(widget :: any).gui.Enabled = not (widget :: any).gui.Enabled
-		if not (widget :: any).gui.Enabled then
-			closeWidget()
-		end
+		deactivateEditor()
 	end
 end)
+
+pluginApi.Unloading:Connect(destroyEditor)
+setPersistedPartsTransparency(1)

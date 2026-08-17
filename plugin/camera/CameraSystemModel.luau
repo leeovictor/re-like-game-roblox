@@ -205,6 +205,7 @@ function CameraSystemModel.createShot(self: Model, name: string, camera: Camera)
 	shot.CanCollide = false
 	shot.CanTouch = false
 	shot.CanQuery = false
+	shot.Transparency = 1
 	shot:SetAttribute(FIELD_OF_VIEW, camera.FieldOfView)
 	shot.Parent = hierarchy.shots
 	selectInstance(self.selection, shot)
@@ -269,6 +270,7 @@ function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame,
 	zone.CanCollide = false
 	zone.CanTouch = false
 	zone.CanQuery = false
+	zone.Transparency = 1
 	zone:SetAttribute(ORDER, nextOrder)
 
 	local defaultShotId = hierarchy.root:GetAttribute(DEFAULT_SHOT_ID)
@@ -316,6 +318,19 @@ function CameraSystemModel.reorderZone(self: Model, zone: Part, delta: number)
 	ownedZone:SetAttribute(ORDER, otherOrder)
 	otherZone:SetAttribute(ORDER, currentOrder)
 	setWaypoint(self.changeHistoryService, "Camera System: End reorder zone")
+end
+
+function CameraSystemModel.setPartsVisible(self: Model, visible: boolean)
+	local hierarchy = self:_hierarchy()
+	setWaypoint(self.changeHistoryService, "Camera System: Begin set visibility")
+	for _, folder in { hierarchy.shots, hierarchy.zones } do
+		for _, child in folder:GetChildren() do
+			if child:IsA("BasePart") then
+				(child :: BasePart).Transparency = if visible then 0 else 1
+			end
+		end
+	end
+	setWaypoint(self.changeHistoryService, "Camera System: End set visibility")
 end
 
 function CameraSystemModel._ownedShot(self: Model, shot: Part): Part
