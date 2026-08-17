@@ -11,9 +11,19 @@ type InventoryService = {
 	addInstance: (self: InventoryService, player: Player, instance: items.ItemInstance) -> boolean,
 }
 
+type ItemInstanceFactory = {
+	create: (
+		self: ItemInstanceFactory,
+		itemId: string,
+		attributes: items.ItemAttributes?,
+		quantity: number?
+	) -> items.ItemInstance?,
+}
+
 type PickupDefinition = {
 	itemId: string,
-	count: number,
+	attributes: items.ItemAttributes?,
+	quantity: number?,
 }
 
 type PickupVisual = {
@@ -25,7 +35,6 @@ export type Service = {
 	start: (self: Service) -> (),
 }
 
-local pickupDefinitions: { PickupDefinition } = {}
 local spawnRadius = 30
 local pickupCollected = remotes.PickupCollected :: RemoteEvent
 
@@ -34,11 +43,12 @@ local visuals: { [string]: PickupVisual } = {}
 local function createPickup(
 	folder: Folder,
 	inventoryService: InventoryService,
-	itemId: string,
+	instance: items.ItemInstance,
 	index: number,
 	center: Vector3,
 	random: Random
 ): ()
+	local itemId = instance.itemId
 	local item = assert(items[itemId], string.format("Unknown pickup item: %s", itemId))
 	local visual = assert(visuals[itemId], string.format("Missing pickup visual: %s", itemId))
 	local offset = Vector3.new(
@@ -73,11 +83,6 @@ local function createPickup(
 
 		collected = true
 		prompt.Enabled = false
-		local instance = {
-			uid = part.Name,
-			itemId = itemId,
-			quantity = if item.stackable then 1 else nil,
-		} :: items.ItemInstance
 		if inventoryService:addInstance(player, instance) then
 			part:Destroy()
 			pickupCollected:FireClient(player, itemId)
@@ -92,9 +97,14 @@ end
 
 local PickupService = {}
 
-function PickupService.new(inventoryService: InventoryService): Service
+function PickupService.new(
+	inventoryService: InventoryService,
+	factory: ItemInstanceFactory,
+	definitions: { PickupDefinition }?
+): Service
 	local spawned = false
 	local started = false
+	local pickupDefinitions: { PickupDefinition } = if definitions == nil then {} else definitions
 	local service = {} :: Service
 
 	local function spawnPickups(center: Vector3): ()
@@ -102,8 +112,15 @@ function PickupService.new(inventoryService: InventoryService): Service
 			return
 		end
 
+		local prepared: { items.ItemInstance } = {}
 		for _, definition in pickupDefinitions do
+			local instance = assert(
+				factory:create(definition.itemId, definition.attributes, definition.quantity),
+				string.format("Invalid pickup definition: %s", definition.itemId)
+			)
 			assert(items[definition.itemId], string.format("Unknown pickup item: %s", definition.itemId))
+			assert(visuals[definition.itemId], string.format("Missing pickup visual: %s", definition.itemId))
+			table.insert(prepared, instance)
 		end
 
 		local existing = Workspace:FindFirstChild("Pickups")
@@ -120,10 +137,8 @@ function PickupService.new(inventoryService: InventoryService): Service
 
 		spawned = true
 		local random = Random.new()
-		for _, definition in pickupDefinitions do
-			for index = 1, definition.count do
-				createPickup(folder, inventoryService, definition.itemId, index, center, random)
-			end
+		for index, instance in prepared do
+			createPickup(folder, inventoryService, instance, index, center, random)
 		end
 	end
 

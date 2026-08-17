@@ -1,16 +1,11 @@
 --!strict
 
-export type ItemId = string
-export type ItemAttribute = string | number | boolean
-export type ItemAttributes = { [string]: ItemAttribute }
+local catalog = require(script.Parent.catalog)
 
-export type ItemDefinition = {
-	id: ItemId,
-	name: string,
-	category: string,
-	stackable: boolean,
-	capabilities: { string },
-}
+export type ItemId = catalog.ItemId
+export type ItemAttribute = catalog.ItemAttribute
+export type ItemAttributes = catalog.ItemAttributes
+export type ItemDefinition = catalog.ItemDefinition
 
 export type ItemInstance = {
 	uid: string,
@@ -41,35 +36,4 @@ export type UseResult = {
 	effect: { [string]: ItemAttribute }?,
 }
 
-local items: { [ItemId]: ItemDefinition } = {
-	handgun = {
-		id = "handgun",
-		name = "Handgun",
-		category = "weapon",
-		stackable = false,
-		capabilities = { "equip", "fire", "reload" },
-	},
-	handgun_ammo = {
-		id = "handgun_ammo",
-		name = "Handgun Ammo",
-		category = "ammunition",
-		stackable = true,
-		capabilities = { "reload-ammo" },
-	},
-	medkit = {
-		id = "medkit",
-		name = "Medkit",
-		category = "consumable",
-		stackable = false,
-		capabilities = { "consume", "heal" },
-	},
-	iron_key = {
-		id = "iron_key",
-		name = "Iron Key",
-		category = "key",
-		stackable = false,
-		capabilities = { "unlock" },
-	},
-}
-
-return items
+return catalog
