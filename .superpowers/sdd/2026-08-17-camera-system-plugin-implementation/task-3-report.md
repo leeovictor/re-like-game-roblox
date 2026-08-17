@@ -38,6 +38,7 @@ rojo build plugin.project.json -o /tmp/camera-system-plugin.rbxmx
 Resultado: sucesso, pacote gerado em `/tmp/camera-system-plugin.rbxmx`.
 
 ```text
+git diff --check
 ```
 
 Resultado: sucesso, sem whitespace errors.
@@ -57,3 +58,52 @@ Rojo do projeto separado.
 - As definicoes Roblox versionadas nao expoem `SetWaypoint` nem `Selection:Set`;
   o modelo usa adapters tipados estreitos para essas APIs reais, sem alterar as
   definicoes globais.
+
+## Round 1 Fixes
+
+- `applyShot` agora registra waypoints imediatamente antes e depois de alterar
+  `Camera.CFrame` e `Camera.FieldOfView`.
+- `createZone` considera somente `Order`s nao-negativos, inteiros e finitos ao
+  calcular o proximo valor, garantindo que o atributo persistido seja inteiro.
+- `validate` agora reporta `Order` negativo, fracionario, nao-finito e duplicado,
+  mantendo as validacoes anteriores de referencia, tamanho e tipo.
+- `ensureHierarchy` valida a estrutura existente antes de iniciar a operacao e
+  executa a criacao dentro de `pcall`; o waypoint final e registrado mesmo se a
+  mutacao falhar.
+- `listZones` ordena `Order` valido primeiro por valor, coloca valores invalidos
+  depois e usa `Name` como desempate em ambos os casos.
+
+## Round 1 Verification
+
+Comandos executados a partir da raiz do repositorio:
+
+```text
+selene --config selene.roblox.toml plugin
+```
+
+Resultado: sucesso, `0 errors`, `0 warnings`, `0 parse errors`.
+
+```text
+luau-lsp analyze --platform roblox --settings typecheck/luau-lsp.roblox.json --base-luaurc typecheck/roblox.luaurc --definitions @roblox=typecheck/globalTypes.None.d.luau --formatter gnu plugin
+```
+
+Resultado: sucesso, sem diagnosticos de tipo. A saida confirmou que o
+sourcemap permanece desabilitado para a arvore independente do plugin.
+
+```text
+rojo build plugin.project.json -o /tmp/camera-system-plugin.rbxmx
+```
+
+Resultado: sucesso, pacote gerado em `/tmp/camera-system-plugin.rbxmx`.
+
+```text
+git diff --check
+```
+
+Resultado: sucesso, sem output e sem erros de whitespace.
+
+Nao existe harness pratico para o modelo do plugin: os testes Lune carregam
+modulos de `src/` e nao simulam `Workspace`, `Selection`, `Camera` ou
+`ChangeHistoryService` do Studio. Por isso nao foi adicionado teste automatizado
+nesta rodada; a cobertura especifica fica limitada ao lint, typecheck e build
+acima.

@@ -58,6 +58,15 @@ local function isValidFieldOfView(value: unknown): boolean
 	return type(value) == "number" and value >= 1 and value <= 120
 end
 
+local function isValidOrder(value: unknown): boolean
+	return type(value) == "number"
+		and value == value
+		and value ~= math.huge
+		and value ~= -math.huge
+		and value % 1 == 0
+		and value >= 0
+end
+
 function CameraSystemModel.new(
 	workspace: Workspace,
 	selection: Selection,
@@ -72,61 +81,66 @@ end
 
 function CameraSystemModel.ensureHierarchy(self: Model): Hierarchy
 	local root = self.workspace:FindFirstChild(CAMERA_SYSTEM_NAME)
-	local needsMutation = root == nil
-	local function beginMutation()
-		if not needsMutation then
-			setWaypoint(self.changeHistoryService, "Camera System: Begin hierarchy")
-			needsMutation = true
-		end
-	end
 	if root ~= nil and not root:IsA("Folder") then
 		error('Workspace.CameraSystem must be a Folder', 2)
 	end
 
-	if needsMutation then
-		setWaypoint(self.changeHistoryService, "Camera System: Begin hierarchy")
-	end
-
-	local rootFolder: Folder
-	if root == nil then
-		rootFolder = Instance.new("Folder")
-		rootFolder.Name = CAMERA_SYSTEM_NAME
-		rootFolder.Parent = self.workspace
-	else
-		rootFolder = root :: Folder
-	end
-
-	local shots = rootFolder:FindFirstChild(SHOTS_NAME)
-	if shots == nil then
-		beginMutation()
-		local folder = Instance.new("Folder")
-		folder.Name = SHOTS_NAME
-		folder.Parent = rootFolder
-		shots = folder
-	elseif not shots:IsA("Folder") then
+	local rootFolder = if root == nil then nil else root :: Folder
+	local existingShots = if rootFolder == nil then nil else rootFolder:FindFirstChild(SHOTS_NAME)
+	local existingZones = if rootFolder == nil then nil else rootFolder:FindFirstChild(ZONES_NAME)
+	if existingShots ~= nil and not existingShots:IsA("Folder") then
 		error('CameraSystem.Shots must be a Folder', 2)
 	end
-
-	local zones = rootFolder:FindFirstChild(ZONES_NAME)
-	if zones == nil then
-		beginMutation()
-		local folder = Instance.new("Folder")
-		folder.Name = ZONES_NAME
-		folder.Parent = rootFolder
-		zones = folder
-	elseif not zones:IsA("Folder") then
+	if existingZones ~= nil and not existingZones:IsA("Folder") then
 		error('CameraSystem.Zones must be a Folder', 2)
 	end
 
-	if needsMutation then
-		setWaypoint(self.changeHistoryService, "Camera System: End hierarchy")
+	if rootFolder ~= nil and existingShots ~= nil and existingZones ~= nil then
+		return {
+			root = rootFolder,
+			shots = existingShots :: Folder,
+			zones = existingZones :: Folder,
+		}
 	end
 
-	return {
-		root = rootFolder,
-		shots = shots :: Folder,
-		zones = zones :: Folder,
-	}
+	setWaypoint(self.changeHistoryService, "Camera System: Begin hierarchy")
+	local success, result = pcall(function(): Hierarchy
+		local rootToUse: Folder
+		if rootFolder == nil then
+			rootToUse = Instance.new("Folder")
+			rootToUse.Name = CAMERA_SYSTEM_NAME
+			rootToUse.Parent = self.workspace
+		else
+			rootToUse = rootFolder
+		end
+
+		local shots = existingShots
+		if shots == nil then
+			local folder = Instance.new("Folder")
+			folder.Name = SHOTS_NAME
+			folder.Parent = rootToUse
+			shots = folder
+		end
+
+		local zones = existingZones
+		if zones == nil then
+			local folder = Instance.new("Folder")
+			folder.Name = ZONES_NAME
+			folder.Parent = rootToUse
+			zones = folder
+		end
+
+		return {
+			root = rootToUse,
+			shots = shots :: Folder,
+			zones = zones :: Folder,
+		}
+	end)
+	setWaypoint(self.changeHistoryService, "Camera System: End hierarchy")
+	if not success then
+		error(result, 2)
+	end
+	return result :: Hierarchy
 end
 
 function CameraSystemModel._hierarchy(self: Model): Hierarchy
@@ -165,8 +179,13 @@ function CameraSystemModel.listZones(self: Model): { BasePart }
 	table.sort(zones, function(left, right)
 		local leftOrder = left:GetAttribute(ORDER)
 		local rightOrder = right:GetAttribute(ORDER)
-		if type(leftOrder) == "number" and type(rightOrder) == "number" and leftOrder ~= rightOrder then
-			return leftOrder < rightOrder
+		local leftHasValidOrder = isValidOrder(leftOrder)
+		local rightHasValidOrder = isValidOrder(rightOrder)
+		if leftHasValidOrder ~= rightHasValidOrder then
+			return leftHasValidOrder
+		end
+		if leftHasValidOrder and leftOrder ~= rightOrder then
+			return (leftOrder :: number) < (rightOrder :: number)
 		end
 		return left.Name < right.Name
 	end)
@@ -205,8 +224,10 @@ function CameraSystemModel.applyShot(self: Model, shot: Part, camera: Camera)
 	local ownedShot = self:_ownedShot(shot)
 	local fieldOfView = ownedShot:GetAttribute(FIELD_OF_VIEW)
 	assert(isValidFieldOfView(fieldOfView), string.format('Shot "%s" has an invalid FieldOfView', ownedShot.Name))
+	setWaypoint(self.changeHistoryService, "Camera System: Begin apply shot")
 	camera.CFrame = ownedShot.CFrame
 	camera.FieldOfView = fieldOfView :: number
+	setWaypoint(self.changeHistoryService, "Camera System: End apply shot")
 end
 
 function CameraSystemModel.setFieldOfView(self: Model, shot: Part, fieldOfView: number)
@@ -234,8 +255,8 @@ function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame,
 	local nextOrder = 1
 	for _, zone in self:listZones() do
 		local order = zone:GetAttribute(ORDER)
-		if type(order) == "number" then
-			nextOrder = math.max(nextOrder, order + 1)
+		if isValidOrder(order) then
+			nextOrder = math.max(nextOrder, (order :: number) + 1)
 		end
 	end
 
@@ -353,6 +374,7 @@ function CameraSystemModel.validate(self: Model): { string }
 	end
 
 	local defaultShotId = rootFolder:GetAttribute(DEFAULT_SHOT_ID)
+	local seenOrders: { [number]: BasePart? } = {}
 	if type(defaultShotId) ~= "string" or defaultShotId == "" or shots[defaultShotId] == nil then
 		add("CameraSystem DefaultShotId must reference an existing shot")
 	end
@@ -369,8 +391,12 @@ function CameraSystemModel.validate(self: Model): { string }
 				add(string.format('Zone "%s" references missing ShotId "%s"', zone.Name, shotId))
 			end
 			local order = zone:GetAttribute(ORDER)
-			if type(order) ~= "number" or order % 1 ~= 0 then
+			if not isValidOrder(order) then
 				add(string.format('Zone "%s" must have an integer Order', zone.Name))
+			elseif seenOrders[order :: number] ~= nil then
+				add(string.format('Zone "%s" has a duplicate Order %d', zone.Name, order :: number))
+			else
+				seenOrders[order :: number] = zone
 			end
 			local size = zone.Size
 			if size.X <= 0 or size.Y <= 0 or size.Z <= 0 then
