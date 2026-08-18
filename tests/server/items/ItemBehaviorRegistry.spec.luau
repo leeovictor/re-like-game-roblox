@@ -1,9 +1,8 @@
 --!strict
 
-local harness = require("../../support/harness")
-local loader = require("../../support/roblox-loader")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local ItemBehaviorRegistry = loader.load("src/server/items/ItemBehaviorRegistry.luau")
+local ItemBehaviorRegistry = require(ServerScriptService.Server.items.ItemBehaviorRegistry)
 
 type TestAttributes = { [string]: string | number | boolean }
 type TestInstance = {
@@ -49,50 +48,50 @@ local function newFakeBehavior(): TestBehavior
 	}
 end
 
-harness.describe("Item behavior registry", function()
-	harness.it("registers and retrieves a behavior", function()
+return function()
+	describe("Item behavior registry", function()
+	it("registers and retrieves a behavior", function()
 		local registry = ItemBehaviorRegistry.new()
 		local behavior = newFakeBehavior()
 
-		harness.assert.truthy(registry:register("healing", behavior))
-		harness.assert.equal(registry:get("healing"), behavior)
+		expect(registry:register("healing", behavior)).to.equal(true)
+		expect(registry:get("healing")).to.equal(behavior)
 	end)
 
-	harness.it("rejects an empty capability", function()
+	it("rejects an empty capability", function()
 		local registry = ItemBehaviorRegistry.new()
 
-		harness.assert.falsy(registry:register("", newFakeBehavior()))
+		expect(registry:register("", newFakeBehavior())).to.equal(false)
 	end)
 
-	harness.it("rejects duplicate registration", function()
+	it("rejects duplicate registration", function()
 		local registry = ItemBehaviorRegistry.new()
 
-		harness.assert.truthy(registry:register("healing", newFakeBehavior()))
-		harness.assert.falsy(registry:register("healing", newFakeBehavior()))
+		expect(registry:register("healing", newFakeBehavior())).to.equal(true)
+		expect(registry:register("healing", newFakeBehavior())).to.equal(false)
 	end)
 
-	harness.it("returns nil for an unknown capability", function()
+	it("returns nil for an unknown capability", function()
 		local registry = ItemBehaviorRegistry.new()
 
-		harness.assert.isNil(registry:get("unknown"))
+		expect(registry:get("unknown")).to.equal(nil)
 	end)
 
-	harness.it("keeps behavior identity without mutating it", function()
+	it("keeps behavior identity without mutating it", function()
 		local registry = ItemBehaviorRegistry.new()
 		local behavior = newFakeBehavior()
 
 		registry:register("healing", behavior)
 
-		harness.assert.equal(registry:get("healing"), behavior)
-		harness.assert.equal(
-			behavior.canUse(nil, { uid = "test", itemId = "medkit" }, { target = "other" }),
-			false,
-			"fake behavior remains unchanged"
-		)
+		expect(registry:get("healing")).to.equal(behavior)
+		expect(
+			behavior.canUse(nil, { uid = "test", itemId = "medkit" }, { target = "other" })
+		).to.equal(false, "fake behavior remains unchanged")
 		local result = behavior.use(nil, { uid = "test", itemId = "medkit" }, { target = "self" })
-		harness.assert.truthy(result.effect)
+		expect(result.effect).to.be.ok()
 		if result.effect ~= nil then
-			harness.assert.equal(result.effect.amount, 25)
+			expect(result.effect.amount).to.equal(25)
 		end
 	end)
 end)
+end

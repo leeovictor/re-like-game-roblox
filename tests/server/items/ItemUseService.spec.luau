@@ -1,10 +1,9 @@
 --!strict
 
-local harness = require("../../support/harness")
-local loader = require("../../support/roblox-loader")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local ItemBehaviorRegistry = loader.load("src/server/items/ItemBehaviorRegistry.luau")
-local ItemUseService = loader.load("src/server/items/ItemUseService.luau")
+local ItemBehaviorRegistry = require(ServerScriptService.Server.items.ItemBehaviorRegistry)
+local ItemUseService = require(ServerScriptService.Server.items.ItemUseService)
 
 type Attribute = string | number | boolean
 type Instance = {
@@ -227,14 +226,15 @@ local compatible = behavior(
 	end
 )
 
-harness.describe("Item use service", function()
-	harness.it("finds the first compatible instance by capability and context", function()
+return function()
+	describe("Item use service", function()
+	it("finds the first compatible instance by capability and context", function()
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" }, { uid = "b", itemId = "medkit" } }, "heal", compatible)
 		local found = service:findCompatibleItem(player, request("heal", { target = "self" }, nil))
-		harness.assert.equal(found.uid, "a")
+		expect(found.uid).to.equal("a")
 	end)
 
-	harness.it("uses the first compatible instance after an incompatible first instance", function()
+	it("uses the first compatible instance after an incompatible first instance", function()
 		local selective = behavior(
 			function(_player, instance)
 				return instance.uid == "b", "not_compatible"
@@ -243,34 +243,34 @@ harness.describe("Item use service", function()
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" }, { uid = "b", itemId = "medkit" } }, "heal", selective)
 		local result: Result = service:use(player, request("heal", {}, nil))
-		harness.assert.truthy(result.success)
-		harness.assert.equal(result.itemUid, "b")
-		harness.assert.equal(inventory.removedInstances, 1)
+		expect(result.success).to.equal(true)
+		expect(result.itemUid).to.equal("b")
+		expect(inventory.removedInstances).to.equal(1)
 	end)
 
-	harness.it("does not mutate inventory during compatibility lookup", function()
+	it("does not mutate inventory during compatibility lookup", function()
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
 		service:findCompatibleItem(player, request("heal", { target = "self" }, nil))
-		harness.assert.equal(inventory.removedInstances, 0)
-		harness.assert.equal(inventory.removedQuantities, 0)
+		expect(inventory.removedInstances).to.equal(0)
+		expect(inventory.removedQuantities).to.equal(0)
 	end)
 
-	harness.it("uses the requested uid when it is compatible", function()
+	it("uses the requested uid when it is compatible", function()
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" }, { uid = "b", itemId = "medkit" } }, "heal", compatible)
-		harness.assert.equal(service:findCompatibleItem(player, request("heal", { target = "self" }, "b")).uid, "b")
+		expect(service:findCompatibleItem(player, request("heal", { target = "self" }, "b")).uid).to.equal("b")
 	end)
 
-	harness.it("rejects a requested uid owned by another player", function()
+	it("rejects a requested uid owned by another player", function()
 		local service = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
-		harness.assert.isNil(service:findCompatibleItem({ UserId = 2, Name = "Other" }, request("heal", { target = "self" }, "a")))
+		expect(service:findCompatibleItem({ UserId = 2, Name = "Other" }, request("heal", { target = "self" }, "a"))).to.equal(nil)
 	end)
 
-	harness.it("rejects an unknown capability", function()
+	it("rejects an unknown capability", function()
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
-		harness.assert.isNil(service:findCompatibleItem(player, request("unknown", {}, nil)))
+		expect(service:findCompatibleItem(player, request("unknown", {}, nil))).to.equal(nil)
 	end)
 
-	harness.it("rejects malformed requests without calling behavior", function()
+	it("rejects malformed requests without calling behavior", function()
 		local canUseCalls = 0
 		local useCalls = 0
 		local observed = behavior(
@@ -293,89 +293,89 @@ harness.describe("Item use service", function()
 			{ capability = "heal", context = { amount = math.huge } },
 		}
 		for _, invalid in invalidRequests do
-			harness.assert.isNil(service:findCompatibleItem(player, invalid))
+			expect(service:findCompatibleItem(player, invalid)).to.equal(nil)
 			local result: Result = service:use(player, invalid)
-			harness.assert.equal(result.reason, "invalid_request")
+			expect(result.reason).to.equal("invalid_request")
 		end
-		harness.assert.equal(canUseCalls, 0)
-		harness.assert.equal(useCalls, 0)
+		expect(canUseCalls).to.equal(0)
+		expect(useCalls).to.equal(0)
 	end)
 
-	harness.it("returns the handler reason when context is incompatible", function()
+	it("returns the handler reason when context is incompatible", function()
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
 		local result: Result = service:use(player, request("heal", { target = "other" }, nil))
-		harness.assert.equal(result.reason, "not_compatible")
+		expect(result.reason).to.equal("not_compatible")
 	end)
 
-	harness.it("consumes an individual instance after behavior success", function()
+	it("consumes an individual instance after behavior success", function()
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
 		local result: Result = service:use(player, request("heal", { target = "self" }, "a"))
-		harness.assert.truthy(result.success)
-		harness.assert.truthy(result.consumed)
-		harness.assert.equal(inventory.removedInstances, 1)
+		expect(result.success).to.equal(true)
+		expect(result.consumed).to.equal(true)
+		expect(inventory.removedInstances).to.equal(1)
 	end)
 
-	harness.it("reduces a stack by the behavior requested quantity", function()
+	it("reduces a stack by the behavior requested quantity", function()
 		local stackBehavior = behavior(
 			function() return true end,
 			function() return { success = true, consumeQuantity = 2 } end
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "handgun_ammo", quantity = 5 } }, "reload-ammo", stackBehavior)
 		local result: Result = service:use(player, request("reload-ammo", {}, "a"))
-		harness.assert.truthy(result.success)
-		harness.assert.equal(inventory.removedQuantities, 1)
+		expect(result.success).to.equal(true)
+		expect(inventory.removedQuantities).to.equal(1)
 		local instance = assert(inventory:find(player, "a"))
-		harness.assert.equal(instance.quantity, 3)
+		expect(instance.quantity).to.equal(3)
 	end)
 
-	harness.it("updates instance attributes after behavior success", function()
+	it("updates instance attributes after behavior success", function()
 		local updateBehavior = behavior(
 			function() return true end,
 			function() return { success = true, updateAttributes = { charged = true } :: { [string]: Attribute } } end
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "iron_key" } }, "unlock", updateBehavior)
 		service:use(player, request("unlock", {}, "a"))
-		harness.assert.equal(inventory.updatedAttributes, 1)
+		expect(inventory.updatedAttributes).to.equal(1)
 		local instance = assert(inventory:find(player, "a"))
-		harness.assert.equal(assert(instance.attributes).charged, true)
+		expect(assert(instance.attributes).charged).to.equal(true)
 	end)
 
-	harness.it("equips the requested uid in the returned mutation", function()
+	it("equips the requested uid in the returned mutation", function()
 		local equipBehavior = behavior(
 			function() return true end,
 			function() return { success = true, equipSlot = "primary" } end
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "handgun" } }, "equip", equipBehavior)
 		local result: Result = service:use(player, request("equip", {}, "a"))
-		harness.assert.truthy(result.success)
-		harness.assert.equal(inventory.equipped, 1)
-		harness.assert.equal(inventory.states[player].equipped.primary, "a")
+		expect(result.success).to.equal(true)
+		expect(inventory.equipped).to.equal(1)
+		expect(inventory.states[player].equipped.primary).to.equal("a")
 	end)
 
-	harness.it("does not mutate inventory after behavior failure", function()
+	it("does not mutate inventory after behavior failure", function()
 		local failed = behavior(
 			function() return true end,
 			function() return { success = false, reason = "blocked", consumeInstance = true } end
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", failed)
 		local result: Result = service:use(player, request("heal", {}, "a"))
-		harness.assert.equal(result.reason, "blocked")
-		harness.assert.equal(inventory.removedInstances, 0)
+		expect(result.reason).to.equal("blocked")
+		expect(inventory.removedInstances).to.equal(0)
 	end)
 
-	harness.it("two uses of the same uid cannot both consume it", function()
+	it("two uses of the same uid cannot both consume it", function()
 		local service, inventory, player
 		local locked = behavior(function() return true end, function()
 			local second: Result = service:use(player, request("heal", {}, "a"))
-			harness.assert.equal(second.reason, "operation_in_progress")
+			expect(second.reason).to.equal("operation_in_progress")
 			return { success = true, consumeInstance = true }
 		end)
 		service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", locked)
 		service:use(player, request("heal", {}, "a"))
-		harness.assert.equal(inventory.removedInstances, 1)
+		expect(inventory.removedInstances).to.equal(1)
 	end)
 
-	harness.it("client healAmount in context is ignored", function()
+	it("client healAmount in context is ignored", function()
 		local safe = behavior(function() return true end, function(_player, _instance, context)
 			local serverHealAmount = 25
 			return {
@@ -386,29 +386,29 @@ harness.describe("Item use service", function()
 		local service, _, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", safe)
 		local result: Result = service:use(player, request("heal", { healAmount = 999 }, "a"))
 		local effect = assert(result.effect, "use effect")
-		harness.assert.equal(effect.amount, 25)
-		harness.assert.equal(effect.clientValueIgnored, true)
+		expect(effect.amount).to.equal(25)
+		expect(effect.clientValueIgnored).to.equal(true)
 	end)
 
-	harness.it("a stale compatibility result is revalidated by use", function()
+	it("a stale compatibility result is revalidated by use", function()
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
-		harness.assert.truthy(service:findCompatibleItem(player, request("heal", { target = "self" }, "a")))
+		expect(service:findCompatibleItem(player, request("heal", { target = "self" }, "a"))).to.be.ok()
 		inventory:removeInstance(player, "a")
 		local result: Result = service:use(player, request("heal", { target = "self" }, "a"))
-		harness.assert.falsy(result.success)
-		harness.assert.equal(inventory.removedInstances, 1)
+		expect(result.success).to.equal(false)
+		expect(inventory.removedInstances).to.equal(1)
 	end)
 
-	harness.it("does not attempt a second consumption after a stale result", function()
+	it("does not attempt a second consumption after a stale result", function()
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
 		service:findCompatibleItem(player, request("heal", { target = "self" }, "a"))
 		inventory:removeInstance(player, "a")
 		local result: Result = service:use(player, request("heal", { target = "self" }, "a"))
-		harness.assert.falsy(result.success)
-		harness.assert.equal(inventory.removedInstances, 1)
+		expect(result.success).to.equal(false)
+		expect(inventory.removedInstances).to.equal(1)
 	end)
 
-	harness.it("a failed domain behavior leaves the original state intact", function()
+	it("a failed domain behavior leaves the original state intact", function()
 		local failed = behavior(
 			function()
 				return false, "out_of_range"
@@ -417,28 +417,29 @@ harness.describe("Item use service", function()
 		)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", failed)
 		service:use(player, request("heal", {}, "a"))
-		harness.assert.truthy(inventory:find(player, "a"))
+		expect(inventory:find(player, "a")).to.be.ok()
 	end)
 
-	harness.it("returns mutation_failed when a confirmed mutation fails", function()
+	it("returns mutation_failed when a confirmed mutation fails", function()
 		local service, inventory, player = makeService({ { uid = "a", itemId = "medkit" } }, "heal", compatible)
 		inventory.failApply = true
 		local result: Result = service:use(player, request("heal", { target = "self" }, "a"))
-		harness.assert.falsy(result.success)
-		harness.assert.equal(result.reason, "mutation_failed")
+		expect(result.success).to.equal(false)
+		expect(result.reason).to.equal("mutation_failed")
 	end)
 
-	harness.it("keeps state intact when the second mutation cannot be confirmed", function()
+	it("keeps state intact when the second mutation cannot be confirmed", function()
 		local multi = behavior(function() return true end, function()
 			return { success = true, updateAttributes = { charged = true } :: { [string]: Attribute }, equipSlot = "primary" }
 		end)
 		local service, inventory, player = makeService({ { uid = "a", itemId = "handgun" } }, "equip", multi)
 		inventory.failEquip = true
 		local result: Result = service:use(player, request("equip", {}, "a"))
-		harness.assert.falsy(result.success)
-		harness.assert.equal(result.reason, "mutation_failed")
+		expect(result.success).to.equal(false)
+		expect(result.reason).to.equal("mutation_failed")
 		local after = assert(inventory:getSnapshot(player))
-		harness.assert.isNil(after.items[1].attributes)
-		harness.assert.isNil(after.equipped.primary)
+		expect(after.items[1].attributes).to.equal(nil)
+		expect(after.equipped.primary).to.equal(nil)
 	end)
 end)
+end
