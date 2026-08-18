@@ -12,6 +12,9 @@
       "DevPackages": {
         "$path": "DevPackages"
       },
+      "TestEZRunnerShared": {
+        "$path": "tests/runners/shared.luau"
+      },
       "TestEZTests": {
         "$className": "Folder",
         "Shared": {
@@ -37,6 +40,9 @@
         "Server": {
           "$path": "tests/server"
         }
+      },
+      "TestEZRunner": {
+        "$path": "tests/runners/server.luau"
       }
     },
     "StarterPlayer": {
@@ -64,6 +70,9 @@
           "Client": {
             "$path": "tests/client"
           }
+        },
+        "TestEZClientRunner": {
+          "$path": "tests/runners/client.luau"
         }
       }
     }
