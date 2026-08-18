@@ -84,5 +84,33 @@ return function()
 			expect(actions[PREVIOUS_ACTION]).to.equal(nil)
 			expect(actions[NEXT_ACTION]).to.equal(nil)
 		end)
+
+		it("preserves a dialog started by a stop callback", function()
+			DialogueController.show("Dialogo inicial", function()
+				DialogueController.start()
+				DialogueController.show("Proximo dialogo")
+			end)
+
+			DialogueController.stop()
+
+			local state = DialogueController.getState()
+			expect(state).to.be.ok()
+			expect(state.text).to.equal("Proximo dialogo")
+
+			local actions = ContextActionService:GetAllBoundActionInfo() :: any
+			expect(actions[CONFIRM_ACTION]).to.be.ok()
+			expect(actions[CANCEL_ACTION]).to.be.ok()
+		end)
+
+		it("does not show a dialog after stop until restarted", function()
+			DialogueController.stop()
+			DialogueController.show("Nao deve aparecer")
+
+			expect(DialogueController.getState()).to.equal(nil)
+
+			DialogueController.start()
+			DialogueController.show("Pode aparecer")
+			expect(DialogueController.getState().text).to.equal("Pode aparecer")
+		end)
 	end)
 end

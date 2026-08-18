@@ -222,11 +222,17 @@ function controller.start(): ()
 end
 
 function controller.stop(): ()
+	if not started and state == nil then
+		unbindActions()
+		return
+	end
+
 	started = false
 	if state ~= nil then
 		closeCurrent(nil, "cancelled")
+	else
+		unbindActions()
 	end
-	unbindActions()
 end
 
 function controller.getState(): DialogState?
@@ -234,6 +240,10 @@ function controller.getState(): DialogState?
 end
 
 function controller.show(text: string, callback: ShowCallback?): ()
+	if not started then
+		return
+	end
+
 	local validatedText = validateText(text, "text")
 	local hadState = state ~= nil
 	local previousGeneration = generation
@@ -257,6 +267,10 @@ function controller.show(text: string, callback: ShowCallback?): ()
 end
 
 function controller.ask(text: string, options: { DialogOption }, callback: AskCallback?): ()
+	if not started then
+		return
+	end
+
 	local validatedText = validateText(text, "text")
 	local validatedOptions = validateOptions(options)
 	local hadState = state ~= nil
