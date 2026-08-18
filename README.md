@@ -77,6 +77,11 @@ folders, or other mutable state must destroy or disconnect them in `afterEach`
 and use `beforeEach` to create isolated fixtures. Keep production entrypoints
 out of the test place.
 
+For client remote integrations, a local `Signal:Fire` assertion verifies only
+the public signal contract. Actual `RemoteEvent:FireClient` delivery must be
+checked separately through the Studio MCP server-to-client checkpoint; a client
+runner must not pretend to simulate that cross-DataModel boundary.
+
 ### Rojo and Studio
 
 Build or connect the test place with one of these commands:
