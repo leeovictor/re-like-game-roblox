@@ -1,9 +1,8 @@
 --!strict
 
-local harness = require("../../support/harness")
-local loader = require("../../support/roblox-loader")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local items = loader.load("src/shared/inventory/items.luau")
+local items = require(ReplicatedStorage.Shared.inventory.items)
 
 type ItemAttribute = string | number | boolean
 type ItemInstance = {
@@ -27,37 +26,40 @@ local function hasCapability(capabilities: { string }, expected: string): boolea
 	return false
 end
 
-harness.describe("Shared inventory items", function()
-	harness.it("constructs the version two instance schema", function()
-		local state: InventoryState = {
-			version = 2,
-			items = {
-				{
-					uid = "handgun-001",
-					itemId = "handgun",
-					attributes = { damage = 18, loadedAmmo = 5 } :: { [string]: ItemAttribute },
+return function()
+	describe("Shared inventory items", function()
+		it("constructs the version two instance schema", function()
+			local state: InventoryState = {
+				version = 2,
+				items = {
+					{
+						uid = "handgun-001",
+						itemId = "handgun",
+						attributes = { damage = 18, loadedAmmo = 5 } :: { [string]: ItemAttribute },
+					},
+					{
+						uid = "ammo-001",
+						itemId = "handgun_ammo",
+						quantity = 24,
+					},
 				},
-				{
-					uid = "ammo-001",
-					itemId = "handgun_ammo",
-					quantity = 24,
-				},
-			},
-			equipped = { weapon = "handgun-001" },
-		}
+				equipped = { weapon = "handgun-001" },
+			}
 
-		harness.assert.equal(state.version, 2)
-		harness.assert.equal(state.items[1].uid, "handgun-001")
-		local attributes = assert(state.items[1].attributes, "handgun attributes")
-		harness.assert.equal(attributes.damage, 18)
-		harness.assert.equal(assert(state.items[2].quantity, "ammo quantity"), 24)
-		harness.assert.equal(state.equipped.weapon, "handgun-001")
-	end)
+			expect(state.version).to.equal(2)
+			expect(state.items[1].uid).to.equal("handgun-001")
+			local attributes = assert(state.items[1].attributes, "handgun attributes")
+			expect(attributes.damage).to.equal(18)
+			local quantity = assert(state.items[2].quantity, "ammo quantity")
+			expect(quantity).to.equal(24)
+			expect(state.equipped.weapon).to.equal("handgun-001")
+		end)
 
-	harness.it("exposes static catalog capabilities", function()
-		harness.assert.truthy(hasCapability(items.medkit.capabilities, "heal"))
-		harness.assert.truthy(hasCapability(items.handgun.capabilities, "equip"))
-		harness.assert.truthy(hasCapability(items.handgun_ammo.capabilities, "reload-ammo"))
-		harness.assert.truthy(hasCapability(items.iron_key.capabilities, "unlock"))
+		it("exposes static catalog capabilities", function()
+			expect(hasCapability(items.medkit.capabilities, "heal")).to.be.ok()
+			expect(hasCapability(items.handgun.capabilities, "equip")).to.be.ok()
+			expect(hasCapability(items.handgun_ammo.capabilities, "reload-ammo")).to.be.ok()
+			expect(hasCapability(items.iron_key.capabilities, "unlock")).to.be.ok()
+		end)
 	end)
-end)
+end
