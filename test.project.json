@@ -1,0 +1,71 @@
+{
+  "name": "dungeon-game-canve-tests",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "Packages": {
+        "$path": "Packages"
+      },
+      "DevPackages": {
+        "$path": "DevPackages"
+      },
+      "TestEZTests": {
+        "$className": "Folder",
+        "Shared": {
+          "$path": "tests/shared"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$className": "Folder",
+        "inventory": {
+          "$path": "src/server/inventory"
+        },
+        "items": {
+          "$path": "src/server/items"
+        },
+        "pickups": {
+          "$path": "src/server/pickups"
+        }
+      },
+      "TestEZTests": {
+        "$className": "Folder",
+        "Server": {
+          "$path": "tests/server"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$className": "Folder",
+          "camera": {
+            "$path": "src/client/camera"
+          },
+          "inventory": {
+            "$path": "src/client/inventory"
+          },
+          "pickups": {
+            "$path": "src/client/pickups"
+          },
+          "player": {
+            "$path": "src/client/player"
+          },
+          "ui": {
+            "$path": "src/client/ui"
+          }
+        },
+        "TestEZTests": {
+          "$className": "Folder",
+          "Client": {
+            "$path": "tests/client"
+          }
+        }
+      }
+    }
+  }
+}
