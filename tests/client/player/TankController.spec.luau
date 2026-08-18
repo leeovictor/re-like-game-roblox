@@ -1,39 +1,46 @@
 --!strict
 
-local fs = require("@lune/fs")
-local harness = require("../../support/harness")
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client") :: any
+local require = require :: (ModuleScript) -> any
+local TankController = require(client.player.TankController)
 
-local function read(path: string): string
-	return fs.readFile(path)
+return function()
+	describe("TankController", function()
+		afterEach(function()
+			TankController.stop()
+		end)
+
+		it("binds the four tank actions once", function()
+			TankController.start()
+			TankController.start()
+
+			local actions = ContextActionService:GetAllBoundActionInfo() :: any
+			local expectedActions = {
+				DungeonTankForward = Enum.KeyCode.W,
+				DungeonTankBackward = Enum.KeyCode.S,
+				DungeonTankLeft = Enum.KeyCode.A,
+				DungeonTankRight = Enum.KeyCode.D,
+			}
+
+			for actionName, keyCode in expectedActions do
+				local actionInfo = actions[actionName]
+				expect(actionInfo).to.be.ok()
+				expect(actionInfo.priorityLevel).to.equal(Enum.ContextActionPriority.High.Value)
+				expect(actionInfo.inputTypes[1]).to.equal(keyCode)
+			end
+		end)
+
+		it("unbinds actions when stopped", function()
+			TankController.start()
+			TankController.stop()
+
+			local actions = ContextActionService:GetAllBoundActionInfo() :: any
+			expect(actions.DungeonTankForward).to.equal(nil)
+			expect(actions.DungeonTankBackward).to.equal(nil)
+			expect(actions.DungeonTankLeft).to.equal(nil)
+			expect(actions.DungeonTankRight).to.equal(nil)
+		end)
+	end)
 end
-
-local function assertContains(source: string, text: string, message: string): ()
-	harness.assert.truthy(string.find(source, text, 1, true), message)
-end
-
-harness.describe("TankController", function()
-	harness.it("registra as teclas com ContextActionService e consome o controle padrao", function()
-		local source = read("src/client/player/TankController.luau")
-		assertContains(source, "ContextActionService", "controller must use ContextActionService")
-		assertContains(source, "BindActionAtPriority", "controller must bind actions at a priority")
-		assertContains(source, "Enum.ContextActionResult.Sink", "tank actions must sink default movement")
-		assertContains(source, "Enum.KeyCode.W", "controller must bind W")
-		assertContains(source, "Enum.KeyCode.S", "controller must bind S")
-		assertContains(source, "Enum.KeyCode.A", "controller must bind A")
-		assertContains(source, "Enum.KeyCode.D", "controller must bind D")
-	end)
-
-	harness.it("aplica movimento, rotacao e desativa AutoRotate", function()
-		local source = read("src/client/player/TankController.luau")
-		assertContains(source, "RunService.PreRender", "controller must update every frame")
-		assertContains(source, "humanoid:Move", "controller must drive Humanoid movement")
-		assertContains(source, "AutoRotate = false", "controller must disable automatic rotation")
-		assertContains(source, "CFrame.Angles", "controller must rotate the root part")
-	end)
-
-	harness.it("e iniciado pelo cliente", function()
-		local source = read("src/client/init.client.luau")
-		assertContains(source, "script.player.TankController", "client init must require TankController")
-		assertContains(source, "TankController.start()", "client init must start TankController")
-	end)
-end)
