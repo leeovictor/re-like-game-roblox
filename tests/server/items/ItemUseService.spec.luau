@@ -216,7 +216,7 @@ local function makeService(items: { Instance }, capability: string, itemBehavior
 	local inventory, player = newFakeInventory(items)
 	local registry = ItemBehaviorRegistry.new()
 	registry:register(capability, itemBehavior)
-	return ItemUseService.new(inventory, registry), inventory, player
+	return ItemUseService.new(inventory :: any, registry), inventory, player
 end
 
 local compatible = behavior(

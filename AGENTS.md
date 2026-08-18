@@ -6,6 +6,8 @@
 - `src/` roda no Roblox Studio. `tests/` e uma arvore TestEZ dentro de `test.project.json`, com roots separados em `ReplicatedStorage.TestEZTests.Shared`, `ServerScriptService.TestEZTests.Server` e `StarterPlayer.StarterPlayerScripts.TestEZTests.Client`. `CameraVisibility` pertence ao root client.
 - `test.project.json` mapeia apenas os subdiretorios de producao necessarios e omite `src/server/init.server.luau` e `src/client/init.client.luau`; os entrypoints normais continuam exclusivos de `default.project.json`.
 - Specs sao ModuleScripts `--!strict` que retornam uma funcao TestEZ e registram `describe`, `it`, `expect`, `beforeEach` e `afterEach`. Imports usam o DataModel real, sem indirection virtual ou filesystem. O escopo nao inclui specs de UI.
+- O runner, harness, loader e arquivos de suporte do Lune foram removidos; a suite e executada somente pelo TestEZ no Roblox Studio.
+- Specs de UI permanecem intencionalmente fora do escopo desta migracao; nao adicione testes para `src/client/ui/App.luau`.
 - Specs que criam Instances, conexoes ou estado mutavel devem criar fixtures isoladas em `beforeEach` e destruir ou desconectar tudo em `afterEach`.
 - `src/server/cave-engine/` contem hifen. Use `script["cave-engine"].CaveEngine` ou `script["cave-engine"].TerrainWriter`, nunca notacao de ponto nem renomeie a pasta.
 - O cliente inicia em `src/client/init.client.luau` e usa React/ReactRoblox. Os runners de teste nao iniciam esses entrypoints: chame-os explicitamente pelo MCP no DataModel `Server` e no DataModel `Client`.
@@ -35,7 +37,11 @@ luau-lsp analyze --platform roblox \
   --base-luaurc typecheck/roblox.luaurc \
   --definitions @roblox=typecheck/globalTypes.None.d.luau \
   --definitions @testez=typecheck/testez.d.luau \
-  --sourcemap test-sourcemap.json --formatter gnu src tests
+  --sourcemap test-sourcemap.json --formatter gnu \
+  src/shared \
+  src/server/inventory src/server/items src/server/pickups \
+  src/client/camera src/client/inventory src/client/pickups src/client/player src/client/ui \
+  tests
 ```
 
 - A ordem do typecheck e `rojo sourcemap` antes de `luau-lsp analyze`; use somente a plataforma Roblox para `src` e `tests`.
@@ -47,6 +53,7 @@ rojo build -o /tmp/dungeon-game-canve-test.rbxlx test.project.json
 ```
 
 - A definicao Roblox versionada corresponde ao `luau-lsp 1.69.0`; nao troque por `latest` sem atualizar a ferramenta, a definicao e o hash documentado no README.
+- O typecheck usa os mesmos subdiretorios de producao mapeados em `test.project.json`; nao inclua `src/server/init.server.luau` ou `src/client/init.client.luau` nessa analise.
 - Use Roblox Studio/MCP para o DataModel real, Terrain, `Terrain:WriteVoxels` e inicializacao de scripts. `default.project.json` continua sendo o projeto do jogo.
 
 ## Limites de Tipos

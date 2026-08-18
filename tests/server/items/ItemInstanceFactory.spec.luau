@@ -14,8 +14,8 @@ end
 
 local function assertRejected(assert: any, callback: () -> any): ()
 	local ok, result = pcall(callback)
-	assert(ok).to.equal(true, "invalid item input should not throw")
-	assert(result).to.equal(nil, "expected invalid item input to return nil")
+	assert(ok).to.equal(true)
+	assert(result).to.equal(nil)
 end
 
 return function()

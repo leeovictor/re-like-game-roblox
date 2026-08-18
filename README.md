@@ -131,11 +131,17 @@ luau-lsp analyze --platform roblox \
   --definitions @testez=typecheck/testez.d.luau \
   --sourcemap test-sourcemap.json \
   --formatter gnu \
-  src tests
+  src/shared \
+  src/server/inventory src/server/items src/server/pickups \
+  src/client/camera src/client/inventory src/client/pickups src/client/player src/client/ui \
+  tests
 ```
 
 The analysis must use the Roblox platform so `script` imports, services,
-Instances, datatypes, and TestEZ globals resolve against the real test tree.
+Instances, datatypes, and TestEZ globals resolve against the real test tree. The
+paths match the production subdirectories mapped by `test.project.json`; do not
+include `src/server/init.server.luau` or `src/client/init.client.luau`, which are
+intentionally omitted from the test place.
 Build both projects after static checks:
 
 ```bash

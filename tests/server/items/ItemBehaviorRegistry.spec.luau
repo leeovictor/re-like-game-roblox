@@ -54,21 +54,21 @@ return function()
 		local registry = ItemBehaviorRegistry.new()
 		local behavior = newFakeBehavior()
 
-		expect(registry:register("healing", behavior)).to.equal(true)
+		expect(registry:register("healing", behavior :: any)).to.equal(true)
 		expect(registry:get("healing")).to.equal(behavior)
 	end)
 
 	it("rejects an empty capability", function()
 		local registry = ItemBehaviorRegistry.new()
 
-		expect(registry:register("", newFakeBehavior())).to.equal(false)
+		expect(registry:register("", newFakeBehavior() :: any)).to.equal(false)
 	end)
 
 	it("rejects duplicate registration", function()
 		local registry = ItemBehaviorRegistry.new()
 
-		expect(registry:register("healing", newFakeBehavior())).to.equal(true)
-		expect(registry:register("healing", newFakeBehavior())).to.equal(false)
+		expect(registry:register("healing", newFakeBehavior() :: any)).to.equal(true)
+		expect(registry:register("healing", newFakeBehavior() :: any)).to.equal(false)
 	end)
 
 	it("returns nil for an unknown capability", function()
@@ -81,12 +81,12 @@ return function()
 		local registry = ItemBehaviorRegistry.new()
 		local behavior = newFakeBehavior()
 
-		registry:register("healing", behavior)
+		registry:register("healing", behavior :: any)
 
 		expect(registry:get("healing")).to.equal(behavior)
-		expect(
+		expect((
 			behavior.canUse(nil, { uid = "test", itemId = "medkit" }, { target = "other" })
-		).to.equal(false, "fake behavior remains unchanged")
+		)).to.equal(false)
 		local result = behavior.use(nil, { uid = "test", itemId = "medkit" }, { target = "self" })
 		expect(result.effect).to.be.ok()
 		if result.effect ~= nil then
