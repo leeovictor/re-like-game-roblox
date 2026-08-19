@@ -22,7 +22,7 @@ export type Service = {
 }
 
 local MAX_DISTANCE = 6
-local SIDE_EPSILON = 0.25
+local SIDE_EPSILON = 0.001
 local EXIT_MARGIN = 3
 
 local function failure(reason: doorTypes.DoorFailureReason): DoorActionResult
@@ -99,7 +99,7 @@ function DoorService.new(itemUseService: ItemUseService): Service
 		if root == nil then return failure("invalid_door") end
 		local offset = root.Position - center.WorldPosition
 		if offset.Magnitude > MAX_DISTANCE then return failure("too_far") end
-		local signedDistance = offset:Dot(center.WorldCFrame.ZVector)
+		local signedDistance = offset:Dot(center.WorldCFrame.XVector)
 		if math.abs(signedDistance) <= SIDE_EPSILON then return failure("ambiguous_side") end
 		if busy[door] then return failure("busy") end
 		busy[door] = true
@@ -128,8 +128,8 @@ function DoorService.new(itemUseService: ItemUseService): Service
 				return
 			end
 			local side = if signedDistance > 0 then 1 else -1
-			local direction = -center.WorldCFrame.ZVector * side
-			local destination = center.WorldPosition + direction * (doorway.Size.Z / 2 + EXIT_MARGIN)
+			local direction = -center.WorldCFrame.XVector * side
+			local destination = center.WorldPosition + direction * (doorway.Size.X / 2 + EXIT_MARGIN)
 			destination = Vector3.new(destination.X, root.Position.Y, destination.Z)
 			root.CFrame = CFrame.lookAt(destination, destination + direction)
 			result = { success = true, action = "enter" }
