@@ -3,8 +3,6 @@
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MemoryPersistence = require(script.inventory.persistence.MemoryPersistence)
-local DataStorePersistence = require(script.inventory.persistence.DataStorePersistence)
 local InventoryService = require(script.inventory.InventoryService)
 local ItemInstanceFactory = require(script.items.ItemInstanceFactory)
 local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
@@ -22,8 +20,7 @@ type MapPickupDefinition = {
 	quantity: number?,
 }
 
-local persistence = if RunService:IsStudio() then MemoryPersistence.new() else DataStorePersistence.new()
-local inventoryService = InventoryService.new(persistence)
+local inventoryService = InventoryService.new()
 local behaviorRegistry = ItemBehaviorRegistry.new()
 assert(behaviorRegistry:register("unlock", DoorUnlockBehavior.create()), "unlock behavior registration")
 local itemUseService = ItemUseService.new(inventoryService, behaviorRegistry)

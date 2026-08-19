@@ -29,16 +29,11 @@ flowchart TB
     subgraph SERVER["Servidor · ServerScriptService.Server"]
         INITS["init.server.luau<br/>composição dos serviços"]
         INV["InventoryService<br/>estado autoritativo por Player"]
-        STORE["InventoryStore<br/>validação + mutações puras<br/>serialização"]
+        STORE["InventoryStore<br/>validação + mutações puras"]
         FACTORY["ItemInstanceFactory<br/>UID + instâncias validadas"]
         PICKUP["PickupService<br/>Part + ProximityPrompt"]
         USE["ItemUseService<br/>validação + lock + coordenação"]
         REGISTRY["ItemBehaviorRegistry<br/>behaviors por capability"]
-    end
-
-    subgraph PERSIST["Persistência"]
-        MEMORY["MemoryPersistence<br/>Studio"]
-        DATASTORE["DataStorePersistence<br/>produção · PlayerInventory"]
     end
 
     WORLD["Workspace<br/>Pickups / ProximityPrompt"]
@@ -70,9 +65,6 @@ flowchart TB
     TYPES --> USE
 
     INV --> STORE
-    INV <-->|"load / save"| MEMORY
-    INV <-->|"load / save"| DATASTORE
-
     WORLD -->|"Triggered(player)"| PICKUP
     PICKUP -->|"create(itemId, attrs, qty)"| FACTORY
     PICKUP -->|"addInstance(player, instance)"| INV
@@ -85,13 +77,11 @@ flowchart TB
     classDef client fill:#18354a,stroke:#5bb6c9,color:#eef7f8
     classDef shared fill:#3d3424,stroke:#d6a756,color:#fff7e5
     classDef server fill:#273d32,stroke:#7ac28b,color:#effbf1
-    classDef persist fill:#3a2f46,stroke:#bb91d6,color:#fbf4ff
     classDef external fill:#2d3037,stroke:#9298a3,color:#f0f2f5,stroke-dasharray:5 4
 
     class INITC,CONTROLLER,HOOK,APP,NOTIFY client
     class CATALOG,TYPES,REMOTES shared
     class INITS,INV,STORE,FACTORY,PICKUP,USE,REGISTRY server
-    class MEMORY,DATASTORE persist
     class WORLD,GAMEPLAY external
 ```
 
@@ -102,8 +92,8 @@ flowchart TB
 | `shared/inventory/catalog.luau` | Catálogo declarativo com nome, categoria, regra de empilhamento e capacidades. |
 | `shared/inventory/items.luau` | Tipos compartilhados de `ItemInstance`, `InventoryState`, pedidos e resultados de uso. |
 | `shared/remotes.luau` | Cria ou reutiliza os remotes em `ReplicatedStorage.Remotes`. |
-| `server/inventory/InventoryStore.luau` | Valida, copia e transforma estados sem mutação compartilhada; também serializa e desserializa JSON. |
-| `server/inventory/InventoryService.luau` | Mantém o estado por jogador, carrega, salva, aplica mutações e replica snapshots. |
+| `server/inventory/InventoryStore.luau` | Valida, copia e transforma estados sem mutação compartilhada. |
+| `server/inventory/InventoryService.luau` | Mantém estado volátil por jogador, aplica mutações e replica snapshots. |
 | `server/items/ItemInstanceFactory.luau` | Gera `uid`s e cria instâncias com quantidade e atributos básicos válidos. |
 | `server/items/ItemBehaviorRegistry.luau` | Registra handlers server-side por capability. |
 | `server/items/ItemUseService.luau` | Valida pedidos, encontra a instância compatível, impede uso concorrente e coordena mutações. |
@@ -141,26 +131,23 @@ atributos diferentes. Itens empilháveis usam `quantity`.
 sequenceDiagram
     participant P as Player
     participant S as InventoryService
-    participant DB as Persistence
     participant R as Remotes
     participant C as InventoryController
     participant UI as App / React
 
     P->>S: PlayerAdded
-    S->>DB: load(UserId) com retry/backoff
-    DB-->>S: InventoryState ou nil
-    S->>S: guarda snapshot autoritativo
+    S->>S: cria estado vazio da sessão
     S-->>R: InventoryChanged:FireClient(snapshot)
+    S->>P: LoadCharacterAsync
     C->>R: GetInventory:InvokeServer()
     R-->>C: snapshot atual
     C->>UI: changed:Fire(snapshot)
     UI->>UI: renderiza inventário
 ```
 
-Em `Studio`, `MemoryPersistence` é usado. Fora do `Studio`, o backend é
-`DataStorePersistence`. O personagem só é carregado depois que o inventário
-do jogador termina de carregar. Ao sair, `InventoryService` salva o snapshot
-de forma best-effort.
+Em `PlayerAdded`, `InventoryService` cria um estado vazio da sessão, notifica o
+cliente com o snapshot inicial e carrega o personagem imediatamente depois da
+notificação. Ao sair, o estado do jogador é descartado sem salvamento.
 
 ### 2. Coleta de pickup
 
@@ -223,23 +210,20 @@ sequenceDiagram
 as mutações depois que o behavior retorna dados de resultado. O payload do
 cliente não define valores de efeito.
 
-### 4. Persistência
+### 4. Estado de sessão
 
-```mermaid
-flowchart LR
-    SERVICE["InventoryService"] -->|"load / save"| SELECT{"RunService:IsStudio()?"}
-    SELECT -->|sim| MEMORY["MemoryPersistence<br/>tabela em memória"]
-    SELECT -->|não| DATA["DataStorePersistence<br/>DataStoreService"]
-    DATA --> SERIAL["InventoryStore<br/>serialize / deserialize"]
-    MEMORY --> COPY["InventoryStore.copyState"]
-```
+O inventário existe somente na memória do servidor durante a sessão atual.
+`InventoryService` cria um estado vazio para cada jogador ao entrar, mantém o
+estado autoritativo e o remove em `PlayerRemoving`. O estado é descartado quando
+o jogador sai ou quando o servidor reinicia; não há carregamento ou salvamento
+entre sessões.
 
 ## Autoridade e Limites
 
 - O estado autoritativo fica privado dentro de `InventoryService`.
 - `InventoryStore` não depende de APIs Roblox e opera como lógica pura.
 - O cliente não altera o inventário diretamente.
-- `InventoryChanged` representa snapshots persistíveis; `PickupCollected`
+- `InventoryChanged` representa snapshots replicados; `PickupCollected`
   representa o evento transitório da coleta.
 - O catálogo não contém funções nem comportamentos executáveis.
 - Behaviors concretos de vida, combate, portas e outros domínios são externos ao
@@ -255,8 +239,6 @@ src/shared/remotes.luau
 src/server/init.server.luau
 src/server/inventory/InventoryStore.luau
 src/server/inventory/InventoryService.luau
-src/server/inventory/persistence/MemoryPersistence.luau
-src/server/inventory/persistence/DataStorePersistence.luau
 src/server/items/ItemInstanceFactory.luau
 src/server/items/ItemBehaviorRegistry.luau
 src/server/items/ItemUseService.luau
