@@ -57,7 +57,7 @@ return function()
 			assertVectorNear(motion.moveDirection, Vector3.new(0, 0, -1))
 		end)
 
-		it("gira para lados opostos a 120 graus por segundo", function()
+		it("gira para lados opostos a 200 graus por segundo", function()
 			local leftMotion = TankControlMath.calculate(Vector3.new(0, 0, -1), {
 				forward = false,
 				backward = false,
@@ -71,8 +71,8 @@ return function()
 				right = true,
 			}, 0.5)
 
-			expect(leftMotion.rotationRadians).to.be.near(math.rad(60), 0.0001)
-			expect(rightMotion.rotationRadians).to.be.near(-math.rad(60), 0.0001)
+			expect(leftMotion.rotationRadians).to.be.near(math.rad(100), 0.0001)
+			expect(rightMotion.rotationRadians).to.be.near(-math.rad(100), 0.0001)
 		end)
 
 		it("anula rotacao quando A e D estao pressionados", function()

@@ -2,7 +2,7 @@
 
 local TankControlMath = {}
 
-local ROTATION_RADIANS_PER_SECOND = math.rad(120)
+local ROTATION_RADIANS_PER_SECOND = math.rad(200)
 
 export type InputState = {
 	forward: boolean,

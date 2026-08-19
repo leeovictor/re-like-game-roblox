@@ -45,6 +45,8 @@ end
 return function()
 	describe("DoorController", function()
 		local character: Model
+		local originalCharacter: Model?
+		local originalCharacterParent: Instance?
 		local doors: { Model } = {}
 		local shown: { string } = {}
 		local requests: { any } = {}
@@ -52,6 +54,11 @@ return function()
 		local controller: any
 
 		beforeEach(function()
+			originalCharacter = Players.LocalPlayer.Character
+			originalCharacterParent = if originalCharacter then originalCharacter.Parent else nil
+			if originalCharacter ~= nil then
+				originalCharacter.Parent = nil
+			end
 			character = makeCharacter()
 			shown = {}
 			requests = {}
@@ -89,6 +96,12 @@ return function()
 			doors = {}
 			character:Destroy()
 			Players.LocalPlayer.Character = nil
+			Players.LocalPlayer.Character = originalCharacter
+			if originalCharacter ~= nil and originalCharacterParent ~= nil then
+				originalCharacter.Parent = originalCharacterParent
+			end
+			originalCharacter = nil
+			originalCharacterParent = nil
 		end)
 
 		it("detects the closest door in the forward spherecast and publishes it", function()
