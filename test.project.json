@@ -46,6 +46,9 @@
       },
       "TestEZRunner": {
         "$path": "tests/runners/server.luau"
+      },
+      "TestEZAutoServer": {
+        "$path": "tests/runners/server-auto.server.luau"
       }
     },
     "StarterPlayer": {
@@ -82,6 +85,9 @@
         },
         "TestEZClientRunner": {
           "$path": "tests/runners/client.luau"
+        },
+        "TestEZAutoClient": {
+          "$path": "tests/runners/client-auto.client.luau"
         }
       }
     }

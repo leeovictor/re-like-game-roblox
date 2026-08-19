@@ -31,8 +31,10 @@ rojo build -o /tmp/dungeon-game-canve.rbxlx default.project.json
 Tests run in a real Roblox DataModel through the isolated `test.project.json`.
 That project maps `tests/shared`, `tests/server`, and `tests/client` to separate
 TestEZ roots, maps production subdirectories without starting the normal
-entrypoints, and exposes the two explicit runners. `CameraVisibility` belongs
-to the client root. Do not edit generated package links by hand.
+entrypoints, and exposes the explicit server and client runners. It also maps
+`TestEZAutoServer` and `TestEZAutoClient`, which launch those runners
+automatically whenever a test Play session starts. `CameraVisibility` belongs to
+the client root. Do not edit generated package links by hand.
 
 ### Writing Specs
 
@@ -95,25 +97,32 @@ rojo sync test.project.json
 
 Open the test place in a separate Roblox Studio session named `RE Like Test`
 and connect that session to the `rojo serve test.project.json` server. For each
-run, start a clean Play session through the Roblox Studio MCP tools. Execute the
-server runner in the `Server` DataModel:
+run, start a clean Play session through the Roblox Studio MCP tools. The
+`TestEZAutoServer` and `TestEZAutoClient` launchers run the server and client
+suites automatically. The server launcher prepares a character before running
+the server suite, and the client launcher waits for the current character before
+running client tests.
+
+The server and client results are reported separately. The Play session passes
+only when both summaries report `failed == 0`. Use the Studio Output and
+TestService reporter for failure details, not as a replacement for the
+structured result. If a manual rerun is needed, use the explicit runners:
+
+Server DataModel:
 
 ```lua
 return require(game.ServerScriptService.TestEZRunner).run()
 ```
 
-Execute the client runner in the `Client` DataModel after the local player and
-its `PlayerScripts` exist:
+Client DataModel, after the local player and its `PlayerScripts` exist:
 
 ```lua
 return require(game.Players.LocalPlayer.PlayerScripts.TestEZClientRunner).run()
 ```
 
-The returned table is the authoritative result. The run passes only when
-`failed == 0`; use the Studio Output and TestService reporter for failure
-details, not as a replacement for the structured result. Stop Play after each
-run and confirm temporary fixtures and connections are gone. Repeat the full
-server/client sequence twice, with Play stopped between clean sessions.
+Stop Play after each run and confirm temporary fixtures and connections are
+gone. Repeat the full server/client sequence twice, with Play stopped between
+clean sessions.
 
 ## Static Verification
 

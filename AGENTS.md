@@ -10,7 +10,7 @@
 - Specs de UI permanecem intencionalmente fora do escopo desta migracao; nao adicione testes para `src/client/ui/App.luau`.
 - Specs que criam Instances, conexoes ou estado mutavel devem criar fixtures isoladas em `beforeEach` e destruir ou desconectar tudo em `afterEach`.
 - `src/server/cave-engine/` contem hifen. Use `script["cave-engine"].CaveEngine` ou `script["cave-engine"].TerrainWriter`, nunca notacao de ponto nem renomeie a pasta.
-- O cliente inicia em `src/client/init.client.luau` e usa React/ReactRoblox. Os runners de teste nao iniciam esses entrypoints: chame-os explicitamente pelo MCP no DataModel `Server` e no DataModel `Client`.
+- O cliente inicia em `src/client/init.client.luau` e usa React/ReactRoblox. Os runners de teste nao iniciam esses entrypoints. No projeto de testes, `TestEZAutoServer` e `TestEZAutoClient` executam automaticamente as suites ao iniciar o Play; os runners explicitos continuam disponiveis para reruns manuais pelo MCP.
 
 ## Dependencias e Ferramentas
 
@@ -20,7 +20,7 @@
 
 ## Verificacao
 
-- Execute Play limpo pelo MCP. No DataModel `Server`, rode `require(game.ServerScriptService.TestEZRunner).run()`. No DataModel `Client`, rode `require(game.Players.LocalPlayer.PlayerScripts.TestEZClientRunner).run()`. O criterio de sucesso e `failed == 0`; use Output apenas para detalhes. Pare Play e limpe fixtures entre rodadas, repetindo o fluxo completo duas vezes.
+- Execute Play limpo pelo MCP. `TestEZAutoServer` e `TestEZAutoClient` executam automaticamente as suites server e client ao iniciar o Play. O criterio de sucesso e `failed == 0` nos dois resultados; use Output apenas para detalhes. Os runners explicitos continuam disponiveis para reruns manuais: no DataModel `Server`, rode `require(game.ServerScriptService.TestEZRunner).run()`; no DataModel `Client`, rode `require(game.Players.LocalPlayer.PlayerScripts.TestEZClientRunner).run()`. Pare Play e limpe fixtures entre rodadas, repetindo o fluxo completo duas vezes.
 - Lint Roblox:
 
 ```bash
