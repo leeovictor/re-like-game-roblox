@@ -5,6 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local items = require(ReplicatedStorage.Shared.inventory.items)
+local useDialogue = require(script.Parent.Parent.dialogue.useDialogue)
 local useInventory = require(script.Parent.Parent.inventory.useInventory)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 
@@ -12,6 +13,7 @@ local function App()
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
+	local dialogue = useDialogue()
 
 	React.useEffect(function()
 		local connection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -119,6 +121,20 @@ local function App()
 
 	local notificationItem = if notificationItemId ~= nil then items[notificationItemId] else nil
 	local notificationName = if notificationItem ~= nil then notificationItem.name else notificationItemId
+	local dialogueText: string? = nil
+
+	if dialogue ~= nil then
+		dialogueText = dialogue.visibleText
+		if dialogue.kind == "question" and not dialogue.isTyping then
+			local renderedOptions = {}
+			for index, option in dialogue.options do
+				local marker = if index == dialogue.selectedIndex then "> " else "  "
+				table.insert(renderedOptions, marker .. option.text)
+			end
+			local visibleText: string = dialogue.visibleText or ""
+			dialogueText = visibleText .. "\n" .. table.concat(renderedOptions, "    ")
+		end
+	end
 
 	return React.createElement("ScreenGui", {
 		Name = "DungeonGui",
@@ -126,6 +142,25 @@ local function App()
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, {
 		InventoryPanel = inventoryPanel,
+		Dialogue = if dialogueText ~= nil
+			then React.createElement("TextLabel", {
+				AnchorPoint = Vector2.new(0.5, 1),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0.5, 0, 1, -24),
+				Size = UDim2.new(1, -48, 0, 0),
+				Font = Enum.Font.GothamBold,
+				Text = dialogueText,
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				TextSize = 18,
+				TextStrokeColor3 = Color3.fromRGB(20, 22, 30),
+				TextStrokeTransparency = 0.05,
+				TextWrapped = true,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextYAlignment = Enum.TextYAlignment.Bottom,
+				ZIndex = 20,
+			})
+			else nil,
 		PickupNotification = if notificationName ~= nil
 			then React.createElement("TextLabel", {
 				AnchorPoint = Vector2.new(0, 1),

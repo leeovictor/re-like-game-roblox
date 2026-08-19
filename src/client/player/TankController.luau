@@ -35,6 +35,7 @@ local input: InputState = {
 
 local started = false
 local renderConnection: RBXScriptConnection? = nil
+local inputEndedConnection: RBXScriptConnection? = nil
 local activeHumanoid: Humanoid? = nil
 local originalAutoRotate: boolean? = nil
 
@@ -86,6 +87,18 @@ local function updateInput(actionName: string, inputState: Enum.UserInputState):
 	end
 
 	return Enum.ContextActionResult.Sink
+end
+
+local function handleInputEnded(inputObject: InputObject): ()
+	if inputObject.KeyCode == Enum.KeyCode.W then
+		input.forward = false
+	elseif inputObject.KeyCode == Enum.KeyCode.S then
+		input.backward = false
+	elseif inputObject.KeyCode == Enum.KeyCode.A then
+		input.left = false
+	elseif inputObject.KeyCode == Enum.KeyCode.D then
+		input.right = false
+	end
 end
 
 local function update(deltaTime: number): ()
@@ -175,6 +188,7 @@ function controller.start(): ()
 
 	started = true
 	resetInput()
+	inputEndedConnection = UserInputService.InputEnded:Connect(handleInputEnded)
 	bindActions()
 	renderConnection = RunService.PreRender:Connect(update)
 	update(0)
@@ -189,6 +203,10 @@ function controller.stop(): ()
 	if renderConnection ~= nil then
 		renderConnection:Disconnect()
 		renderConnection = nil
+	end
+	if inputEndedConnection ~= nil then
+		inputEndedConnection:Disconnect()
+		inputEndedConnection = nil
 	end
 	unbindActions()
 	resetInput()
