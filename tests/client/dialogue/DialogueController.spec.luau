@@ -66,8 +66,8 @@ return function()
 			local expectedActions = {
 				[CONFIRM_ACTION] = Enum.KeyCode.F,
 				[CANCEL_ACTION] = Enum.KeyCode.Escape,
-				[PREVIOUS_ACTION] = Enum.KeyCode.Up,
-				[NEXT_ACTION] = Enum.KeyCode.Down,
+				[PREVIOUS_ACTION] = Enum.KeyCode.A,
+				[NEXT_ACTION] = Enum.KeyCode.D,
 			}
 
 			for actionName, keyCode in expectedActions do

@@ -199,8 +199,8 @@ end
 local function bindActions(): ()
 	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.F)
 	ContextActionService:BindActionAtPriority(CANCEL_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.Escape)
-	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.Up, Enum.KeyCode.W)
-	ContextActionService:BindActionAtPriority(NEXT_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.Down, Enum.KeyCode.S)
+	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.A)
+	ContextActionService:BindActionAtPriority(NEXT_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.D)
 end
 
 export type DialogueController = {
