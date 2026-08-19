@@ -41,4 +41,5 @@ return {
 	GetInventory = _ensureRemote("GetInventory", "RemoteFunction"),
 	UseItem = _ensureRemote("UseItem", "RemoteFunction"),
 	PickupCollected = _ensureRemote("PickupCollected", "RemoteEvent"),
+	InteractDoor = _ensureRemote("InteractDoor", "RemoteFunction"),
 }

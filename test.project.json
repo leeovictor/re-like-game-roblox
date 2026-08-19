@@ -33,6 +33,9 @@
         },
         "pickups": {
           "$path": "src/server/pickups"
+        },
+        "doors": {
+          "$path": "src/server/doors"
         }
       },
       "TestEZTests": {

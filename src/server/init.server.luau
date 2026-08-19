@@ -10,6 +10,7 @@ local ItemInstanceFactory = require(script.items.ItemInstanceFactory)
 local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
 local ItemUseService = require(script.items.ItemUseService)
 local PickupService = require(script.pickups.PickupService)
+local StudioDoorScene = require(script.doors.StudioDoorScene)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 
@@ -51,3 +52,7 @@ local mapPickupDefinitions: { MapPickupDefinition } = if RunService:IsStudio() t
 } else {}
 local pickupService = PickupService.new(inventoryService, itemInstanceFactory, mapPickupDefinitions)
 pickupService:start()
+
+if RunService:IsStudio() then
+	StudioDoorScene.create()
+end
