@@ -11,6 +11,8 @@ local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
 local ItemUseService = require(script.items.ItemUseService)
 local PickupService = require(script.pickups.PickupService)
 local StudioDoorScene = require(script.doors.StudioDoorScene)
+local DoorService = require(script.doors.DoorService)
+local DoorUnlockBehavior = require(script.doors.DoorUnlockBehavior)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 
@@ -23,7 +25,7 @@ type MapPickupDefinition = {
 local persistence = if RunService:IsStudio() then MemoryPersistence.new() else DataStorePersistence.new()
 local inventoryService = InventoryService.new(persistence)
 local behaviorRegistry = ItemBehaviorRegistry.new()
--- Concrete item effects are registered by their owning gameplay systems.
+assert(behaviorRegistry:register("unlock", DoorUnlockBehavior.create()), "unlock behavior registration")
 local itemUseService = ItemUseService.new(inventoryService, behaviorRegistry)
 itemUseService:bind(remotes.UseItem :: RemoteFunction)
 inventoryService:start()
@@ -56,3 +58,6 @@ pickupService:start()
 if RunService:IsStudio() then
 	StudioDoorScene.create()
 end
+
+local doorService = DoorService.new(itemUseService)
+doorService:start()
