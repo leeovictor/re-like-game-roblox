@@ -44,7 +44,7 @@ function InventoryService.new(): Service
 	local service = {} :: Service
 
 	local function initializePlayer(player: Player): ()
-		if loadedStates[player] ~= nil then
+		if player.Parent == nil or loadedStates[player] ~= nil then
 			return
 		end
 
