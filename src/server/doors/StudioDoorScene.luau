@@ -27,8 +27,7 @@ local doorDefinitions: { DoorDefinition } = {
 		position = Vector3.new(-18, 4, 0),
 		color = Color3.fromRGB(190, 55, 45),
 		dialogue = {
-			["01_Locked"] = "A porta esta trancada.",
-			["02_Hint"] = "Procure uma chave de ferro.",
+			["01_Locked"] = "A porta esta trancada."
 		},
 	},
 	{
