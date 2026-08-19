@@ -51,7 +51,7 @@ function InventoryService.new(): Service
 		local snapshot = InventoryStore.defaultInventory()
 		loadedStates[player] = snapshot
 		inventoryChanged:FireClient(player, copyState(snapshot))
-		if player.Parent ~= nil then
+		if player:IsDescendantOf(Players) then
 			player:LoadCharacterAsync()
 		end
 	end
