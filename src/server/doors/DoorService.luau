@@ -8,12 +8,10 @@ local catalog = require(ReplicatedStorage.Shared.inventory.catalog)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 local interactDoor = remotes.InteractDoor :: any
+local ItemUseService = require(script.Parent.Parent.items.ItemUseService)
 
 type DoorRequest = doorTypes.DoorRequest
 type DoorActionResult = doorTypes.DoorActionResult
-type ItemUseService = {
-	use: (self: ItemUseService, player: Player, request: any) -> { success: boolean, reason: string? },
-}
 
 export type Service = {
 	invoke: (self: Service, player: Player, request: any) -> DoorActionResult,
@@ -80,7 +78,7 @@ end
 
 local DoorService = {}
 
-function DoorService.new(itemUseService: ItemUseService): Service
+function DoorService.new(itemUseService: ItemUseService.ItemUseService): Service
 	local busy: { [Model]: boolean } = {}
 	local started = false
 	local service = {} :: Service

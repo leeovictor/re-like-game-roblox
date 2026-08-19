@@ -4,6 +4,7 @@ local CollectionService = game:GetService("CollectionService")
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local items = require(ReplicatedStorage.Shared.inventory.items)
@@ -30,14 +31,81 @@ export type Dependencies = {
 }
 
 local ACTION_NAME = "DungeonDoorInteract"
-local PROBE_OFFSET = 2.5
+local PROBE_OFFSET = 2
 local SPHERE_RADIUS = 2
 local SPHERE_CLEARANCE = 0.1
 local SPHERECAST_DISTANCE = PROBE_OFFSET + SPHERE_RADIUS + SPHERE_CLEARANCE
+local DEBUG_FOLDER_NAME = "DoorInteractionDebugger"
+local DEBUG_SPHERE_NAME = "Sphere"
+local DEBUG_SPHERE_TRANSPARENCY = 0.7
+local DEBUG_SPHERE_COLOR = Color3.fromRGB(255, 85, 85)
 
 local function createController(dependencies: Dependencies)
 	local started = false
 	local target: Model? = nil
+	local debugFolder: Folder? = nil
+	local debugSphere: Part? = nil
+	local debugConnection: RBXScriptConnection? = nil
+
+	local function updateDebugSphere(): ()
+		local sphere = debugSphere
+		if sphere == nil then
+			return
+		end
+
+		local currentCharacter = Players.LocalPlayer.Character
+		local root = if currentCharacter ~= nil then currentCharacter:FindFirstChild("HumanoidRootPart") else nil
+		if root == nil or not root:IsA("BasePart") then
+			sphere.Transparency = 1
+			return
+		end
+
+		local lookVector = root.CFrame.LookVector
+		local origin = root.Position - lookVector * (SPHERE_RADIUS + SPHERE_CLEARANCE)
+		sphere.Position = origin + lookVector * SPHERECAST_DISTANCE
+		sphere.Transparency = DEBUG_SPHERE_TRANSPARENCY
+	end
+
+	local function destroyDebugSphere(): ()
+		if debugConnection ~= nil then
+			debugConnection:Disconnect()
+			debugConnection = nil
+		end
+		if debugFolder ~= nil then
+			debugFolder:Destroy()
+			debugFolder = nil
+		end
+		debugSphere = nil
+	end
+
+	local function createDebugSphere(): ()
+		if not RunService:IsStudio() then
+			return
+		end
+
+		local folder = Instance.new("Folder")
+		folder.Name = DEBUG_FOLDER_NAME
+		folder.Parent = workspace
+
+		local sphere = Instance.new("Part")
+		sphere.Name = DEBUG_SPHERE_NAME
+		sphere.Shape = Enum.PartType.Ball
+		sphere.Size = Vector3.new(SPHERE_RADIUS * 2, SPHERE_RADIUS * 2, SPHERE_RADIUS * 2)
+		sphere.Anchored = true
+		sphere.CanCollide = false
+		sphere.CanTouch = false
+		sphere.CanQuery = false
+		sphere.CastShadow = false
+		sphere.Color = DEBUG_SPHERE_COLOR
+		sphere.Material = Enum.Material.Neon
+		sphere.Transparency = DEBUG_SPHERE_TRANSPARENCY
+		sphere.Parent = folder
+
+		debugFolder = folder
+		debugSphere = sphere
+		updateDebugSphere()
+		debugConnection = RunService.Heartbeat:Connect(updateDebugSphere)
+	end
 
 	local function findDoor(instance: Instance?): Model?
 		local current = instance
@@ -46,6 +114,19 @@ local function createController(dependencies: Dependencies)
 				return current
 			end
 			current = current.Parent
+		end
+		return nil
+	end
+
+	local function findDoorInSphere(position: Vector3, currentCharacter: Model): Model?
+		local params = OverlapParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { currentCharacter }
+		for _, instance in workspace:GetPartBoundsInRadius(position, SPHERE_RADIUS, params) do
+			local door = findDoor(instance)
+			if door ~= nil then
+				return door
+			end
 		end
 		return nil
 	end
@@ -62,12 +143,8 @@ local function createController(dependencies: Dependencies)
 			return
 		end
 		local lookVector = root.CFrame.LookVector
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { currentCharacter }
 		local origin = root.Position - lookVector * (SPHERE_RADIUS + SPHERE_CLEARANCE)
-		local result = workspace:Spherecast(origin, SPHERE_RADIUS, lookVector * SPHERECAST_DISTANCE, params)
-		target = if result ~= nil then findDoor(result.Instance) else nil
+		target = findDoorInSphere(origin + lookVector * SPHERECAST_DISTANCE, currentCharacter)
 	end
 
 	local function showLockedDialogue(door: Model): ()
@@ -153,6 +230,7 @@ local function createController(dependencies: Dependencies)
 	function controller.start(): ()
 		if started then return end
 		started = true
+		createDebugSphere()
 		ContextActionService:BindActionAtPriority(ACTION_NAME, interact, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F)
 	end
 
@@ -160,6 +238,7 @@ local function createController(dependencies: Dependencies)
 		if not started then return end
 		started = false
 		ContextActionService:UnbindAction(ACTION_NAME)
+		destroyDebugSphere()
 		target = nil
 	end
 

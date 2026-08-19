@@ -32,10 +32,10 @@ type Registry = {
 	get: (self: Registry, capability: string) -> ItemBehavior?,
 }
 
-export type Service = {
-	findCompatibleItem: (self: Service, player: Player, request: UseRequest) -> ItemInstance?,
-	use: (self: Service, player: Player, request: UseRequest) -> UseResult,
-	bind: (self: Service, remote: RemoteFunction) -> (),
+export type ItemUseService = {
+	findCompatibleItem: (self: ItemUseService, player: Player, request: UseRequest) -> ItemInstance?,
+	use: (self: ItemUseService, player: Player, request: UseRequest) -> UseResult,
+	bind: (self: ItemUseService, remote: RemoteFunction) -> (),
 }
 
 local ItemUseService = {}
@@ -78,9 +78,9 @@ local function validRequest(request: any): boolean
 	return validContext(request.context)
 end
 
-function ItemUseService.new(inventory: InventoryService, registry: Registry): Service
+function ItemUseService.new(inventory: InventoryService, registry: Registry): ItemUseService
 	local busy: { [Player]: boolean } = {}
-	local service = {} :: Service
+	local service = {} :: ItemUseService
 
 	local function getBehavior(request: UseRequest): ItemBehavior?
 		return registry:get(request.capability)

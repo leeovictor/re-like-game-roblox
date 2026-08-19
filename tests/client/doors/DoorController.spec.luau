@@ -104,12 +104,13 @@ return function()
 			originalCharacterParent = nil
 		end)
 
-		it("detects the closest door in the forward spherecast and publishes it", function()
-			doors = { makeDoor("Far", Vector3.new(0, 3, -5), false, ""), makeDoor("Near", Vector3.new(0, 3, -3), false, "") }
+		it("detects a door inside the forward interaction sphere and publishes it", function()
+			local door = makeDoor("Inside", Vector3.new(1.5, 3, -2), false, "")
+			doors = { door }
 			task.wait()
 			expect(controller.getTarget()).to.equal(nil)
 			pressF(controller)
-			expect(controller.getTarget()).to.equal(doors[2])
+			expect(controller.getTarget()).to.equal(door)
 		end)
 
 		it("does not detect a door behind or outside the probe", function()
