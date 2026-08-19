@@ -33,7 +33,7 @@ type ChangedSignal = {
 }
 type ActiveCallback = (optionId: string?, reason: DialogReason) -> ()
 
-local CHARACTER_DELAY = 0.04
+local CHARACTER_DELAY = 0.01
 local CONFIRM_ACTION = "DungeonDialogueConfirm"
 local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
