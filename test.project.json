@@ -55,6 +55,9 @@
           "camera": {
             "$path": "src/client/camera"
           },
+          "doors": {
+            "$path": "src/client/doors"
+          },
           "dialogue": {
             "$path": "src/client/dialogue"
           },

@@ -137,8 +137,9 @@ luau-lsp analyze --platform roblox \
   --sourcemap test-sourcemap.json \
   --formatter gnu \
   src/shared \
-  src/server/inventory src/server/items src/server/pickups \
-  src/client/camera src/client/dialogue src/client/inventory src/client/pickups src/client/player src/client/ui \
+  src/server/inventory src/server/items src/server/pickups src/server/doors \
+  src/client/camera src/client/doors src/client/dialogue src/client/inventory \
+  src/client/pickups src/client/player src/client/ui \
   tests
 ```
 
