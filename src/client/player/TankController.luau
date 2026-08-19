@@ -38,6 +38,15 @@ local renderConnection: RBXScriptConnection? = nil
 local inputEndedConnection: RBXScriptConnection? = nil
 local activeHumanoid: Humanoid? = nil
 local originalAutoRotate: boolean? = nil
+local controlledLookVector: Vector3? = nil
+
+local function horizontalUnit(vector: Vector3): Vector3
+	local horizontal = Vector3.new(vector.X, 0, vector.Z)
+	if horizontal.Magnitude == 0 then
+		return Vector3.new(0, 0, -1)
+	end
+	return horizontal.Unit
+end
 
 local function resetInput(): ()
 	input.forward = false
@@ -54,6 +63,7 @@ local function releaseHumanoid(): ()
 
 	activeHumanoid = nil
 	originalAutoRotate = nil
+	controlledLookVector = nil
 end
 
 local function acquireHumanoid(humanoid: Humanoid): ()
@@ -125,15 +135,22 @@ local function update(deltaTime: number): ()
 		return
 	end
 
+	local lookVector = controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
 	if UserInputService:GetFocusedTextBox() then
+		controlledLookVector = lookVector
+		rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
+		rootPart.AssemblyAngularVelocity = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
 		return
 	end
 
-	local motion = TankControlMath.calculate(rootPart.CFrame.LookVector, input, deltaTime)
+	local motion = TankControlMath.calculate(lookVector, input, deltaTime)
 	if motion.rotationRadians ~= 0 then
-		rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, motion.rotationRadians, 0)
+		lookVector = horizontalUnit(CFrame.Angles(0, motion.rotationRadians, 0):VectorToWorldSpace(lookVector))
 	end
+	controlledLookVector = lookVector
+	rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
+	rootPart.AssemblyAngularVelocity = Vector3.zero
 	humanoid:Move(motion.moveDirection, false)
 end
 
