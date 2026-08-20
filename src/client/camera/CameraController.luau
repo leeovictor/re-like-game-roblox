@@ -49,7 +49,8 @@ local function update(self: CameraController): ()
 	end
 
 	local position = rootPart.Position
-	local desiredShotId = self.resolver:resolve(position)
+	local zoneShotId = self.resolver:resolve(position)
+	local desiredShotId = zoneShotId or self.currentShotId or self.config.defaultShotId
 	if desiredShotId ~= self.currentShotId then
 		local shot = self.config.shots[desiredShotId]
 		if shot == nil then

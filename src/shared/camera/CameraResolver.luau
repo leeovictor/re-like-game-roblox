@@ -7,7 +7,7 @@ CameraResolver.__index = CameraResolver
 
 export type CameraResolver = {
 	config: CameraConfig.Config,
-	resolve: (self: CameraResolver, position: Vector3) -> CameraConfig.ShotId,
+	resolve: (self: CameraResolver, position: Vector3) -> CameraConfig.ShotId?,
 }
 
 local function validateConfig(config: CameraConfig.Config): ()
@@ -50,7 +50,7 @@ function CameraResolver.new(config: CameraConfig.Config): CameraResolver
 	return (self :: any) :: CameraResolver
 end
 
-function CameraResolver:resolve(position: Vector3): CameraConfig.ShotId
+function CameraResolver:resolve(position: Vector3): CameraConfig.ShotId?
 	local config = self.config :: CameraConfig.Config
 	for _, zone in ipairs(config.zones) do
 		local localPosition = zone.volume.cframe:PointToObjectSpace(position)
@@ -64,7 +64,7 @@ function CameraResolver:resolve(position: Vector3): CameraConfig.ShotId
 		end
 	end
 
-	return config.defaultShotId
+	return nil
 end
 
 return CameraResolver
