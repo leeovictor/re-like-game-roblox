@@ -17,6 +17,12 @@
 - Versoes fixadas em `rokit.toml` e `aftman.toml`: Rojo `7.7.0`, Selene `0.29.0`, `luau-lsp 1.69.0` e Wally `0.3.2`. Prefira `rokit install`; `aftman install` e alternativa.
 - Execute `wally install` apos clonar ou alterar `wally.toml`. `Packages/` e `DevPackages/` sao gerados, ignorados pelo Git e mapeados para `ReplicatedStorage.Packages` e `ReplicatedStorage.DevPackages`; TestEZ e carregado como `ReplicatedStorage.DevPackages.TestEZ`. Nao edite esses diretorios manualmente.
 - Sirva o place de teste com `rojo serve test.project.json` e conecte a sessao Studio `RE Like Test`; `rojo sync test.project.json` pode ser usado para uma sincronizacao pontual.
+- Ao alterar qualquer codigo em `plugin/`, construa o plugin separadamente e mova o pacote atualizado para a pasta de plugins do Roblox Studio:
+
+```bash
+rojo build -o /tmp/camera-system-plugin.rbxmx plugin.project.json
+mv /tmp/camera-system-plugin.rbxmx /mnt/c/Users/leona/AppData/Local/Roblox/Plugins/camera-system-plugin.rbxmx
+```
 
 ## Verificacao
 

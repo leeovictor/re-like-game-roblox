@@ -229,7 +229,9 @@ function CameraSystemModel.applyShot(self: Model, shot: Part, camera: Camera)
 	local fieldOfView = ownedShot:GetAttribute(FIELD_OF_VIEW)
 	assert(isValidFieldOfView(fieldOfView), string.format('Shot "%s" has an invalid FieldOfView', ownedShot.Name))
 	setWaypoint(self.changeHistoryService, "Camera System: Begin apply shot")
+	camera.CameraType = Enum.CameraType.Fixed
 	camera.CFrame = ownedShot.CFrame
+	camera.Focus = CFrame.new(ownedShot.Position + ownedShot.CFrame.LookVector)
 	camera.FieldOfView = fieldOfView :: number
 	setWaypoint(self.changeHistoryService, "Camera System: End apply shot")
 end
