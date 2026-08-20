@@ -6,6 +6,7 @@ local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
 local ItemUseService = require(script.items.ItemUseService)
 local DoorService = require(script.doors.DoorService)
 local DoorUnlockBehavior = require(script.doors.DoorUnlockBehavior)
+local CharacterLightService = require(script.player.CharacterLightService)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 
 local inventoryService = InventoryService.new()
@@ -18,3 +19,6 @@ inventoryService:start()
 
 local doorService = DoorService.new(itemUseService)
 doorService:start()
+
+local characterLightService = CharacterLightService.new()
+characterLightService:start()

@@ -36,6 +36,9 @@
         },
         "doors": {
           "$path": "src/server/doors"
+        },
+        "player": {
+          "$path": "src/server/player"
         }
       },
       "TestEZTests": {

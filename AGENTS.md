@@ -45,7 +45,7 @@ luau-lsp analyze --platform roblox \
   --definitions @testez=typecheck/testez.d.luau \
   --sourcemap test-sourcemap.json --formatter gnu \
   src/shared \
-  src/server/inventory src/server/items src/server/pickups \
+  src/server/inventory src/server/items src/server/pickups src/server/player \
   src/client/camera src/client/inventory src/client/pickups src/client/player src/client/ui \
   tests
 ```
