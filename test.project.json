@@ -76,6 +76,9 @@
           "inventory": {
             "$path": "src/client/inventory"
           },
+          "objectives": {
+            "$path": "src/client/objectives"
+          },
           "pickups": {
             "$path": "src/client/pickups"
           },
