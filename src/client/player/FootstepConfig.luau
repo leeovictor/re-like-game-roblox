@@ -46,7 +46,7 @@ local config: Config = {
 		min = 0.1,
 		max = 0.15,
 	},
-	referenceSpeed = 8,
+	referenceSpeed = 5,
 	referenceStepInterval = 0.35,
 	minInterval = 0.28,
 	maxInterval = 0.7,

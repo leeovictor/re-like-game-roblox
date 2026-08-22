@@ -12,11 +12,15 @@ local ACTION_FORWARD = "DungeonTankForward"
 local ACTION_BACKWARD = "DungeonTankBackward"
 local ACTION_LEFT = "DungeonTankLeft"
 local ACTION_RIGHT = "DungeonTankRight"
+local ACTION_RUN = "DungeonTankRun"
+local WALK_SPEED = 5
+local RUN_SPEED = 10
 local ACTIONS = {
 	ACTION_FORWARD,
 	ACTION_BACKWARD,
 	ACTION_LEFT,
 	ACTION_RIGHT,
+	ACTION_RUN,
 }
 
 type InputState = {
@@ -24,6 +28,7 @@ type InputState = {
 	backward: boolean,
 	left: boolean,
 	right: boolean,
+	running: boolean,
 }
 
 local input: InputState = {
@@ -31,6 +36,7 @@ local input: InputState = {
 	backward = false,
 	left = false,
 	right = false,
+	running = false,
 }
 
 local started = false
@@ -39,6 +45,7 @@ local renderConnection: RBXScriptConnection? = nil
 local inputEndedConnection: RBXScriptConnection? = nil
 local activeHumanoid: Humanoid? = nil
 local originalAutoRotate: boolean? = nil
+local originalWalkSpeed: number? = nil
 local controlledLookVector: Vector3? = nil
 
 local function horizontalUnit(vector: Vector3): Vector3
@@ -54,6 +61,7 @@ local function resetInput(): ()
 	input.backward = false
 	input.left = false
 	input.right = false
+	input.running = false
 end
 
 local function syncInput(): ()
@@ -61,6 +69,7 @@ local function syncInput(): ()
 	input.backward = UserInputService:IsKeyDown(Enum.KeyCode.S)
 	input.left = UserInputService:IsKeyDown(Enum.KeyCode.A)
 	input.right = UserInputService:IsKeyDown(Enum.KeyCode.D)
+	input.running = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
 end
 
 local function releaseHumanoid(): ()
@@ -68,9 +77,13 @@ local function releaseHumanoid(): ()
 	if humanoid ~= nil and originalAutoRotate ~= nil then
 		humanoid.AutoRotate = originalAutoRotate
 	end
+	if humanoid ~= nil and originalWalkSpeed ~= nil then
+		humanoid.WalkSpeed = originalWalkSpeed
+	end
 
 	activeHumanoid = nil
 	originalAutoRotate = nil
+	originalWalkSpeed = nil
 	controlledLookVector = nil
 end
 
@@ -82,6 +95,7 @@ local function acquireHumanoid(humanoid: Humanoid): ()
 	releaseHumanoid()
 	activeHumanoid = humanoid
 	originalAutoRotate = humanoid.AutoRotate
+	originalWalkSpeed = humanoid.WalkSpeed
 	humanoid.AutoRotate = false
 end
 
@@ -106,6 +120,8 @@ local function updateInput(actionName: string, inputState: Enum.UserInputState):
 		input.left = isPressed
 	elseif actionName == ACTION_RIGHT then
 		input.right = isPressed
+	elseif actionName == ACTION_RUN then
+		input.running = isPressed
 	end
 
 	return Enum.ContextActionResult.Sink
@@ -120,6 +136,8 @@ local function handleInputEnded(inputObject: InputObject): ()
 		input.left = false
 	elseif inputObject.KeyCode == Enum.KeyCode.D then
 		input.right = false
+	elseif inputObject.KeyCode == Enum.KeyCode.LeftShift then
+		input.running = false
 	end
 end
 
@@ -142,6 +160,13 @@ local function update(deltaTime: number): ()
 	end
 	acquireHumanoid(humanoid)
 
+	local isTextBoxFocused = UserInputService:GetFocusedTextBox()
+	if movementEnabled and input.running and not isTextBoxFocused then
+		humanoid.WalkSpeed = RUN_SPEED
+	else
+		humanoid.WalkSpeed = WALK_SPEED
+	end
+
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if rootPart == nil or not rootPart:IsA("BasePart") then
 		return
@@ -155,7 +180,7 @@ local function update(deltaTime: number): ()
 		return
 	end
 
-	if UserInputService:GetFocusedTextBox() then
+	if isTextBoxFocused then
 		controlledLookVector = lookVector
 		rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
 		rootPart.AssemblyAngularVelocity = Vector3.zero
@@ -202,6 +227,13 @@ local function bindActions(): ()
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.D
 	)
+	ContextActionService:BindActionAtPriority(
+		ACTION_RUN,
+		updateInput,
+		false,
+		Enum.ContextActionPriority.High.Value,
+		Enum.KeyCode.LeftShift
+	)
 end
 
 local function unbindActions(): ()
@@ -225,6 +257,7 @@ function controller.start(): ()
 
 	started = true
 	resetInput()
+	syncInput()
 	inputEndedConnection = UserInputService.InputEnded:Connect(handleInputEnded)
 	bindActions()
 	renderConnection = RunService.PreRender:Connect(update)

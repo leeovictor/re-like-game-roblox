@@ -13,7 +13,7 @@ return function()
 			TankController.stop()
 		end)
 
-		it("binds the four tank actions once", function()
+		it("binds the tank actions once", function()
 			TankController.start()
 			TankController.start()
 
@@ -23,6 +23,7 @@ return function()
 				DungeonTankBackward = Enum.KeyCode.S,
 				DungeonTankLeft = Enum.KeyCode.A,
 				DungeonTankRight = Enum.KeyCode.D,
+				DungeonTankRun = Enum.KeyCode.LeftShift,
 			}
 
 			for actionName, keyCode in expectedActions do
@@ -42,6 +43,7 @@ return function()
 			expect(actions.DungeonTankBackward).to.equal(nil)
 			expect(actions.DungeonTankLeft).to.equal(nil)
 			expect(actions.DungeonTankRight).to.equal(nil)
+			expect(actions.DungeonTankRun).to.equal(nil)
 		end)
 
 		it("reaplica a direcao comandada depois de uma rotacao externa", function()
