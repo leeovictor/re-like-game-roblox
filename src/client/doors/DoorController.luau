@@ -95,7 +95,7 @@ local function createController(dependencies: Dependencies): InteractionHandler
 		if type(requiredItemId) == "string" and requiredItemId ~= "" and hasItem(requiredItemId) then
 			local result = dependencies.invokeDoor({ door = door, action = "unlock" })
 			if result.success and result.action == "unlock" then
-				dependencies.dialogue.show("Porta destrancada")
+				dependencies.dialogue.show("Porta destrancada.")
 			elseif result.reason == "missing_item" then
 				showLockedDialogue(door)
 			end
