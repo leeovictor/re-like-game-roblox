@@ -58,7 +58,10 @@ local function createController(probeConfig: interactionTypes.ProbeConfig?): int
 
 				if hasInteractable then
 					if current:IsA("Model") or current:IsA("BasePart") then
-						if interactionType == interactionTypes.DOOR_TYPE or interactionType == interactionTypes.PICKUP_TYPE then
+						if interactionType == interactionTypes.DOOR_TYPE
+							or interactionType == interactionTypes.PICKUP_TYPE
+							or interactionType == interactionTypes.DIALOGUE_TYPE
+						then
 							return current, interactionType :: string
 						end
 						warnOnce(current, "invalid-type", string.format("Interactable has invalid InteractionType: %s", current:GetFullName()))

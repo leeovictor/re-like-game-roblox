@@ -1,6 +1,6 @@
 --!strict
 
-export type InteractionType = "Door" | "Pickup"
+export type InteractionType = "Door" | "Pickup" | "Dialogue"
 
 export type InteractionHandler = {
 	interact: (target: Instance) -> (),
@@ -25,6 +25,8 @@ return {
 	INTERACTION_TYPE_ATTRIBUTE = "InteractionType",
 	DOOR_TYPE = "Door",
 	PICKUP_TYPE = "Pickup",
+	DIALOGUE_TYPE = "Dialogue",
+	DIALOGUE_FOLDER_NAME = "Dialogue",
 	ITEM_ID_ATTRIBUTE = "ItemId",
 	QUANTITY_ATTRIBUTE = "Quantity",
 }
