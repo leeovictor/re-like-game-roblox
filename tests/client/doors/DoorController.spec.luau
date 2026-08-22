@@ -115,7 +115,7 @@ return function()
 
 			controller.interact(door)
 
-			expect(shown[1]).to.equal("Porta destrancada")
+			expect(shown[1]).to.equal("Porta destrancada.")
 			expect(#requests).to.equal(1)
 			expect(transitionCalls).to.equal(0)
 		end)
