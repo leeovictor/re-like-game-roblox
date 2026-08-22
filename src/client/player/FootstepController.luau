@@ -13,7 +13,10 @@ local humanoidRunningConnection: RBXScriptConnection? = nil
 local defaultRunningConnection: RBXScriptConnection? = nil
 local setupGeneration = 0
 local activeHumanoid: Humanoid? = nil
-local activeSounds: { Sound } = {}
+type SoundPools = { [Enum.Material]: { Sound } }
+
+local universalSounds: { Sound } = {}
+local soundsByMaterial: SoundPools = {}
 local lastSound: Sound? = nil
 local currentSpeed = 0
 local timeSinceLastStep = 0
@@ -36,16 +39,24 @@ local function disconnectDefaultRunningWatcher(): ()
 	end
 end
 
+local function destroySoundPool(sounds: { Sound }): ()
+	for _, sound in sounds do
+		sound:Stop()
+		sound:Destroy()
+	end
+	table.clear(sounds)
+end
+
 local function clearCharacter(): ()
 	disconnectHumanoidRunning()
 	disconnectDefaultRunningWatcher()
 
-	for _, sound in activeSounds do
-		sound:Stop()
-		sound:Destroy()
+	destroySoundPool(universalSounds)
+	for _, sounds in soundsByMaterial do
+		destroySoundPool(sounds)
 	end
+	table.clear(soundsByMaterial)
 
-	table.clear(activeSounds)
 	activeHumanoid = nil
 	lastSound = nil
 	currentSpeed = 0
@@ -59,11 +70,11 @@ local function destroyDefaultRunning(rootPart: BasePart): ()
 	end
 end
 
-local function createFootstepSounds(rootPart: BasePart): { Sound }
+local function createFootstepSounds(rootPart: BasePart, soundIds: { string }, namePrefix: string): { Sound }
 	local sounds = {}
-	for index, soundId in Config.soundIds do
+	for index, soundId in soundIds do
 		local sound = Instance.new("Sound")
-		sound.Name = `Footstep_{index}`
+		sound.Name = `{namePrefix}_{index}`
 		sound.SoundId = soundId
 		sound.Looped = false
 		sound.PlaybackSpeed = Config.playbackSpeed.min
@@ -77,18 +88,18 @@ local function createFootstepSounds(rootPart: BasePart): { Sound }
 	return sounds
 end
 
-local function chooseSound(): Sound?
-	local soundCount = #activeSounds
+local function chooseSound(sounds: { Sound }): Sound?
+	local soundCount = #sounds
 	if soundCount == 0 then
 		return nil
 	end
 
 	if soundCount == 1 or lastSound == nil then
-		return activeSounds[math.random(1, soundCount)]
+		return sounds[math.random(1, soundCount)]
 	end
 
 	local candidates = {}
-	for _, sound in activeSounds do
+	for _, sound in sounds do
 		if sound ~= lastSound then
 			table.insert(candidates, sound)
 		end
@@ -96,8 +107,8 @@ local function chooseSound(): Sound?
 	return candidates[math.random(1, #candidates)]
 end
 
-local function playFootstep(): ()
-	local sound = chooseSound()
+local function playFootstep(sounds: { Sound }): ()
+	local sound = chooseSound(sounds)
 	if sound == nil then
 		return
 	end
@@ -108,17 +119,31 @@ local function playFootstep(): ()
 	sound:Play()
 end
 
+local function soundsForMaterial(material: Enum.Material): { Sound }
+	local surfaceSounds = soundsByMaterial[material]
+	if surfaceSounds ~= nil and #surfaceSounds > 0 then
+		return surfaceSounds
+	end
+	return universalSounds
+end
+
 local function intervalForSpeed(speed: number): number
 	local interval = Config.referenceStepInterval * Config.referenceSpeed / speed
 	return math.clamp(interval, Config.minInterval, Config.maxInterval)
 end
 
 local function update(deltaTime: number): ()
-	if not started or activeHumanoid == nil or #activeSounds == 0 then
+	if not started or activeHumanoid == nil then
 		return
 	end
 
 	if currentSpeed <= Config.movementThreshold or activeHumanoid.FloorMaterial == Enum.Material.Air then
+		timeSinceLastStep = 0
+		return
+	end
+
+	local sounds = soundsForMaterial(activeHumanoid.FloorMaterial)
+	if #sounds == 0 then
 		timeSinceLastStep = 0
 		return
 	end
@@ -129,7 +154,7 @@ local function update(deltaTime: number): ()
 	end
 
 	timeSinceLastStep = 0
-	playFootstep()
+	playFootstep(sounds)
 end
 
 local function configureCharacter(character: Model): ()
@@ -153,7 +178,12 @@ local function configureCharacter(character: Model): ()
 	end)
 	destroyDefaultRunning(rootPart)
 	activeHumanoid = humanoid
-	activeSounds = createFootstepSounds(rootPart)
+	universalSounds = createFootstepSounds(rootPart, Config.soundIds, "Footstep")
+	for material, soundIds in Config.surfaceSounds do
+		if #soundIds > 0 then
+			soundsByMaterial[material] = createFootstepSounds(rootPart, soundIds, `Footstep_{material.Name}`)
+		end
+	end
 	humanoidRunningConnection = humanoid.Running:Connect(function(speed: number)
 		if activeHumanoid ~= humanoid then
 			return

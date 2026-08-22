@@ -7,6 +7,7 @@ export type Range = {
 
 export type Config = {
 	soundIds: { string },
+	surfaceSounds: { [Enum.Material]: { string } },
 	playbackSpeed: Range,
 	volume: Range,
 	referenceSpeed: number,
@@ -37,6 +38,15 @@ local config: Config = {
 		"rbxassetid://119989047815622",
 		"rbxassetid://108386584391768",
 		"rbxassetid://103963258527392"
+	},
+	surfaceSounds = {
+		[Enum.Material.Metal] = {
+			"rbxassetid://98688524036111",
+			"rbxassetid://138898236956764",
+			"rbxassetid://98915841855850",
+			"rbxassetid://121770947554725",
+			"rbxassetid://127841183521474"
+		}
 	},
 	playbackSpeed = {
 		min = 0.95,
