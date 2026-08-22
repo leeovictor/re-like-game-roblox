@@ -11,7 +11,7 @@ local interactionTypes = require(ReplicatedStorage.Shared.interactions.interacti
 
 local ACTION_NAME = "DungeonInteraction"
 local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value
-local DEBUG_ENABLED = true
+local DEBUG_ENABLED = false
 local DEFAULT_CONFIG: interactionTypes.ProbeConfig = {
 	radius = 3,
 	forwardOffset = 2.5,

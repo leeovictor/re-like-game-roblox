@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 
 local catalog = require(ReplicatedStorage.Shared.inventory.catalog)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
+local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 local interactDoor = remotes.InteractDoor :: any
 local ItemUseService = require(script.Parent.Parent.items.ItemUseService)
@@ -52,7 +53,13 @@ local function getDoorParts(door: Model): (BasePart?, Attachment?)
 end
 
 local function validateDoor(door: Model): (BasePart?, Attachment?, boolean?, string?, DoorActionResult?)
-	if not door:IsDescendantOf(Workspace) or not CollectionService:HasTag(door, doorTypes.DOOR_TAG) then
+	if not door:IsDescendantOf(Workspace) then
+		return nil, nil, nil, nil, failure("invalid_door")
+	end
+	if not CollectionService:HasTag(door, interactionTypes.INTERACTABLE_TAG) then
+		return nil, nil, nil, nil, failure("invalid_door")
+	end
+	if door:GetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE) ~= interactionTypes.DOOR_TYPE then
 		return nil, nil, nil, nil, failure("invalid_door")
 	end
 	local doorway, center = getDoorParts(door)
@@ -140,11 +147,6 @@ function DoorService.new(itemUseService: ItemUseService.ItemUseService): Service
 	function service:start(): ()
 		if started then return end
 		started = true
-		for _, door in CollectionService:GetTagged(doorTypes.DOOR_TAG) do
-			if not door:IsA("Model") then
-				warn("Door tag must be on a Model")
-			end
-		end
 		callback = function(player: Player, request: any): DoorActionResult
 			return service:invoke(player, request)
 		end

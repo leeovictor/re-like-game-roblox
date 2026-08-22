@@ -7,11 +7,29 @@ local Workspace = game:GetService("Workspace")
 
 local ItemBehaviorRegistry = require(ServerScriptService.Server.items.ItemBehaviorRegistry)
 local ItemUseService = require(ServerScriptService.Server.items.ItemUseService)
-local DoorService = require(ServerScriptService.Server.doors.DoorService)
 local DoorUnlockBehavior = require(ServerScriptService.Server.doors.DoorUnlockBehavior)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
+local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local remotes = require(ReplicatedStorage.Shared.remotes)
-local interactDoor = remotes.InteractDoor :: any
+local actualInteractDoor = remotes.InteractDoor :: any
+local capturedCallback: any = nil
+-- RemoteFunction.OnServerInvoke is write-only, so observe assignments while forwarding them to the real remote.
+local interactDoor: any = setmetatable({} :: any, {
+	__index = function(_proxy: any, key: string): any
+		if key == "OnServerInvoke" then return capturedCallback end
+		return actualInteractDoor[key]
+	end,
+	__newindex = function(_proxy: any, key: string, value: any): ()
+		if key == "OnServerInvoke" then
+			capturedCallback = value
+			actualInteractDoor.OnServerInvoke = value
+			return
+		end
+		actualInteractDoor[key] = value
+	end,
+})
+remotes.InteractDoor = interactDoor
+local DoorService = require(ServerScriptService.Server.doors.DoorService)
 
 type Door = Model
 type FakePlayer = { Character: Model }
@@ -32,17 +50,36 @@ local function track(instance: Instance): Instance
 	return instance
 end
 
-local function createDoor(options: { parent: Instance?, tagged: boolean?, doorway: boolean?, center: boolean?, locked: any?, requiredItemId: any? }): Door
+local function createDoor(options: {
+	parent: Instance?,
+	interactableTagged: boolean?,
+	hasInteractionType: boolean?,
+	interactionType: any?,
+	legacyTagged: boolean?,
+	doorway: boolean?,
+	center: boolean?,
+	locked: any?,
+	requiredItemId: any?,
+}): Door
 	local door = track(Instance.new("Model")) :: Model
 	door.Name = "TestDoor"
+	if options.interactableTagged ~= false then
+		CollectionService:AddTag(door, interactionTypes.INTERACTABLE_TAG)
+	end
+	if options.hasInteractionType ~= false then
+		door:SetAttribute(
+			interactionTypes.INTERACTION_TYPE_ATTRIBUTE,
+			if options.interactionType == nil then interactionTypes.DOOR_TYPE else options.interactionType
+		)
+	end
+	if options.legacyTagged == true then
+		CollectionService:AddTag(door, doorTypes.DOOR_TAG)
+	end
 	if options.locked ~= nil then
 		door:SetAttribute(doorTypes.LOCKED_ATTRIBUTE, options.locked)
 	end
 	if options.requiredItemId ~= nil then
 		door:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, options.requiredItemId)
-	end
-	if options.tagged ~= false then
-		CollectionService:AddTag(door, doorTypes.DOOR_TAG)
 	end
 	if options.doorway ~= false then
 		local doorway = Instance.new("Part")
@@ -132,8 +169,9 @@ local function invoke(service: any, player: FakePlayer, door: Door, action: "unl
 end
 
 return function()
-	describe("Door service", function()
+		describe("Door service", function()
 		beforeEach(function()
+			remotes.InteractDoor = interactDoor
 			interactDoor.OnServerInvoke = nil
 		end)
 
@@ -143,6 +181,7 @@ return function()
 			end
 			table.clear(services)
 			interactDoor.OnServerInvoke = nil
+			remotes.InteractDoor = actualInteractDoor
 			for _, root in roots do
 				root:Destroy()
 			end
@@ -153,13 +192,20 @@ return function()
 			local itemService = newFakeItemService({ success = false, reason = "missing_item" })
 			local service = DoorService.new(itemService :: any)
 			table.insert(services, service)
+			local player = createPlayer(Vector3.zero)
 			service:start()
+			local callback = interactDoor.OnServerInvoke
+			expect(callback).to.be.ok()
 			service:start()
-			expect(service:invoke({ Character = Instance.new("Model") } :: any, {} :: any).success).to.equal(false)
+			expect(interactDoor.OnServerInvoke).to.equal(callback)
+			expect(service:invoke(player :: any, {} :: any).success).to.equal(false)
 			service:stop()
+			expect(interactDoor.OnServerInvoke).to.equal(nil)
+			service:stop()
+			expect(interactDoor.OnServerInvoke).to.equal(nil)
 		end)
 
-		it("accepts a tagged door with the required Doorway and Center", function()
+		it("accepts a common-contract door with the required Doorway and Center", function()
 			local door = createDoor({ parent = Workspace, locked = false, requiredItemId = "" })
 			local player = createPlayer(Vector3.new(2, 4, 0))
 			local service = DoorService.new(newFakeItemService({ success = false, reason = "missing_item" }) :: any)
@@ -169,9 +215,80 @@ return function()
 			expect(result.success).to.equal(true)
 		end)
 
+		it("revalidates the interaction contract for every request", function()
+			local door = createDoor({ parent = Workspace, locked = false, requiredItemId = "" })
+			local player = createPlayer(Vector3.new(2, 4, 0))
+			local service = DoorService.new(newFakeItemService({ success = false, reason = "missing_item" }) :: any)
+			table.insert(services, service)
+			service:start()
+
+			expect(invoke(service, player, door, "enter").success).to.equal(true)
+
+			CollectionService:RemoveTag(door, interactionTypes.INTERACTABLE_TAG)
+			expect(invoke(service, player, door, "enter").reason).to.equal("invalid_door")
+
+			CollectionService:AddTag(door, interactionTypes.INTERACTABLE_TAG)
+			door:SetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE, interactionTypes.PICKUP_TYPE)
+			expect(invoke(service, player, door, "enter").reason).to.equal("invalid_door")
+
+			door:SetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE, interactionTypes.DOOR_TYPE)
+			door.Parent = nil
+			expect(invoke(service, player, door, "enter").reason).to.equal("invalid_door")
+		end)
+
+		it("rejects doors that do not satisfy the shared interaction contract", function()
+			local cases = {
+				{
+					door = createDoor({
+						parent = Workspace,
+						interactableTagged = false,
+						legacyTagged = true,
+						locked = false,
+						requiredItemId = "",
+					}),
+					reason = "invalid_door",
+				},
+				{
+					door = createDoor({
+						parent = Workspace,
+						interactableTagged = false,
+						locked = false,
+						requiredItemId = "",
+					}),
+					reason = "invalid_door",
+				},
+				{
+					door = createDoor({
+						parent = Workspace,
+						interactionType = interactionTypes.PICKUP_TYPE,
+						locked = false,
+						requiredItemId = "",
+					}),
+					reason = "invalid_door",
+				},
+				{
+					door = createDoor({
+						parent = Workspace,
+						hasInteractionType = false,
+						locked = false,
+						requiredItemId = "",
+					}),
+					reason = "invalid_door",
+				},
+			}
+			local service = DoorService.new(newFakeItemService({ success = false, reason = "missing_item" }) :: any)
+			table.insert(services, service)
+			service:start()
+			for _, case in cases do
+				local result = invoke(service, createPlayer(Vector3.new(2, 4, 0)), case.door, "enter")
+				expect(result.success).to.equal(false)
+				expect(result.reason).to.equal(case.reason)
+			end
+		end)
+
 		it("rejects untagged, malformed, detached, and wrongly typed doors", function()
 			local cases = {
-				{ door = createDoor({ parent = Workspace, tagged = false, locked = false, requiredItemId = "" }), reason = "invalid_door" },
+				{ door = createDoor({ parent = Workspace, interactableTagged = false, locked = false, requiredItemId = "" }), reason = "invalid_door" },
 				{ door = createDoor({ parent = Workspace, doorway = false, locked = false, requiredItemId = "" }), reason = "invalid_door" },
 				{ door = createDoor({ parent = Workspace, center = false, locked = false, requiredItemId = "" }), reason = "invalid_door" },
 				{ door = createDoor({ locked = false, requiredItemId = "" }), reason = "invalid_door" },
@@ -185,6 +302,25 @@ return function()
 				expect(result.success).to.equal(false)
 				expect(result.reason).to.equal(case.reason)
 			end
+		end)
+
+		it("rejects invalid locked-door configuration before item use", function()
+			local cases = {
+				{ door = createDoor({ parent = Workspace, requiredItemId = "" }), reason = "invalid_config" },
+				{ door = createDoor({ parent = Workspace, locked = true }), reason = "invalid_config" },
+				{ door = createDoor({ parent = Workspace, locked = true, requiredItemId = 123 }), reason = "invalid_config" },
+				{ door = createDoor({ parent = Workspace, locked = true, requiredItemId = "" }), reason = "invalid_config" },
+				{ door = createDoor({ parent = Workspace, locked = true, requiredItemId = "handgun" }), reason = "invalid_config" },
+			}
+			local itemService = newFakeItemService({ success = true })
+			local service = DoorService.new(itemService :: any)
+			table.insert(services, service)
+			service:start()
+			for _, case in cases do
+				local result = invoke(service, createPlayer(Vector3.new(2, 4, 0)), case.door, "unlock")
+				expect(result.reason).to.equal(case.reason)
+			end
+			expect(itemService.useCalls).to.equal(0)
 		end)
 
 		it("rejects a player beyond the server distance tolerance", function()
