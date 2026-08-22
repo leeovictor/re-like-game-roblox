@@ -7,7 +7,7 @@ export type InteractionHandler = {
 }
 
 export type ProbeConfig = {
-	radius: number,
+	size: Vector3,
 	forwardOffset: number,
 }
 

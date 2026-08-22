@@ -11,7 +11,7 @@ local interactionTypes = require(ReplicatedStorage.Shared.interactions.interacti
 local InteractionController = require(client.interactions.InteractionController)
 
 local ACTION_NAME = "DungeonInteraction"
-local probeConfig = { radius = 2, forwardOffset = 1 }
+local probeConfig = { size = Vector3.new(2, 2, 2), forwardOffset = 1 }
 local currentController: any
 
 type SignalConnection = RBXScriptConnection
@@ -113,7 +113,7 @@ return function()
 		end)
 
 		describe("probe", function()
-			it("dispatches a pickup inside the sphere", function()
+			it("dispatches a pickup inside the box", function()
 				local target = makeInteractablePart("Pickup", Vector3.new(0, 3, -1), interactionTypes.PICKUP_TYPE)
 				table.insert(fixtures, target)
 			local received: Instance? = nil
@@ -128,12 +128,20 @@ return function()
 			expect(controller.getTarget()).to.equal(target)
 			end)
 
-			it("does not select a target outside the radius", function()
+			it("does not select a target outside the box", function()
 				local target = makeInteractablePart("Far", Vector3.new(0, 3, -4))
 				table.insert(fixtures, target)
 			controller.start()
 			pressF()
 			expect(controller.getTarget()).to.equal(nil)
+			end)
+
+			it("does not select a target outside the box width", function()
+				local target = makeInteractablePart("Wide", Vector3.new(1.8, 3, -1), interactionTypes.PICKUP_TYPE)
+				table.insert(fixtures, target)
+			controller:start()
+			pressF()
+				expect(controller:getTarget()).to.equal(nil)
 			end)
 
 			it("uses the root look direction and forward offset", function()
@@ -193,7 +201,7 @@ return function()
 				expect(controller:getTarget()).to.equal(model)
 			end)
 
-			it("selects the root nearest to the sphere center", function()
+			it("selects the root nearest to the box center", function()
 				local near = makeInteractablePart("Near", Vector3.new(0, 3, -1), interactionTypes.PICKUP_TYPE)
 				local far = makeInteractablePart("Far", Vector3.new(0, 3, -2.5), interactionTypes.PICKUP_TYPE)
 				table.insert(fixtures, near)

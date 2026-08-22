@@ -13,8 +13,8 @@ local ACTION_NAME = "DungeonInteraction"
 local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value
 local DEBUG_ENABLED = false
 local DEFAULT_CONFIG: interactionTypes.ProbeConfig = {
-	radius = 3,
-	forwardOffset = 2.5,
+	size = Vector3.new(3, 7, 2),
+	forwardOffset = 2,
 }
 
 type ControllerState = interactionTypes.Controller & {
@@ -25,7 +25,7 @@ type ControllerState = interactionTypes.Controller & {
 
 local function createController(probeConfig: interactionTypes.ProbeConfig?): interactionTypes.Controller
 	local config = {
-		radius = if probeConfig then probeConfig.radius else DEFAULT_CONFIG.radius,
+		size = if probeConfig then probeConfig.size else DEFAULT_CONFIG.size,
 		forwardOffset = if probeConfig then probeConfig.forwardOffset else DEFAULT_CONFIG.forwardOffset,
 	}
 	local started = false
@@ -83,11 +83,12 @@ local function createController(probeConfig: interactionTypes.ProbeConfig?): int
 				return nil, nil
 			end
 
-			local center = root.Position + root.CFrame.LookVector * config.forwardOffset
+			local probeCFrame = root.CFrame * CFrame.new(0, 0, -config.forwardOffset)
+			local center = probeCFrame.Position
 			local params = OverlapParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = { character }
-			local parts = Workspace:GetPartBoundsInRadius(center, config.radius, params)
+			local parts = Workspace:GetPartBoundsInBox(probeCFrame, config.size, params)
 			local distances: { [Instance]: number } = {}
 			local roots: { Instance } = {}
 			local types: { [Instance]: string } = {}
@@ -155,18 +156,18 @@ local function createController(probeConfig: interactionTypes.ProbeConfig?): int
 			bind()
 			if DEBUG_ENABLED then
 				local part = Instance.new("Part")
-				part.Shape = Enum.PartType.Ball
+				part.Shape = Enum.PartType.Block
 				part.Anchored = true
 				part.CanCollide = false
 				part.Transparency = 0.8
-				part.Size = Vector3.new(config.radius * 2, config.radius * 2, config.radius * 2)
+				part.Size = config.size
 				part.Parent = Workspace
 				debugPart = part
 				debugConnection = RunService.Heartbeat:Connect(function()
 					local character = Players.LocalPlayer.Character
 					local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
 					if root ~= nil and root:IsA("BasePart") and debugPart ~= nil then
-						debugPart.Position = root.Position + root.CFrame.LookVector * config.forwardOffset
+						debugPart.CFrame = root.CFrame * CFrame.new(0, 0, -config.forwardOffset)
 					end
 				end)
 			end
