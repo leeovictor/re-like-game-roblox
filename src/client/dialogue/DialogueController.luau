@@ -4,6 +4,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Signal = require(ReplicatedStorage.Packages.Signal)
+local TankController = require(script.Parent.Parent.player.TankController)
 
 export type DialogReason = "completed" | "cancelled" | "replaced"
 
@@ -96,6 +97,7 @@ local function closeCurrent(optionId: string?, reason: DialogReason): ()
 	local callback = activeCallback
 	activeCallback = nil
 	unbindActions()
+	TankController.setMovementEnabled(true)
 	publish(nil)
 	if callback ~= nil then
 		callback(optionId, reason)
@@ -254,6 +256,7 @@ function controller.show(text: string, callback: ShowCallback?): ()
 
 	activeCallback = callback :: any
 	local dialogGeneration = generation
+	TankController.setMovementEnabled(false)
 	publish({
 		kind = "message",
 		text = validatedText,
@@ -282,6 +285,7 @@ function controller.ask(text: string, options: { DialogOption }, callback: AskCa
 
 	activeCallback = callback :: any
 	local dialogGeneration = generation
+	TankController.setMovementEnabled(false)
 	publish({
 		kind = "question",
 		text = validatedText,

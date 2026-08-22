@@ -34,6 +34,7 @@ local input: InputState = {
 }
 
 local started = false
+local movementEnabled = true
 local renderConnection: RBXScriptConnection? = nil
 local inputEndedConnection: RBXScriptConnection? = nil
 local activeHumanoid: Humanoid? = nil
@@ -53,6 +54,13 @@ local function resetInput(): ()
 	input.backward = false
 	input.left = false
 	input.right = false
+end
+
+local function syncInput(): ()
+	input.forward = UserInputService:IsKeyDown(Enum.KeyCode.W)
+	input.backward = UserInputService:IsKeyDown(Enum.KeyCode.S)
+	input.left = UserInputService:IsKeyDown(Enum.KeyCode.A)
+	input.right = UserInputService:IsKeyDown(Enum.KeyCode.D)
 end
 
 local function releaseHumanoid(): ()
@@ -78,6 +86,10 @@ local function acquireHumanoid(humanoid: Humanoid): ()
 end
 
 local function updateInput(actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
+	if not movementEnabled then
+		return Enum.ContextActionResult.Sink
+	end
+
 	local isPressed = if inputState == Enum.UserInputState.Begin then true elseif inputState == Enum.UserInputState.End
 		or inputState == Enum.UserInputState.Cancel then false
 		else nil
@@ -136,6 +148,13 @@ local function update(deltaTime: number): ()
 	end
 
 	local lookVector = controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
+	if not movementEnabled then
+		controlledLookVector = lookVector
+		rootPart.AssemblyAngularVelocity = Vector3.zero
+		humanoid:Move(Vector3.zero, false)
+		return
+	end
+
 	if UserInputService:GetFocusedTextBox() then
 		controlledLookVector = lookVector
 		rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
@@ -194,6 +213,7 @@ end
 export type TankController = {
 	start: () -> (),
 	stop: () -> (),
+	setMovementEnabled: (enabled: boolean) -> (),
 }
 
 local controller = {} :: TankController
@@ -228,6 +248,15 @@ function controller.stop(): ()
 	unbindActions()
 	resetInput()
 	releaseHumanoid()
+end
+
+function controller.setMovementEnabled(enabled: boolean): ()
+	movementEnabled = enabled
+	if enabled then
+		syncInput()
+	else
+		resetInput()
+	end
 end
 
 return controller
