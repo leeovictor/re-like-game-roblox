@@ -9,6 +9,7 @@
 - O runner, harness, loader e arquivos de suporte do Lune foram removidos; a suite e executada somente pelo TestEZ no Roblox Studio.
 - Specs de UI permanecem intencionalmente fora do escopo desta migracao; nao adicione testes para `src/client/ui/App.luau`.
 - Specs que criam Instances, conexoes ou estado mutavel devem criar fixtures isoladas em `beforeEach` e destruir ou desconectar tudo em `afterEach`.
+- Evite testes unitarios acoplados a valores de tuning de gameplay, como raio, offset ou duracao. Prefira injetar a configuracao nas fixtures e testar invariantes comportamentais, para que ajustar o tuning nao exija alterar os testes.
 - `src/server/cave-engine/` contem hifen. Use `script["cave-engine"].CaveEngine` ou `script["cave-engine"].TerrainWriter`, nunca notacao de ponto nem renomeie a pasta.
 - O cliente inicia em `src/client/init.client.luau` e usa React/ReactRoblox. Os runners de teste nao iniciam esses entrypoints. No projeto de testes, `TestEZAutoServer` e `TestEZAutoClient` executam automaticamente as suites ao iniciar o Play; os runners explicitos continuam disponiveis para reruns manuais pelo MCP.
 

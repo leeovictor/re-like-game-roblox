@@ -147,8 +147,8 @@ luau-lsp analyze --platform roblox \
   --formatter gnu \
   src/shared \
   src/server/inventory src/server/items src/server/pickups src/server/doors src/server/player \
-  src/client/camera src/client/doors src/client/dialogue src/client/inventory \
-  src/client/pickups src/client/player src/client/ui \
+   src/client/camera src/client/doors src/client/dialogue src/client/interactions \
+   src/client/inventory src/client/pickups src/client/player src/client/ui \
   tests
 ```
 

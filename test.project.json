@@ -67,6 +67,9 @@
           "dialogue": {
             "$path": "src/client/dialogue"
           },
+          "interactions": {
+            "$path": "src/client/interactions"
+          },
           "inventory": {
             "$path": "src/client/inventory"
           },
