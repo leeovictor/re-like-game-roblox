@@ -97,6 +97,7 @@ local function initialize(model: Model): ()
 	lockedDialogue.Parent = model
 	model:SetAttribute(doorTypes.LOCKED_ATTRIBUTE, true)
 	model:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, LOCKED_ITEM_ID)
+	model:SetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE, model.Name)
 	model:SetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE, interactionTypes.DOOR_TYPE)
 	CollectionService:AddTag(model, interactionTypes.INTERACTABLE_TAG)
 	CollectionService:AddTag(model, doorTypes.DOOR_TAG)

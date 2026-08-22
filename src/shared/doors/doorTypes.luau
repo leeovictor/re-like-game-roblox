@@ -30,5 +30,6 @@ return {
 	LOCKED_DIALOGUE_NAME = "LockedDialogue",
 	LOCKED_ATTRIBUTE = "Locked",
 	REQUIRED_ITEM_ID_ATTRIBUTE = "RequiredItemId",
+	DOOR_KEY_ATTRIBUTE = "DoorKey",
 	FALLBACK_LOCKED_MESSAGE = "Porta trancada.",
 }
