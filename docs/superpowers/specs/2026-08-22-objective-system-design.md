@@ -72,7 +72,7 @@ duplicado sem necessidade para este jogo single-player. Foi rejeitada.
 src/client/events/GameplayEvents.luau
   barramento local de eventos semanticos
 
-src/client/events/GameplayEventBridge.luau
+src/client/events/PickupEventBridge.luau
   converte PickupCollected em item_collected
 
 src/client/objectives/ObjectiveConfig.luau
@@ -165,7 +165,7 @@ usara `GameplayEvents.emit`; os testes poderao fornecer um spy.
 
 ### Publicacao por PickupCollected
 
-O `GameplayEventBridge` conectara `remotes.PickupCollected.OnClientEvent` e
+O `PickupEventBridge` conectara `remotes.PickupCollected.OnClientEvent` e
 publicara `item_collected` com o `itemId` recebido. O
 `PickupNotificationController` continuara podendo consumir o mesmo remoto para
 mostrar a notificacao existente. Nenhum evento de objetivo sera inferido pela
@@ -462,7 +462,7 @@ objetivo que ja esteja concluido.
 ## Arquivos previstos
 
 - Criar `src/client/events/GameplayEvents.luau`.
-- Criar `src/client/events/GameplayEventBridge.luau`.
+- Criar `src/client/events/PickupEventBridge.luau`.
 - Criar `src/client/objectives/ObjectiveConfig.luau`.
 - Criar `src/client/objectives/ObjectiveController.luau`.
 - Criar `src/client/objectives/useObjectives.luau`.
