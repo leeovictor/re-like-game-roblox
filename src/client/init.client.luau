@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
-local CameraDebugger = require(script.camera.CameraDebugger)
 local CameraVisibility = require(script.camera.CameraVisibility)
 local DialogueController = require(script.dialogue.DialogueController)
 local DoorController = require(script.doors.DoorController)
@@ -36,9 +35,6 @@ local controller = CameraController.new(cameraConfig)
 controller:start()
 TankController.start()
 FootstepController.start()
-
--- local debugger = CameraDebugger.new(cameraConfig)
--- debugger:start()
 
 PickupNotificationController.start()
 InventoryController.start()
