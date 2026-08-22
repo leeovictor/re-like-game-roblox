@@ -1,9 +1,12 @@
 --!strict
 
+local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local InventoryService = require(script.inventory.InventoryService)
+local ItemInstanceFactory = require(script.items.ItemInstanceFactory)
 local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
 local ItemUseService = require(script.items.ItemUseService)
+local PickupService = require(script.pickups.PickupService)
 local DoorService = require(script.doors.DoorService)
 local DoorUnlockBehavior = require(script.doors.DoorUnlockBehavior)
 local CharacterLightService = require(script.player.CharacterLightService)
@@ -16,6 +19,12 @@ assert(behaviorRegistry:register("unlock", DoorUnlockBehavior.create()), "unlock
 local itemUseService = ItemUseService.new(inventoryService, behaviorRegistry)
 itemUseService:bind(remotes.UseItem :: RemoteFunction)
 inventoryService:start()
+
+local factory = ItemInstanceFactory.new(function(): string
+	return HttpService:GenerateGUID(false)
+end)
+local pickupService = PickupService.new(inventoryService, factory)
+pickupService:start()
 
 local doorService = DoorService.new(itemUseService)
 doorService:start()
