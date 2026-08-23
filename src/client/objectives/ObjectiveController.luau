@@ -97,7 +97,7 @@ local function makeDefaultSound(): (() -> (), () -> ())
 	local function play(): ()
 		if sound == nil then
 			local createdSound = Instance.new("Sound")
-			createdSound.SoundId = ""
+			createdSound.SoundId = "rbxassetid://131940090612749"
 			createdSound.Parent = SoundService
 			sound = createdSound
 		end

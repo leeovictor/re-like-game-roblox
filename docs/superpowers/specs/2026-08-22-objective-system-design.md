@@ -186,7 +186,7 @@ estrutura conceitual sera:
     text = "Encontre o cartao de acesso",
     startsWhen = {
         event = "door_blocked",
-        doorKey = "cave_exit",
+        doorKey = "facility_entrance",
     },
     completesWhen = {
         event = "item_collected",
@@ -222,7 +222,7 @@ publicar eventos, ativar objetivos ou alterar o estado diretamente.
     initial = true,
     completesWhen = {
         event = "door_blocked",
-        doorKey = "cave_exit",
+        doorKey = "facility_entrance",
     },
 },
 {
@@ -230,7 +230,7 @@ publicar eventos, ativar objetivos ou alterar o estado diretamente.
     text = "Encontre o cartao de acesso",
     startsWhen = {
         event = "door_blocked",
-        doorKey = "cave_exit",
+        doorKey = "facility_entrance",
     },
     completesWhen = {
         event = "item_collected",

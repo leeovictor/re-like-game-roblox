@@ -282,6 +282,7 @@ return function()
 			local door = addInstance(makeDoor("VisualExit", true, "iron_key", "cave_exit"))
 
 			controller.interact(door)
+			completeDialogue(1, "completed")
 
 			expect(events[1].name).to.equal("door_blocked")
 			expect(events[1].doorKey).to.equal("cave_exit")
@@ -293,6 +294,7 @@ return function()
 			invokeResult = { success = true, action = "unlock" }
 
 			controller.interact(door)
+			completeDialogue(1, "completed")
 
 			expect(events[1].name).to.equal("door_unlocked")
 			expect(events[1].doorKey).to.equal("logical_exit")

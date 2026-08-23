@@ -5,7 +5,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local controller = require(script.Parent.ObjectiveController)
 
-local function useObjectives()
+type ObjectiveView = {
+	id: string,
+	text: string,
+	completed: boolean,
+}
+
+type ObjectiveState = {
+	objectives: { ObjectiveView },
+}
+
+local function useObjectives(): ObjectiveState?
 	local objectives, setObjectives = React.useState(controller.getState())
 
 	React.useEffect(function()

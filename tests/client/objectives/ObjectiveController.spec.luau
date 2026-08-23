@@ -5,6 +5,7 @@ local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("C
 local require = require :: (ModuleScript) -> any
 local ObjectiveController = require(client.objectives.ObjectiveController) :: any
 local GameplayEvents = require(client.events.GameplayEvents) :: any
+local ObjectiveConfig = require(client.objectives.ObjectiveConfig) :: any
 
 local function newEventSource(): (any, (event: any) -> ())
 	local listeners: { [number]: (event: any) -> () } = {}
@@ -97,13 +98,13 @@ return function()
 					id = "find_exit",
 					text = "Ache uma saida",
 					initial = true,
-					completesWhen = { event = "door_blocked", doorKey = "cave_exit" },
+					completesWhen = { event = "door_blocked", doorKey = "facility_entrance" },
 				}),
 				objective({
 					id = "find_card",
 					text = "Encontre o cartao",
 					initial = nil,
-					startsWhen = { event = "door_blocked", doorKey = "cave_exit" },
+					startsWhen = { event = "door_blocked", doorKey = "facility_entrance" },
 					completesWhen = { event = "item_collected", itemId = "access_card" },
 				}),
 				objective({
@@ -118,7 +119,7 @@ return function()
 			table.insert(controllers, controller)
 			controller.start()
 			emit({ name = "item_collected", itemId = "access_card" })
-			emit({ name = "door_blocked", doorKey = "cave_exit" })
+			emit({ name = "door_blocked", doorKey = "facility_entrance" })
 
 			local state = assert(controller.getState())
 			expect(#state.objectives).to.equal(1)
@@ -290,6 +291,37 @@ return function()
 
 			local state = assert(controller.getState())
 			expect(state.objectives[1].id).to.equal("find_card")
+		end)
+
+		it("does not block the facility objective when the card is collected first", function()
+			local source, emit = newEventSource()
+			local controller = ObjectiveController.new(ObjectiveConfig, {
+				events = source,
+				playSound = function() end,
+			})
+			table.insert(controllers, controller)
+
+			controller.start()
+			emit({ name = "item_collected", itemId = "access_card" })
+
+			local undiscovered = assert(controller.getState())
+			expect(#undiscovered.objectives).to.equal(1)
+			expect(undiscovered.objectives[1].id).to.equal("find_exit")
+
+			emit({ name = "door_unlocked", doorKey = "facility_entrance" })
+
+			local state = assert(controller.getState())
+			local facilityObjective = nil
+			for _, objectiveView in state.objectives do
+				if objectiveView.id == "access_facility" then
+					facilityObjective = objectiveView
+				end
+			end
+			expect(facilityObjective ~= nil).to.equal(true)
+			if facilityObjective == nil then
+				return
+			end
+			expect(facilityObjective.completed).to.equal(false)
 		end)
 	end)
 end

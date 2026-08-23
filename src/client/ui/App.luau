@@ -7,12 +7,16 @@ local React = require(ReplicatedStorage.Packages.React)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local useDialogue = require(script.Parent.Parent.dialogue.useDialogue)
 local useInventory = require(script.Parent.Parent.inventory.useInventory)
+local useObjectiveNotification = require(script.Parent.Parent.objectives.useObjectiveNotification)
+local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 
 local function App()
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
+	local objectives = useObjectives()
+	local objectiveNotification = useObjectiveNotification()
 	local dialogue = useDialogue()
 
 	React.useEffect(function()
@@ -119,6 +123,105 @@ local function App()
 		})
 		else nil
 
+	local objectiveRows = {}
+	if objectives ~= nil then
+		for index, objective in objectives.objectives do
+			local marker = if objective.completed then "[x] " else "* "
+			objectiveRows[objective.id] = React.createElement("TextLabel", {
+				BackgroundTransparency = 1,
+				LayoutOrder = index,
+				Size = UDim2.new(1, -24, 0, 28),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				Font = Enum.Font.Gotham,
+				Text = marker .. objective.text,
+				TextColor3 = if objective.completed
+					then Color3.fromRGB(173, 196, 162)
+					else Color3.fromRGB(225, 222, 239),
+				TextSize = 14,
+				TextWrapped = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Center,
+			})
+		end
+	end
+	objectiveRows.ListLayout = React.createElement("UIListLayout", {
+		Padding = UDim.new(0, 2),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	})
+
+	local objectivePanel = if inventoryVisible and objectives ~= nil then React.createElement("Frame", {
+		BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+		BackgroundTransparency = 0.08,
+		LayoutOrder = 2,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+	}, {
+		Corner = React.createElement("UICorner", {
+			CornerRadius = UDim.new(0, 10),
+		}),
+		Stroke = React.createElement("UIStroke", {
+			Color = Color3.fromRGB(107, 92, 168),
+			Transparency = 0.25,
+		}),
+		SizeConstraint = React.createElement("UISizeConstraint", {
+			MaxSize = Vector2.new(340, 1000),
+		}),
+		Title = React.createElement("TextLabel", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(16, 12),
+			Size = UDim2.new(1, -32, 0, 24),
+			Font = Enum.Font.GothamBold,
+			Text = "OBJETIVOS",
+			TextColor3 = Color3.fromRGB(241, 237, 255),
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextSize = 16,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}),
+		List = React.createElement("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(16, 44),
+			Size = UDim2.new(1, -32, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+		}, objectiveRows),
+	}) else nil
+
+	local objectiveNotice = if objectiveNotification ~= nil then React.createElement("TextLabel", {
+		BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+		BackgroundTransparency = 0.08,
+		LayoutOrder = 1,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Font = Enum.Font.GothamBold,
+		Text = (if #objectiveNotification == 1 then "NOVO OBJETIVO" else "NOVOS OBJETIVOS")
+			.. "\n"
+			.. table.concat((function()
+				local texts = {}
+				for _, objective in objectiveNotification do
+					table.insert(texts, objective.text)
+				end
+				return texts
+			end)(), "\n"),
+		TextColor3 = Color3.fromRGB(241, 237, 255),
+		TextSize = 14,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+	}, {
+		Padding = React.createElement("UIPadding", {
+			PaddingBottom = UDim.new(0, 12),
+			PaddingLeft = UDim.new(0, 14),
+			PaddingRight = UDim.new(0, 14),
+			PaddingTop = UDim.new(0, 12),
+		}),
+		Corner = React.createElement("UICorner", {
+			CornerRadius = UDim.new(0, 8),
+		}),
+		Stroke = React.createElement("UIStroke", {
+			Color = Color3.fromRGB(107, 92, 168),
+			Transparency = 0.25,
+		}),
+	}) else nil
+
 	local notificationItem = if notificationItemId ~= nil then items[notificationItemId] else nil
 	local notificationName = if notificationItem ~= nil then notificationItem.name else notificationItemId
 	local dialogueText: string? = nil
@@ -141,6 +244,23 @@ local function App()
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, {
+		ObjectiveStack = React.createElement("Frame", {
+			AnchorPoint = Vector2.new(1, 0),
+			BackgroundTransparency = 1,
+			Position = UDim2.new(1, -24, 0, 24),
+			Size = UDim2.new(1, -48, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+		}, {
+			ListLayout = React.createElement("UIListLayout", {
+				Padding = UDim.new(0, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			SizeConstraint = React.createElement("UISizeConstraint", {
+				MaxSize = Vector2.new(340, 1000),
+			}),
+			Notice = objectiveNotice,
+			Panel = objectivePanel,
+		}),
 		InventoryPanel = inventoryPanel,
 		Dialogue = if dialogueText ~= nil
 			then React.createElement("TextLabel", {

@@ -13,6 +13,13 @@ export type ItemDefinition = {
 }
 
 local items: { [ItemId]: ItemDefinition } = {
+	access_card = {
+		id = "access_card",
+		name = "Access Card",
+		category = "key",
+		stackable = false,
+		capabilities = { "unlock" },
+	},
 	handgun = {
 		id = "handgun",
 		name = "Handgun",

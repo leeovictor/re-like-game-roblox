@@ -78,6 +78,8 @@ local function createController(dependencies: Dependencies): InteractionHandler
 			local message = messages[index]
 			if message ~= nil then
 				dependencies.dialogue.show(message.text, nextMessage)
+			else
+				publishDoorEvent(door, "door_blocked")
 			end
 		end
 
@@ -122,16 +124,15 @@ local function createController(dependencies: Dependencies): InteractionHandler
 		if type(requiredItemId) == "string" and requiredItemId ~= "" and hasItem(requiredItemId) then
 			local result = dependencies.invokeDoor({ door = door, action = "unlock" })
 			if result.success and result.action == "unlock" then
-				publishDoorEvent(door, "door_unlocked")
-				dependencies.dialogue.show("Porta destrancada.")
+				dependencies.dialogue.show("Porta destrancada.", function ()
+					publishDoorEvent(door, "door_unlocked")
+				end)
 			elseif result.reason == "missing_item" then
-				publishDoorEvent(door, "door_blocked")
 				showLockedDialogue(door)
 			end
 			return
 		end
 
-		publishDoorEvent(door, "door_blocked")
 		showLockedDialogue(door)
 	end
 
