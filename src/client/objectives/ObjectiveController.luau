@@ -63,6 +63,7 @@ export type ObjectiveController = {
 	start: () -> (),
 	stop: () -> (),
 	getState: () -> ObjectiveState?,
+	playSound: () -> (),
 	changed: any,
 	activated: any,
 }
@@ -72,6 +73,7 @@ export type Module = {
 	start: () -> (),
 	stop: () -> (),
 	getState: () -> ObjectiveState?,
+	playSound: () -> (),
 	changed: any,
 	activated: any,
 }
@@ -386,13 +388,13 @@ local function createController(definitions: any, dependencies: Dependencies?): 
 				table.insert(batch, makeView(id))
 			end
 			activated:Fire(batch)
-			actualDependencies.playSound()
 		end
 	end
 
 	local controller = {
 		changed = changed,
 		activated = activated,
+		playSound = actualDependencies.playSound,
 	} :: ObjectiveController
 
 	function controller.start(): ()
@@ -461,6 +463,9 @@ return {
 	end,
 	getState = function()
 		return defaultController.getState()
+	end,
+	playSound = function()
+		defaultController.playSound()
 	end,
 	changed = defaultController.changed,
 	activated = defaultController.activated,
