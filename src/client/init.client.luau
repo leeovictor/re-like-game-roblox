@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
 local CameraVisibility = require(script.camera.CameraVisibility)
+local CinematicController = require(script.cinematics.CinematicController)
+local CinematicSoundPlayer = require(script.cinematics.CinematicSoundPlayer)
 local DialogueController = require(script.dialogue.DialogueController)
 local DialogueInteractionController = require(script.dialogue.DialogueInteractionController)
 local DoorController = require(script.doors.DoorController)
@@ -39,6 +41,35 @@ CameraVisibility.hide(cameraSystem)
 local controller = CameraController.new(cameraConfig)
 controller:start()
 TankController.start()
+
+local cinematicSoundPlayer = CinematicSoundPlayer.new()
+CinematicController.configure({
+	camera = {
+		hasShot = function(shotId: string): boolean
+			return controller:hasShot(shotId)
+		end,
+		setCinematicShot = function(shotId: string): boolean
+			return controller:setCinematicShot(shotId)
+		end,
+		clearCinematicShot = function()
+			controller:clearCinematicShot()
+		end,
+	},
+	movement = TankController,
+	sound = {
+		preload = function(soundIds: { string }): boolean
+			return cinematicSoundPlayer:preload(soundIds)
+		end,
+		play = function(soundId: string, executionId: number)
+			cinematicSoundPlayer:play(soundId, executionId)
+		end,
+		stop = function(executionId: number)
+			cinematicSoundPlayer:stop(executionId)
+		end,
+	},
+	wait = task.wait,
+})
+
 FootstepController.start()
 
 PickupNotificationController.start()
