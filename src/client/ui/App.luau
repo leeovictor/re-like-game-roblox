@@ -16,8 +16,14 @@ local ConfirmationModal = require(script.Parent.ConfirmationModal)
 
 local INVENTORY_SLOT_COUNT = 6
 local INVENTORY_GRID_COLUMNS = 3
-local INVENTORY_CELL_SIZE = UDim2.fromOffset(88, 88)
 local INVENTORY_GAP = 8
+local INVENTORY_CELL_SIZE = UDim2.new(
+	1 / INVENTORY_GRID_COLUMNS,
+	-6,
+	0.5,
+	-(INVENTORY_GAP / 2)
+)
+local INVENTORY_CONTENT_ASPECT_RATIO = 280 / 184
 local DROPDOWN_WIDTH = 144
 
 local mockActionLabelsByItemId: { [string]: { string } } = {
@@ -56,6 +62,12 @@ local function App()
 			connection:Disconnect()
 		end
 	end, {})
+
+	React.useEffect(function()
+		if not inventoryVisible then
+			setSelectedItemUid(nil)
+		end
+	end, { inventoryVisible })
 
 	React.useEffect(function()
 		if inventory == nil or selectedItemUid == nil then
@@ -129,15 +141,21 @@ local function App()
 				end
 			end
 
-			gridChildren[tostring(index)] = React.createElement(InventorySlot, {
-				item = displayItem,
-				equipped = isEquipped,
-				actions = actionOptions,
-				onActivated = if instance ~= nil
-					then function()
-						setSelectedItemUid(instance.uid)
-					end
-					else nil,
+			gridChildren[tostring(index)] = React.createElement("Frame", {
+				BackgroundTransparency = 1,
+				LayoutOrder = index,
+				Size = UDim2.fromScale(1, 1),
+			}, {
+				Slot = React.createElement(InventorySlot, {
+					item = displayItem,
+					equipped = isEquipped,
+					actions = actionOptions,
+					onActivated = if instance ~= nil
+						then function()
+							setSelectedItemUid(instance.uid)
+						end
+						else nil,
+				}),
 			})
 
 			local column = ((index - 1) % INVENTORY_GRID_COLUMNS) + 1
@@ -147,7 +165,8 @@ local function App()
 			overlayChildren[tostring(index)] = React.createElement("Frame", {
 				BackgroundTransparency = 1,
 				ClipsDescendants = false,
-				Size = INVENTORY_CELL_SIZE,
+				LayoutOrder = index,
+				Size = UDim2.fromScale(1, 1),
 				ZIndex = 10,
 			}, {
 				Menu = if instance ~= nil and selectedItemUid == instance.uid
@@ -181,6 +200,13 @@ local function App()
 			Position = UDim2.fromOffset(16, 44),
 			Size = UDim2.new(1, -32, 0, 184),
 		}, {
+			SizeConstraint = React.createElement("UISizeConstraint", {
+				MaxSize = Vector2.new(280, 184),
+			}),
+			AspectRatio = React.createElement("UIAspectRatioConstraint", {
+				AspectRatio = INVENTORY_CONTENT_ASPECT_RATIO,
+				DominantAxis = Enum.DominantAxis.Width,
+			}),
 			Grid = React.createElement("Frame", {
 				BackgroundTransparency = 1,
 				Size = UDim2.fromScale(1, 1),

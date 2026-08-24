@@ -13,6 +13,46 @@ type Props = {
 	onCancel: () -> (),
 }
 
+local function ConfirmationButton(props: {
+	label: string,
+	layoutOrder: number,
+	backgroundColor: Color3,
+	highlightColor: Color3,
+	onActivated: () -> (),
+})
+	local highlighted, setHighlighted = React.useState(false)
+
+	return React.createElement("TextButton", {
+		AutoButtonColor = false,
+		BackgroundColor3 = if highlighted then props.highlightColor else props.backgroundColor,
+		Font = Enum.Font.GothamBold,
+		LayoutOrder = props.layoutOrder,
+		Selectable = true,
+		Size = UDim2.new(0.45, -5, 1, 0),
+		Text = props.label,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextSize = 14,
+		[React.Event.Activated] = props.onActivated,
+		[React.Event.MouseEnter] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.MouseLeave] = function()
+			setHighlighted(false)
+		end,
+		[React.Event.SelectionGained] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.SelectionLost] = function()
+			setHighlighted(false)
+		end,
+		ZIndex = 103,
+	}, {
+		Corner = React.createElement("UICorner", {
+			CornerRadius = UDim.new(0, 6),
+		}),
+	})
+end
+
 local function ConfirmationModal(props: Props)
 	if not props.visible then
 		return nil
@@ -75,37 +115,19 @@ local function ConfirmationModal(props: Props)
 					Padding = UDim.new(0, 10),
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
-				CancelButton = React.createElement("TextButton", {
-					AutoButtonColor = false,
-					BackgroundColor3 = Color3.fromRGB(52, 55, 70),
-					Font = Enum.Font.GothamBold,
-					LayoutOrder = 1,
-					Size = UDim2.new(0.45, -5, 1, 0),
-					Text = props.cancelLabel,
-					TextColor3 = Color3.fromRGB(225, 222, 239),
-					TextSize = 14,
-					[React.Event.Activated] = props.onCancel,
-					ZIndex = 103,
-				}, {
-					Corner = React.createElement("UICorner", {
-						CornerRadius = UDim.new(0, 6),
-					}),
+				CancelButton = React.createElement(ConfirmationButton, {
+					backgroundColor = Color3.fromRGB(52, 55, 70),
+					highlightColor = Color3.fromRGB(78, 82, 105),
+					label = props.cancelLabel,
+					layoutOrder = 1,
+					onActivated = props.onCancel,
 				}),
-				ConfirmButton = React.createElement("TextButton", {
-					AutoButtonColor = false,
-					BackgroundColor3 = Color3.fromRGB(107, 78, 168),
-					Font = Enum.Font.GothamBold,
-					LayoutOrder = 2,
-					Size = UDim2.new(0.45, -5, 1, 0),
-					Text = props.confirmLabel,
-					TextColor3 = Color3.fromRGB(255, 255, 255),
-					TextSize = 14,
-					[React.Event.Activated] = props.onConfirm,
-					ZIndex = 103,
-				}, {
-					Corner = React.createElement("UICorner", {
-						CornerRadius = UDim.new(0, 6),
-					}),
+				ConfirmButton = React.createElement(ConfirmationButton, {
+					backgroundColor = Color3.fromRGB(107, 78, 168),
+					highlightColor = Color3.fromRGB(142, 103, 209),
+					label = props.confirmLabel,
+					layoutOrder = 2,
+					onActivated = props.onConfirm,
 				}),
 			}),
 		}),

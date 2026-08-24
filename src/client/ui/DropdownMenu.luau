@@ -15,6 +15,41 @@ type Props = {
 	position: UDim2,
 }
 
+local function DropdownOption(props: { option: Option, layoutOrder: number })
+	local highlighted, setHighlighted = React.useState(false)
+
+	return React.createElement("TextButton", {
+		AutoButtonColor = false,
+		BackgroundColor3 = if highlighted
+			then Color3.fromRGB(78, 65, 111)
+			else Color3.fromRGB(52, 55, 70),
+		Font = Enum.Font.GothamBold,
+		LayoutOrder = props.layoutOrder,
+		Selectable = true,
+		Size = UDim2.new(1, 0, 0, 30),
+		Text = props.option.label,
+		TextColor3 = Color3.fromRGB(241, 237, 255),
+		TextSize = 13,
+		[React.Event.Activated] = props.option.onActivated,
+		[React.Event.MouseEnter] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.MouseLeave] = function()
+			setHighlighted(false)
+		end,
+		[React.Event.SelectionGained] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.SelectionLost] = function()
+			setHighlighted(false)
+		end,
+	}, {
+		Corner = React.createElement("UICorner", {
+			CornerRadius = UDim.new(0, 5),
+		}),
+	})
+end
+
 local function DropdownMenu(props: Props)
 	if not props.visible or #props.options == 0 then
 		return nil
@@ -28,20 +63,9 @@ local function DropdownMenu(props: Props)
 	}
 
 	for index, option in props.options do
-		optionChildren[tostring(index)] = React.createElement("TextButton", {
-			AutoButtonColor = false,
-			BackgroundColor3 = Color3.fromRGB(52, 55, 70),
-			Font = Enum.Font.GothamBold,
-			LayoutOrder = index,
-			Size = UDim2.new(1, 0, 0, 30),
-			Text = option.label,
-			TextColor3 = Color3.fromRGB(241, 237, 255),
-			TextSize = 13,
-			[React.Event.Activated] = option.onActivated,
-		}, {
-			Corner = React.createElement("UICorner", {
-				CornerRadius = UDim.new(0, 5),
-			}),
+		optionChildren[tostring(index)] = React.createElement(DropdownOption, {
+			layoutOrder = index,
+			option = option,
 		})
 	end
 

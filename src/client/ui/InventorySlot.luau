@@ -21,38 +21,19 @@ type Props = {
 	onActivated: (() -> ())?,
 }
 
-local SLOT_SIZE = UDim2.fromOffset(88, 88)
+local SLOT_SIZE = UDim2.fromScale(1, 1)
 
-local function InventorySlot(props: Props)
-	if props.item == nil then
-		return React.createElement("Frame", {
-			Active = false,
-			BackgroundColor3 = Color3.fromRGB(31, 34, 45),
-			BackgroundTransparency = 0.35,
-			Size = SLOT_SIZE,
-		}, {
-			Corner = React.createElement("UICorner", {
-				CornerRadius = UDim.new(0, 8),
-			}),
-			Stroke = React.createElement("UIStroke", {
-				Color = Color3.fromRGB(78, 82, 105),
-				Transparency = 0.35,
-			}),
-		})
-	end
-
-	local item = props.item
-	local quantity = if item.quantity ~= nil then string.format(" x%d", item.quantity) else ""
-	local itemText = item.name .. quantity
-	local isInteractive = #props.actions > 0
-
+local function createOccupiedChildren(itemText: string, equipped: boolean, strokeColor: Color3)
 	local children = {
+		AspectRatio = React.createElement("UIAspectRatioConstraint", {
+			AspectRatio = 1,
+		}),
 		Corner = React.createElement("UICorner", {
 			CornerRadius = UDim.new(0, 8),
 		}),
 		Stroke = React.createElement("UIStroke", {
-			Color = Color3.fromRGB(107, 92, 168),
-			Transparency = if isInteractive then 0.1 else 0.35,
+			Color = strokeColor,
+			Transparency = 0.1,
 		}),
 		Name = React.createElement("TextLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -70,7 +51,7 @@ local function InventorySlot(props: Props)
 		}),
 	}
 
-	if props.equipped then
+	if equipped then
 		children.Equipped = React.createElement("TextLabel", {
 			AnchorPoint = Vector2.new(1, 0),
 			BackgroundColor3 = Color3.fromRGB(107, 78, 168),
@@ -87,18 +68,91 @@ local function InventorySlot(props: Props)
 			}),
 		})
 	end
+	return children
+end
 
+local function InteractiveSlot(props: {
+	itemText: string,
+	equipped: boolean,
+	onActivated: (() -> ())?,
+})
+	local highlighted, setHighlighted = React.useState(false)
 	local buttonProps = {
 		AutoButtonColor = false,
-		BackgroundColor3 = Color3.fromRGB(39, 42, 56),
+		BackgroundColor3 = if highlighted
+			then Color3.fromRGB(57, 52, 78)
+			else Color3.fromRGB(39, 42, 56),
+		Selectable = true,
 		Size = SLOT_SIZE,
 		Text = "",
+		[React.Event.MouseEnter] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.MouseLeave] = function()
+			setHighlighted(false)
+		end,
+		[React.Event.SelectionGained] = function()
+			setHighlighted(true)
+		end,
+		[React.Event.SelectionLost] = function()
+			setHighlighted(false)
+		end,
 	}
-	if isInteractive and props.onActivated ~= nil then
+	if props.onActivated ~= nil then
 		buttonProps[React.Event.Activated] = props.onActivated
 	end
 
-	return React.createElement("TextButton", buttonProps, children)
+	return React.createElement(
+		"TextButton",
+		buttonProps,
+		createOccupiedChildren(
+			props.itemText,
+			props.equipped,
+			if highlighted then Color3.fromRGB(175, 142, 255) else Color3.fromRGB(107, 92, 168)
+		)
+	)
+end
+
+local function InventorySlot(props: Props)
+	if props.item == nil then
+		return React.createElement("Frame", {
+			Active = false,
+			BackgroundColor3 = Color3.fromRGB(31, 34, 45),
+			BackgroundTransparency = 0.35,
+			Size = SLOT_SIZE,
+		}, {
+			AspectRatio = React.createElement("UIAspectRatioConstraint", {
+				AspectRatio = 1,
+			}),
+			Corner = React.createElement("UICorner", {
+				CornerRadius = UDim.new(0, 8),
+			}),
+			Stroke = React.createElement("UIStroke", {
+				Color = Color3.fromRGB(78, 82, 105),
+				Transparency = 0.35,
+			}),
+		})
+	end
+
+	local item = props.item
+	local quantity = if item.quantity ~= nil then string.format(" x%d", item.quantity) else ""
+	local itemText = item.name .. quantity
+	local isInteractive = #props.actions > 0
+
+	if not isInteractive then
+		return React.createElement("Frame", {
+			Active = false,
+			BackgroundColor3 = Color3.fromRGB(31, 34, 45),
+			BackgroundTransparency = 0.18,
+			Size = SLOT_SIZE,
+		}, createOccupiedChildren(itemText, props.equipped, Color3.fromRGB(78, 82, 105)))
+	end
+
+	return React.createElement(InteractiveSlot, {
+		itemText = itemText,
+		equipped = props.equipped,
+		onActivated = props.onActivated,
+	})
 end
 
 return InventorySlot
