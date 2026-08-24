@@ -223,17 +223,14 @@ local function App()
 
 	local inventoryPanel = if inventoryVisible then React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0, 0),
+			AutomaticSize = Enum.AutomaticSize.XY,
 			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
 			BackgroundTransparency = 0.08,
 			Position = UDim2.fromOffset(24, 154),
-			Size = UDim2.new(1, -48, 0, 244),
+			Size = UDim2.new(0, 0, 0, 0),
 		}, {
 			Corner = React.createElement("UICorner", {
 				CornerRadius = UDim.new(0, 10),
-			}),
-			Stroke = React.createElement("UIStroke", {
-				Color = Color3.fromRGB(107, 92, 168),
-				Transparency = 0.25,
 			}),
 			SizeConstraint = React.createElement("UISizeConstraint", {
 				MaxSize = Vector2.new(360, 244),
@@ -288,10 +285,6 @@ local function App()
 	}, {
 		Corner = React.createElement("UICorner", {
 			CornerRadius = UDim.new(0, 10),
-		}),
-		Stroke = React.createElement("UIStroke", {
-			Color = Color3.fromRGB(107, 92, 168),
-			Transparency = 0.25,
 		}),
 		SizeConstraint = React.createElement("UISizeConstraint", {
 			MaxSize = Vector2.new(340, 1000),
@@ -406,10 +399,6 @@ local function App()
 				}),
 				Corner = React.createElement("UICorner", {
 					CornerRadius = UDim.new(0, 8),
-				}),
-				Stroke = React.createElement("UIStroke", {
-					Color = Color3.fromRGB(107, 92, 168),
-					Transparency = 0.25,
 				}),
 			})
 			else nil,
