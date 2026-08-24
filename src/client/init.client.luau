@@ -10,6 +10,7 @@ local CinematicSoundPlayer = require(script.cinematics.CinematicSoundPlayer)
 local DialogueController = require(script.dialogue.DialogueController)
 local DialogueInteractionController = require(script.dialogue.DialogueInteractionController)
 local DoorController = require(script.doors.DoorController)
+local DoorManager = require(script.doors.DoorManager)
 local TransitionController = require(script.doors.TransitionController)
 local PickupEventBridge = require(script.events.PickupEventBridge)
 local InventoryController = require(script.inventory.InventoryController)
@@ -55,11 +56,6 @@ local function showDialogue(text: string, callback: ((nil, string) -> ())?): ()
 	dialogueController:show(text, callback)
 end
 
-local doorController = DoorController.new({
-	inventory = InventoryController,
-	dialogue = dialogueController,
-	transition = TransitionController,
-})
 local dialogueInteractionController = DialogueInteractionController.new({
 	show = showDialogue,
 })
@@ -70,6 +66,14 @@ FootstepController.start()
 PickupNotificationController.start()
 InventoryController.start()
 TransitionController.start()
+local doorManager = DoorManager.new({
+	inventory = InventoryController,
+})
+local doorController = DoorController.new({
+	manager = doorManager,
+	dialogue = dialogueController,
+	transition = TransitionController,
+})
 ObjectiveController.start()
 PickupEventBridge.start()
 
@@ -87,7 +91,7 @@ root:render(React.createElement(App, {
 local manualCinematic = {
 	{
 		frame = 1,
-		duration = 5,
+		duration = 2,
 		effects = {
 			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
 			{ name = "set-camera-shot", attributes = { shot = "Final_G" } },
@@ -97,7 +101,7 @@ local manualCinematic = {
 		frame = 2,
 		duration = 2,
 		effects = {
-			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_B" } },
+			{ name = "set-camera-shot", attributes = { shot = "MachineRoom_MachineCloseUp" } },
 		} :: { any },
 	},
 	{

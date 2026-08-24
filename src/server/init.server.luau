@@ -7,14 +7,11 @@ local ItemInstanceFactory = require(script.items.ItemInstanceFactory)
 local ItemBehaviorRegistry = require(script.items.ItemBehaviorRegistry)
 local ItemUseService = require(script.items.ItemUseService)
 local PickupService = require(script.pickups.PickupService)
-local DoorService = require(script.doors.DoorService)
-local DoorUnlockBehavior = require(script.doors.DoorUnlockBehavior)
 local CharacterLightService = require(script.player.CharacterLightService)
 local remotes = require(ReplicatedStorage.Shared.remotes)
 
 local inventoryService = InventoryService.new()
 local behaviorRegistry = ItemBehaviorRegistry.new()
-assert(behaviorRegistry:register("unlock", DoorUnlockBehavior.create()), "unlock behavior registration")
 
 local itemUseService = ItemUseService.new(inventoryService, behaviorRegistry)
 itemUseService:bind(remotes.UseItem :: RemoteFunction)
@@ -25,9 +22,6 @@ local factory = ItemInstanceFactory.new(function(): string
 end)
 local pickupService = PickupService.new(inventoryService, factory)
 pickupService:start()
-
-local doorService = DoorService.new(itemUseService)
-doorService:start()
 
 local characterLightService = CharacterLightService.new()
 characterLightService:start()

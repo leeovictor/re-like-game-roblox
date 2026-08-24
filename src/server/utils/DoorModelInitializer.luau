@@ -9,9 +9,9 @@ local Selection = game:GetService("Selection") :: any
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
-local LOCKED_ITEM_ID = "iron_key"
+local LOCKED_ITEM_ID = "access_card"
 local LOCKED_MESSAGE = "A porta esta trancada."
-local LOCKED_HINT = "Procure uma chave de ferro."
+local LOCKED_HINT = "Procure um cartao de acesso."
 
 local function fail(message: string): never
 	error(message, 2)
@@ -97,7 +97,10 @@ local function initialize(model: Model): ()
 	lockedDialogue.Parent = model
 	model:SetAttribute(doorTypes.LOCKED_ATTRIBUTE, true)
 	model:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, LOCKED_ITEM_ID)
-	model:SetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE, model.Name)
+	local existingDoorKey = model:GetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE)
+	if type(existingDoorKey) ~= "string" or existingDoorKey == "" then
+		model:SetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE, model.Name)
+	end
 	model:SetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE, interactionTypes.DOOR_TYPE)
 	CollectionService:AddTag(model, interactionTypes.INTERACTABLE_TAG)
 	CollectionService:AddTag(model, doorTypes.DOOR_TAG)

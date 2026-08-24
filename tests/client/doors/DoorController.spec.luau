@@ -1,342 +1,158 @@
 --!strict
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client") :: any
 local require = require :: (ModuleScript) -> any
 local DoorController = require(client.doors.DoorController)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
+local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local GameplayEvents = require(client.events.GameplayEvents)
-local remotes = require(ReplicatedStorage.Shared.remotes) :: any
-local actualInteractDoor = remotes.InteractDoor
 
-local function makeDoor(
-	name: string,
-	locked: boolean,
-	requiredItem: string,
-	doorKey: string?
-): Model
+local function makeDoor(locked: boolean, key: string?): Model
 	local door = Instance.new("Model")
-	door.Name = name
+	door.Name = "ControllerDoor"
 	door:SetAttribute(doorTypes.LOCKED_ATTRIBUTE, locked)
-	door:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, requiredItem)
-	if doorKey ~= nil then
-		door:SetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE, doorKey)
+	door:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, if locked then "access_card" else "")
+	door:SetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE, interactionTypes.DOOR_TYPE)
+	if key ~= nil then
+		door:SetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE, key)
 	end
-	door:SetAttribute("InteractionType", "Door")
+	CollectionService:AddTag(door, interactionTypes.INTERACTABLE_TAG)
+	local doorway = Instance.new("Part")
+	doorway.Name = doorTypes.DOORWAY_NAME
+	doorway.Parent = door
+	local center = Instance.new("Attachment")
+	center.Name = doorTypes.CENTER_NAME
+	center.Parent = doorway
 	door.Parent = workspace
 	return door
 end
 
 return function()
-	-- Temporarily disabled while the controller uses direct RemoteFunction calls.
-	if true then
-		return
-	end
-
 	describe("DoorController", function()
 		local instances: { Instance } = {}
 		local shown: { string } = {}
-		local dialogueCallbacks: { any } = {}
-		local requests: { any } = {}
-		local transitionRequests: { any } = {}
-		local transitionCallbacks: { any } = {}
-		local inventoryItems: { any } = {}
+		local callbacks: { any } = {}
 		local events: { any } = {}
-		local invokeResult: any
-		local transitionCalls: number
+		local managerLocked = true
+		local unlockResult: any = { success = false, reason = "missing_item" }
+		local enterResult: any = { success = true, action = "enter" }
+		local calls = { isLocked = 0, unlock = 0, enter = 0, transition = 0 }
 		local eventConnection: any
 		local controller: any
 
-		local function addInstance<T>(instance: T): T
-			table.insert(instances, instance :: any)
-			return instance
-		end
-
-		local function completeDialogue(index: number, reason: string): ()
-			local callback = dialogueCallbacks[index]
-			if callback ~= nil then
-				callback(nil, reason)
-			end
-		end
-
 		beforeEach(function()
-			instances = {}
-			shown = {}
-			dialogueCallbacks = {}
-			requests = {}
-			transitionRequests = {}
-			transitionCallbacks = {}
-			inventoryItems = {}
-			events = {}
-			invokeResult = { success = true, action = "unlock" }
-			transitionCalls = 0
-			remotes.InteractDoor = {
-				IsA = function(_self: any, className: string): boolean
-					return className == "RemoteFunction"
+			instances, shown, callbacks, events = {}, {}, {}, {}
+			managerLocked = true
+			unlockResult = { success = false, reason = "missing_item" }
+			enterResult = { success = true, action = "enter" }
+			calls = { isLocked = 0, unlock = 0, enter = 0, transition = 0 }
+			local manager = {
+				isLocked = function(_self: any, _door: Model)
+					calls.isLocked += 1
+					return managerLocked, nil
 				end,
-				InvokeServer = function(_self: any, request: any): any
-					table.insert(requests, request)
-					return invokeResult
+				unlock = function(_self: any, _door: Model)
+					calls.unlock += 1
+					return unlockResult
+				end,
+				enter = function(_self: any, _door: Model)
+					calls.enter += 1
+					return enterResult
 				end,
 			}
 			eventConnection = GameplayEvents.subscribe(function(event: any)
 				table.insert(events, event)
 			end)
 			controller = DoorController.new({
-				inventory = {
-					getState = function()
-					return { version = 1, items = inventoryItems, equipped = {} }
-					end,
-				},
-				dialogue = {
-					show = function(_self: any, text: string, callback: any)
-						table.insert(shown, text)
-						if callback ~= nil then
-							table.insert(dialogueCallbacks, callback)
-						end
-					end,
-				},
-				transition = {
-					run = function(_self: any, request: any, callback: any)
-						transitionCalls += 1
-						table.insert(transitionRequests, request)
-						table.insert(transitionCallbacks, callback)
-						return true
-					end,
-				},
+				manager = manager,
+				dialogue = { show = function(_self: any, text: string, callback: any)
+					table.insert(shown, text)
+					if callback ~= nil then
+						table.insert(callbacks, callback)
+					end
+				end },
+				transition = { run = function(request: any, callback: any)
+					calls.transition += 1
+					task.spawn(function()
+						callback(request())
+					end)
+					return true
+				end },
 			})
 		end)
 
 		afterEach(function()
 			if eventConnection ~= nil then
 				eventConnection:Disconnect()
-				eventConnection = nil
 			end
-			remotes.InteractDoor = actualInteractDoor
 			for _, instance in instances do
 				instance:Destroy()
 			end
-		end)
-
-		it("rejects a target that is not a Model", function()
-			local part = addInstance(Instance.new("Part"))
-
-			controller.interact(part)
-
-			expect(#requests).to.equal(0)
-			expect(transitionCalls).to.equal(0)
-			expect(#shown).to.equal(0)
-		end)
-
-		it("sends only an unlock request when the required item is present", function()
-			local door = addInstance(makeDoor("Locked", true, "iron_key"))
-			table.insert(inventoryItems, { uid = "key-1", itemId = "iron_key" })
-
-			controller.interact(door)
-
-			expect(#requests).to.equal(1)
-			expect(requests[1].door).to.equal(door)
-			expect(requests[1].action).to.equal("unlock")
-			expect(transitionCalls).to.equal(0)
-			expect(door:GetAttribute("Locked")).to.equal(true)
-			expect(door:GetAttribute("RequiredItemId")).to.equal("iron_key")
-			expect(door:GetAttribute("InteractionType")).to.equal("Door")
-		end)
-
-		it("shows the unlock success message without entering on the same interaction", function()
-			local door = addInstance(makeDoor("Locked", true, "iron_key"))
-			table.insert(inventoryItems, { uid = "key-1", itemId = "iron_key" })
-			invokeResult = { success = true, action = "unlock" }
-
-			controller.interact(door)
-
-			expect(shown[1]).to.equal("Porta destrancada.")
-			expect(#requests).to.equal(1)
-			expect(transitionCalls).to.equal(0)
-		end)
-
-		it("shows ordered locked messages only after completed callbacks", function()
-			local door = addInstance(makeDoor("Locked", true, "iron_key"))
-			local folder = Instance.new("Folder")
-			folder.Name = "LockedDialogue"
-			folder.Parent = door
-			local second = Instance.new("StringValue")
-			second.Name = "02_Second"
-			second.Value = "second"
-			second.Parent = folder
-			local first = Instance.new("StringValue")
-			first.Name = "01_First"
-			first.Value = "first"
-			first.Parent = folder
-			local ignored = Instance.new("Folder")
-			ignored.Name = "00_IgnoredNested"
-			ignored.Parent = folder
-			local nested = Instance.new("StringValue")
-			nested.Value = "nested"
-			nested.Parent = ignored
-
-			controller.interact(door)
-			expect(shown[1]).to.equal("first")
-			expect(#requests).to.equal(0)
-
-			completeDialogue(1, "completed")
-			expect(shown[2]).to.equal("second")
-			completeDialogue(2, "completed")
-			expect(#shown).to.equal(2)
-			expect(#requests).to.equal(0)
-		end)
-
-		it("uses the fallback for absent, empty, and unusable locked dialogue folders", function()
-			local cases = { "absent", "empty", "empty-values" }
-			for _, caseName in cases do
-				local door = addInstance(makeDoor(caseName, true, "iron_key"))
-				if caseName ~= "absent" then
-					local folder = Instance.new("Folder")
-					folder.Name = "LockedDialogue"
-					folder.Parent = door
-					if caseName == "empty-values" then
-						local message = Instance.new("StringValue")
-						message.Name = "01_Empty"
-						message.Parent = folder
-					end
+			for _, door in workspace:GetChildren() do
+				if door.Name == "ControllerDoor" then
+					door:Destroy()
 				end
-
-				controller.interact(door)
-				expect(shown[#shown]).to.equal("Porta trancada.")
-				expect(#requests).to.equal(0)
 			end
 		end)
 
-		it("does not show the next locked message after cancellation", function()
-			local door = addInstance(makeDoor("Locked", true, "iron_key"))
-			local folder = Instance.new("Folder")
-			folder.Name = "LockedDialogue"
-			folder.Parent = door
-			for index, text in { "first", "second" } do
-				local message = Instance.new("StringValue")
-				message.Name = string.format("%02d", index)
-				message.Value = text
-				message.Parent = folder
-			end
-
-			controller.interact(door)
-			completeDialogue(1, "cancelled")
-
-			expect(#shown).to.equal(1)
-			expect(shown[1]).to.equal("first")
+		it("ignores non-model targets", function()
+			local part = Instance.new("Part")
+		table.insert(instances, part)
+			controller.interact(part)
+			expect(calls.isLocked).to.equal(0)
 		end)
 
-		it("sends only enter through the transition for an open door", function()
-			local door = addInstance(makeDoor("Open", false, ""))
-			invokeResult = { success = true, action = "enter" }
-
+		it("unlocks a closed door without entering", function()
+			local door = makeDoor(true, "unlock-key")
+			table.insert(instances, door)
+			managerLocked = true
+			unlockResult = { success = true, action = "unlock" }
 			controller.interact(door)
-
-			expect(transitionCalls).to.equal(1)
-			expect(#requests).to.equal(0)
-			local result = transitionRequests[1]()
-			transitionCallbacks[1](result)
-			expect(#requests).to.equal(1)
-			expect(requests[1].door).to.equal(door)
-			expect(requests[1].action).to.equal("enter")
-		end)
-
-		it("shows the locked dialogue when enter returns missing_item", function()
-			local door = addInstance(makeDoor("Open", false, ""))
-			invokeResult = { success = false, reason = "missing_item" }
-
-			controller.interact(door)
-			expect(transitionCalls).to.equal(1)
-			expect(#requests).to.equal(0)
-
-			local result = transitionRequests[1]()
-			transitionCallbacks[1](result)
-
-			expect(#requests).to.equal(1)
-			expect(requests[1].door).to.equal(door)
-			expect(requests[1].action).to.equal("enter")
-			expect(shown[1]).to.equal("Porta trancada.")
-			expect(#requests).to.equal(1)
-			expect(transitionCalls).to.equal(1)
-		end)
-
-		it("does not create follow-up actions for stale or server-side failures", function()
-			local door = addInstance(makeDoor("Locked", true, "iron_key"))
-			table.insert(inventoryItems, { uid = "key-1", itemId = "iron_key" })
-			local results: { any } = {
-				{ success = true, action = "enter" },
-				{ success = false, reason = "locked" },
-				{ success = false, reason = "already_unlocked" },
-				{ success = false, reason = "busy" },
-				{ success = false, reason = "invalid_config" },
-			}
-			for _, result in results do
-				invokeResult = result
-				local requestCount = #requests
-				local shownCount = #shown
-
-				controller.interact(door)
-
-				expect(#requests).to.equal(requestCount + 1)
-				expect(#shown).to.equal(shownCount)
-				expect(transitionCalls).to.equal(0)
-			end
-
-			invokeResult = { success = false, reason = "missing_item" }
-			controller.interact(door)
-			expect(#requests).to.equal(#results + 1)
-			expect(shown[#shown]).to.equal("Porta trancada.")
-
-			local openDoor = addInstance(makeDoor("Open", false, ""))
-			invokeResult = { success = false, reason = "locked" }
-			controller.interact(openDoor)
-			local enterRequest = transitionRequests[#transitionRequests]
-			local enterCallback = transitionCallbacks[#transitionCallbacks]
-			enterCallback(enterRequest())
-			expect(requests[#requests].door).to.equal(openDoor)
-			expect(requests[#requests].action).to.equal("enter")
-			expect(shown[#shown]).to.equal("Porta trancada.")
-		end)
-
-		it("publishes door_blocked when a locked door has no compatible item", function()
-			local door = addInstance(makeDoor("VisualExit", true, "iron_key", "cave_exit"))
-
-			controller.interact(door)
-			completeDialogue(1, "completed")
-
-			expect(events[1].name).to.equal("door_blocked")
-			expect(events[1].doorKey).to.equal("cave_exit")
-		end)
-
-		it("publishes door_unlocked only after a successful unlock", function()
-			local door = addInstance(makeDoor("VisualExit", true, "iron_key", "logical_exit"))
-			table.insert(inventoryItems, { uid = "key-1", itemId = "iron_key" })
-			invokeResult = { success = true, action = "unlock" }
-
-			controller.interact(door)
-			completeDialogue(1, "completed")
-
+			expect(calls.unlock).to.equal(1)
+			expect(calls.enter).to.equal(0)
+			expect(shown[1]).to.equal("Porta destrancada.")
+			callbacks[1](nil, "completed")
 			expect(events[1].name).to.equal("door_unlocked")
-			expect(events[1].doorKey).to.equal("logical_exit")
 		end)
 
-		it("publishes door_entered only after the transition request succeeds", function()
-			local door = addInstance(makeDoor("DoorVisual", false, "", "facility_entrance"))
-			invokeResult = { success = true, action = "enter" }
-
+		it("shows ordered locked dialogue and publishes blocked after completion", function()
+			local door = makeDoor(true, "blocked-key")
+			table.insert(instances, door)
+			local folder = Instance.new("Folder")
+			folder.Name = doorTypes.LOCKED_DIALOGUE_NAME
+			folder.Parent = door
+			for index, text in { "second", "first" } do
+				local value = Instance.new("StringValue")
+				value.Name = string.format("%02d", 3 - index)
+				value.Value = text
+				value.Parent = folder
+			end
 			controller.interact(door)
-			transitionCallbacks[1]({ success = true, action = "enter" })
+			expect(shown[1]).to.equal("first")
+			callbacks[1](nil, "completed")
+			expect(shown[2]).to.equal("second")
+			callbacks[2](nil, "completed")
+			expect(events[1].name).to.equal("door_blocked")
+		end)
 
+		it("runs enter only through the transition and publishes after success", function()
+			local door = makeDoor(false, "entry-key")
+			table.insert(instances, door)
+			managerLocked = false
+			controller.interact(door)
+			expect(calls.transition).to.equal(1)
+			expect(calls.enter).to.equal(1)
 			expect(events[1].name).to.equal("door_entered")
-			expect(events[1].doorKey).to.equal("facility_entrance")
 		end)
 
-		it("does not publish a progress event for a door without DoorKey", function()
-			local door = addInstance(makeDoor("NoLogicalKey", true, "iron_key", nil))
-
+		it("does not publish progress for a door without a key", function()
+			local door = makeDoor(true, nil)
+			table.insert(instances, door)
 			controller.interact(door)
-
 			expect(#events).to.equal(0)
 		end)
 	end)

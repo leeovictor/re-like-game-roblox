@@ -4,34 +4,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
-local items = require(ReplicatedStorage.Shared.inventory.items)
-local remotes = require(ReplicatedStorage.Shared.remotes)
 local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
-local InventoryController = require(script.Parent.Parent.inventory.InventoryController)
+local DoorManager = require(script.Parent.DoorManager)
 local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
 local TransitionController = require(script.Parent.TransitionController)
 
 local DoorController = {}
 DoorController.__index = DoorController
 
-type InventoryState = items.InventoryState
-type DoorRequest = doorTypes.DoorRequest
-type DoorActionResult = doorTypes.DoorActionResult
 type InteractionHandler = interactionTypes.InteractionHandler
 
 export type Dependencies = {
-	inventory: InventoryController.InventoryController,
+	manager: DoorManager.DoorManager,
 	dialogue: DialogueController.DialogueController,
 	transition: TransitionController.TransitionController,
 }
-
-local function invokeDoor(request: DoorRequest): DoorActionResult
-	local remote = remotes.InteractDoor
-	if not remote:IsA("RemoteFunction") then
-		return { success = false, reason = "invalid_config" }
-	end
-	return remote:InvokeServer(request) :: DoorActionResult
-end
 
 function DoorController.new(dependencies: Dependencies): InteractionHandler
 	local warnedDoors: { [Model]: boolean } = {}
@@ -91,19 +78,6 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		dependencies.dialogue:show(messages[1].text, nextMessage)
 	end
 
-	local function hasItem(itemId: string): boolean
-		local inventory = dependencies.inventory.getState()
-		if inventory == nil then
-			return false
-		end
-		for _, item in inventory.items do
-			if item.itemId == itemId then
-				return true
-			end
-		end
-		return false
-	end
-
 	local controller = {} :: InteractionHandler
 
 	function controller.interact(target: Instance): ()
@@ -112,9 +86,14 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		end
 		local door = target
 
-		if door:GetAttribute(doorTypes.LOCKED_ATTRIBUTE) == false then
+		local locked, reason = dependencies.manager:isLocked(door)
+		if locked == nil or reason ~= nil then
+			return
+		end
+
+		if not locked then
 			dependencies.transition.run(function()
-				return invokeDoor({ door = door, action = "enter" })
+				return dependencies.manager:enter(door)
 			end, function(result)
 				if result.reason == "missing_item" then
 					showLockedDialogue(door)
@@ -125,20 +104,17 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			return
 		end
 
-		local requiredItemId = door:GetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE)
-		if type(requiredItemId) == "string" and requiredItemId ~= "" and hasItem(requiredItemId) then
-			local result = invokeDoor({ door = door, action = "unlock" })
-			if result.success and result.action == "unlock" then
-				dependencies.dialogue:show("Porta destrancada.", function ()
+		local result = dependencies.manager:unlock(door)
+		if result.success and result.action == "unlock" then
+			dependencies.dialogue:show("Porta destrancada.", function (_, dialogueReason)
+				if dialogueReason == "completed" then
 					publishDoorEvent(door, "door_unlocked")
-				end)
-			elseif result.reason == "missing_item" then
-				showLockedDialogue(door)
-			end
-			return
+				end
+			end)
+		elseif result.reason == "missing_item" then
+			showLockedDialogue(door)
 		end
-
-		showLockedDialogue(door)
+		return
 	end
 
 	return controller
