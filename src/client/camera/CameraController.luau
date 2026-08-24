@@ -28,6 +28,12 @@ export type CameraController = {
 	clearCinematicShot: (self: CameraController) -> (),
 }
 
+local function ensureScriptableCamera(camera: Camera)
+	if camera.CameraType ~= Enum.CameraType.Scriptable then
+		camera.CameraType = Enum.CameraType.Scriptable
+	end
+end
+
 local function update(self: CameraController): ()
 	if not self.started then
 		return
@@ -40,9 +46,9 @@ local function update(self: CameraController): ()
 	end
 
 	-- O PlayerModule pode restaurar Custom durante o spawn ou um respawn.
-	-- Reafirmar o modo em cada frame mantém este controller como autoridade.
-	camera.CameraType = Enum.CameraType.Scriptable
-
+	-- Reafirmar o modo em cada frame mantém este controller como autoridade
+	ensureScriptableCamera(camera)
+	
 	local character = player.Character
 	if character == nil then
 		return
@@ -53,8 +59,8 @@ local function update(self: CameraController): ()
 		return
 	end
 
-	local position = rootPart.Position
-	local zoneShotId = self.resolver:resolve(position)
+	local humanoidPos = rootPart.Position
+	local zoneShotId = self.resolver:resolve(humanoidPos)
 	if zoneShotId ~= nil then
 		self.playerShotId = zoneShotId
 	elseif self.playerShotId == nil then
@@ -75,9 +81,13 @@ local function update(self: CameraController): ()
 		self.currentShotId = desiredShotId
 		camera.CFrame = shot.cframe
 		camera.FieldOfView = shot.fieldOfView
+		
+		-- isso é necessário para o roblox priorizar a renderizar de tudo que está próximo à câmera, ao contrário do player.
+		-- em cinematics por exemplo um shot processador pode estar distante do player e mesmo assim a renderização do terreno e modelos
+		-- deve ser consistente. apesar de poder gerar alguns artefatos no sistema de renderização (exibir terreno ainda não atualizado por um instante)
+		-- é bom o suficiente
+		camera.Focus = shot.cframe
 	end
-
-	camera.Focus = CFrame.new(position)
 end
 
 function CameraController.new(config: CameraConfig.Config): CameraController
