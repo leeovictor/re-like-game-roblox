@@ -91,14 +91,14 @@ local manualCinematic = {
 		effects = {
 			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
 			{ name = "set-camera-shot", attributes = { shot = "Final_G" } },
-		},
+		} :: { any },
 	},
 	{
 		frame = 2,
 		duration = 2,
 		effects = {
 			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_B" } },
-		},
+		} :: { any },
 	},
 	{
 		frame = 3,
@@ -106,9 +106,9 @@ local manualCinematic = {
 		effects = {
 			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
 			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_C" } },
-		},
+		} :: { any },
 	},
-}
+};
 
 task.delay(5, function()
 	local result = cinematicController:play(manualCinematic)
