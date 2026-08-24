@@ -70,7 +70,7 @@ root:render(React.createElement(App))
 local manualCinematic = {
 	{
 		frame = 1,
-		duration = 10,
+		duration = 5,
 		effects = {
 			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
 			{ name = "set-camera-shot", attributes = { shot = "Final_G" } },
@@ -94,7 +94,6 @@ local manualCinematic = {
 }
 
 task.delay(5, function()
-	print('testes')
 	local result = cinematicController:play(manualCinematic)
-	print(result)
+	print('cinematic result', result)
 end)
