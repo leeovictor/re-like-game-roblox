@@ -38,36 +38,16 @@ if type(defaultShotId) == "string" and defaultShotId ~= "" then
 end
 local cameraConfig = CameraMapReader.read(cameraSystem)
 CameraVisibility.hide(cameraSystem)
-local controller = CameraController.new(cameraConfig)
-controller:start()
+local cameraController = CameraController.new(cameraConfig)
+cameraController:start()
 TankController.start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()
-CinematicController.configure({
-	camera = {
-		hasShot = function(shotId: string): boolean
-			return controller:hasShot(shotId)
-		end,
-		setCinematicShot = function(shotId: string): boolean
-			return controller:setCinematicShot(shotId)
-		end,
-		clearCinematicShot = function()
-			controller:clearCinematicShot()
-		end,
-	},
+
+local cinematicController = CinematicController.new({
+	camera = cameraController,
 	movement = TankController,
-	sound = {
-		preload = function(soundIds: { string }): boolean
-			return cinematicSoundPlayer:preload(soundIds)
-		end,
-		play = function(soundId: string, executionId: number)
-			cinematicSoundPlayer:play(soundId, executionId)
-		end,
-		stop = function(executionId: number)
-			cinematicSoundPlayer:stop(executionId)
-		end,
-	},
-	wait = task.wait,
+	sound = cinematicSoundPlayer,
 })
 
 FootstepController.start()
@@ -86,3 +66,35 @@ InteractionController.start()
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)
 root:render(React.createElement(App))
+
+local manualCinematic = {
+	{
+		frame = 1,
+		duration = 10,
+		effects = {
+			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
+			{ name = "set-camera-shot", attributes = { shot = "Final_G" } },
+		},
+	},
+	{
+		frame = 2,
+		duration = 2,
+		effects = {
+			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_B" } },
+		},
+	},
+	{
+		frame = 3,
+		duration = 2,
+		effects = {
+			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
+			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_C" } },
+		},
+	},
+}
+
+task.delay(5, function()
+	print('testes')
+	local result = cinematicController:play(manualCinematic)
+	print(result)
+end)

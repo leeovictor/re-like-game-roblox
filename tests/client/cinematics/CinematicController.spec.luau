@@ -6,11 +6,9 @@ local require = require :: (ModuleScript) -> any
 local CinematicController = require(client.cinematics.CinematicController)
 
 type Fixture = {
-	waited: { number },
 	calls: { string },
 	releasedLocks: number,
 	preloaded: { { string } },
-	active: boolean,
 }
 
 local function waitFor(predicate: () -> boolean): boolean
@@ -35,7 +33,7 @@ local function validTimeline(): any
 	return {
 		{
 			frame = 1,
-			duration = 0.25,
+			duration = 0,
 			effects = {
 				effect("play-sound", { soundId = "rbxassetid://10" }),
 				effect("set-camera-shot", { shot = "Generator" }),
@@ -43,32 +41,28 @@ local function validTimeline(): any
 		},
 		{
 			frame = 2,
-			duration = 0.5,
+			duration = 0,
 			effects = {},
 		},
 	}
 end
 
-local function dependenciesFor(fixture: Fixture, waitFunction: ((duration: number) -> ())?): any
-	local wait = waitFunction or function(duration: number)
-		table.insert(fixture.waited, duration)
-	end
-
+local function dependenciesFor(fixture: Fixture): any
 	return {
 		camera = {
-			hasShot = function(shotId: string): boolean
+			hasShot = function(_self: any, shotId: string): boolean
 				return shotId == "Default" or shotId == "Generator"
 			end,
-			setCinematicShot = function(shotId: string): boolean
+			setCinematicShot = function(_self: any, shotId: string): boolean
 				table.insert(fixture.calls, "camera:" .. shotId)
 				return true
 			end,
-			clearCinematicShot = function()
+			clearCinematicShot = function(_self: any)
 				table.insert(fixture.calls, "camera:clear")
 			end,
 		},
 		movement = {
-			acquireMovementLock = function(): () -> ()
+			acquireMovementLock = function(_self: any): () -> ()
 				table.insert(fixture.calls, "movement:acquire")
 				return function()
 					fixture.releasedLocks += 1
@@ -77,54 +71,44 @@ local function dependenciesFor(fixture: Fixture, waitFunction: ((duration: numbe
 			end,
 		},
 		sound = {
-			preload = function(soundIds: { string }): boolean
+			preload = function(_self: any, soundIds: { string }): boolean
 				table.insert(fixture.preloaded, table.clone(soundIds))
 				table.insert(fixture.calls, "sound:preload")
 				return true
 			end,
-			play = function(soundId: string, _executionId: number)
+			play = function(_self: any, soundId: string, _executionId: number)
 				table.insert(fixture.calls, "sound:" .. soundId)
 			end,
-			stop = function(_executionId: number)
+			stop = function(_self: any, _executionId: number)
 				table.insert(fixture.calls, "sound:stop")
 			end,
 		},
-		wait = wait,
 	}
 end
 
 return function()
 	describe("CinematicController", function()
 		local controllers: { any } = {}
-		local fixtures: { Fixture } = {}
 
 		beforeEach(function()
 			controllers = {}
-			fixtures = {}
 		end)
 
 		afterEach(function()
-			for _, fixture in fixtures do
-				fixture.active = false
-			end
 			for _, controller in controllers do
 				controller:stop()
 			end
 			controllers = {}
-			fixtures = {}
 		end)
 
-		local function newController(waitFunction: ((duration: number) -> ())?): (any, Fixture)
+		local function newController(): (any, Fixture)
 			local fixture: Fixture = {
-				waited = {},
 				calls = {},
 				releasedLocks = 0,
 				preloaded = {},
-				active = true,
 			}
-			local controller = CinematicController.new(dependenciesFor(fixture, waitFunction))
+			local controller = CinematicController.new(dependenciesFor(fixture))
 			table.insert(controllers, controller)
-			table.insert(fixtures, fixture)
 			return controller, fixture
 		end
 
@@ -180,21 +164,11 @@ return function()
 			for index, call in expectedCalls do
 				expect(fixture.calls[index]).to.equal(call)
 			end
-			expect(#fixture.waited).to.equal(2)
-			expect(fixture.waited[1]).to.equal(0.25)
-			expect(fixture.waited[2]).to.equal(0.5)
 			expect(table.find(fixture.calls, "sound:stop")).to.equal(nil)
 		end)
 
 		it("rejeita uma segunda execucao enquanto a primeira esta ocupada", function()
-			local fixture: Fixture
-			local controller: any
-			controller, fixture = newController(function(duration: number)
-				table.insert(fixture.waited, duration)
-				while fixture.active do
-					task.wait()
-				end
-			end)
+			local controller = newController()
 
 			expect(controller:play(validTimeline())).to.equal(true)
 			expect(waitFor(function()
@@ -203,24 +177,16 @@ return function()
 			expect(controller:play(validTimeline())).to.equal(false)
 
 			controller:stop()
-			fixture.active = false
 			task.wait()
 			expect(controller:isPlaying()).to.equal(false)
 		end)
 
 		it("cancela a geracao atual e interrompe apenas seus efeitos", function()
-			local fixture: Fixture
-			local controller: any
-			controller, fixture = newController(function(duration: number)
-				table.insert(fixture.waited, duration)
-				while fixture.active do
-					task.wait()
-				end
-			end)
+			local controller, fixture = newController()
 			local timeline = {
-			{ frame = 1, duration = 1, effects = { effect("set-camera-shot", { shot = "Generator" }) } },
-			{ frame = 2, duration = 0, effects = { effect("play-sound", { soundId = "rbxassetid://10" }) } },
-		}
+				{ frame = 1, duration = 1000, effects = { effect("set-camera-shot", { shot = "Generator" }) } },
+				{ frame = 2, duration = 0, effects = { effect("play-sound", { soundId = "rbxassetid://10" }) } },
+			}
 
 			expect(controller:play(timeline)).to.equal(true)
 			expect(waitFor(function()
@@ -228,7 +194,6 @@ return function()
 			end)).to.equal(true)
 
 			controller:stop()
-			fixture.active = false
 			task.wait()
 
 			expect(controller:isPlaying()).to.equal(false)

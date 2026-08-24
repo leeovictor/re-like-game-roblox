@@ -1,6 +1,9 @@
 --!strict
 
 local CinematicController = {}
+local CameraController = require(script.Parent.Parent.camera.CameraController)
+local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
+local TankController = require(script.Parent.Parent.player.TankController)
 
 export type SetCameraShotEffect = {
 	name: "set-camera-shot",
@@ -26,23 +29,10 @@ export type TimelineStep = {
 
 export type Timeline = { TimelineStep }
 
-type CameraDependencies = {
-	hasShot: (shotId: string) -> boolean,
-	setCinematicShot: (shotId: string) -> boolean,
-	clearCinematicShot: () -> (),
-}
-
 export type Dependencies = {
-	camera: CameraDependencies,
-	movement: {
-		acquireMovementLock: () -> (() -> ()),
-	},
-	sound: {
-		preload: (soundIds: { string }) -> boolean,
-		play: (soundId: string, executionId: number) -> (),
-		stop: (executionId: number) -> (),
-	},
-	wait: (duration: number) -> (),
+	camera: CameraController.CameraController,
+	movement: TankController.TankController,
+	sound: CinematicSoundPlayer.CinematicSoundPlayer,
 }
 
 type State = "idle" | "preloading" | "playing"
@@ -102,7 +92,7 @@ end
 local function validateEffect(
 	value: any,
 	index: number,
-	camera: CameraDependencies
+	camera: CameraController.CameraController
 ): (Effect?, string?)
 	if type(value) ~= "table" then
 		return nil, string.format("effects[%d] must be a table", index)
@@ -130,7 +120,7 @@ local function validateEffect(
 		end
 
 		local hasShotOk, hasShot = pcall(function()
-			return camera.hasShot(value.attributes.shot)
+			return camera:hasShot(value.attributes.shot)
 		end)
 		if not hasShotOk or not hasShot then
 			return nil, string.format("effects[%d] references an unknown shot", index)
@@ -162,7 +152,7 @@ end
 
 local function validateTimeline(
 	value: any,
-	camera: CameraDependencies
+	camera: CameraController.CameraController
 ): (Timeline?, { string }?, string?)
 	local timelineLength, timelineError = contiguousLength(value)
 	if timelineLength == nil then
@@ -257,14 +247,18 @@ local function releaseMovement(self: Controller, release: (() -> ())?): ()
 end
 
 local function clearCamera(self: Controller): ()
-	local ok = pcall(self.dependencies.camera.clearCinematicShot)
+	local ok = pcall(function()
+		self.dependencies.camera:clearCinematicShot()
+	end)
 	if not ok then
 		warn("CinematicController camera cleanup failed")
 	end
 end
 
 local function stopSound(self: Controller, executionId: number): ()
-	local ok = pcall(self.dependencies.sound.stop, executionId)
+	local ok = pcall(function()
+		self.dependencies.sound:stop(executionId)
+	end)
 	if not ok then
 		warn("CinematicController sound cleanup failed")
 	end
@@ -305,14 +299,14 @@ local function handleSetCameraShot(self: Controller, effect: Effect, _executionI
 	if effect.name ~= "set-camera-shot" then
 		return false
 	end
-	return self.dependencies.camera.setCinematicShot(effect.attributes.shot)
+	return self.dependencies.camera:setCinematicShot(effect.attributes.shot)
 end
 
 local function handlePlaySound(self: Controller, effect: Effect, executionId: number): boolean
 	if effect.name ~= "play-sound" then
 		return false
 	end
-	self.dependencies.sound.play(effect.attributes.soundId, executionId)
+	self.dependencies.sound:play(effect.attributes.soundId, executionId)
 	return true
 end
 
@@ -353,7 +347,7 @@ local function runExecution(
 	end
 
 	local preloaded, preloadResult = pcall(function()
-		return self.dependencies.sound.preload(soundIds)
+		return self.dependencies.sound:preload(soundIds)
 	end)
 	if not preloaded or preloadResult ~= true then
 		if ensureCurrentGeneration(self, executionId, generation) then
@@ -401,7 +395,7 @@ local function runExecution(
 			return
 		end
 		local waited, waitError = pcall(function()
-			self.dependencies.wait(step.duration)
+			task.wait(step.duration)
 		end)
 		if not waited then
 			warn("CinematicController wait failed: " .. tostring(waitError))
@@ -444,7 +438,7 @@ function ControllerMethods.preload(self: Controller, timeline: any): boolean
 	local generation = self.generation
 	self.state = "preloading"
 	local ok, result = pcall(function()
-		return self.dependencies.sound.preload(soundIds :: { string })
+		return self.dependencies.sound:preload(soundIds :: { string })
 	end)
 	if self.generation ~= generation then
 		return false
@@ -504,43 +498,8 @@ function ControllerMethods.isPlaying(self: Controller): boolean
 	return self.state == "playing"
 end
 
-local defaultController: Controller? = nil
-
 function CinematicController.new(dependencies: Dependencies): Controller
 	return createController(dependencies)
-end
-
-function CinematicController.configure(dependencies: Dependencies): ()
-	if defaultController ~= nil then
-		defaultController:stop()
-	end
-	defaultController = createController(dependencies)
-end
-
-function CinematicController.preload(timeline: any): boolean
-	if defaultController == nil then
-		warn("CinematicController is not configured")
-		return false
-	end
-	return defaultController:preload(timeline)
-end
-
-function CinematicController.play(timeline: any): boolean
-	if defaultController == nil then
-		warn("CinematicController is not configured")
-		return false
-	end
-	return defaultController:play(timeline)
-end
-
-function CinematicController.stop(): ()
-	if defaultController ~= nil then
-		defaultController:stop()
-	end
-end
-
-function CinematicController.isPlaying(): boolean
-	return defaultController ~= nil and defaultController:isPlaying() or false
 end
 
 return CinematicController
