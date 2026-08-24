@@ -21,7 +21,7 @@ type SignalConnection = RBXScriptConnection
 local function pressF(): ()
 	local actionInfo = (ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]
 	expect(actionInfo).to.be.ok()
-	currentController.interact(ACTION_NAME, Enum.UserInputState.Begin, nil)
+	currentController:handleAction(ACTION_NAME, Enum.UserInputState.Begin, nil)
 end
 
 local function makeCharacter(): Model
@@ -86,14 +86,14 @@ return function()
 					table.insert(warnings, message)
 				end
 			end))
-			controller = InteractionController.new(probeConfig)
+			controller = InteractionController.new(nil, probeConfig)
 			currentController = controller
 			table.insert(controllers, controller)
 		end)
 
 		afterEach(function()
 			for _, activeController in controllers do
-				activeController.stop()
+				activeController:stop()
 			end
 			controllers = {}
 			for _, dialogueController in dialogueControllers do
@@ -129,23 +129,23 @@ return function()
 				local target = makeInteractablePart("Pickup", Vector3.new(0, 3, -1), interactionTypes.PICKUP_TYPE)
 				table.insert(fixtures, target)
 			local received: Instance? = nil
-			controller.register(interactionTypes.PICKUP_TYPE, {
+			controller:register(interactionTypes.PICKUP_TYPE, {
 				interact = function(value: Instance)
 					received = value
 				end,
 			})
-			controller.start()
+				controller:start()
 			pressF()
 			expect(received).to.equal(target)
-			expect(controller.getTarget()).to.equal(target)
+				expect(controller:getTarget()).to.equal(target)
 			end)
 
 			it("does not select a target outside the box", function()
 				local target = makeInteractablePart("Far", Vector3.new(0, 3, -4))
 				table.insert(fixtures, target)
-			controller.start()
+			controller:start()
 			pressF()
-			expect(controller.getTarget()).to.equal(nil)
+				expect(controller:getTarget()).to.equal(nil)
 			end)
 
 			it("does not select a target outside the box width", function()
@@ -161,7 +161,7 @@ return function()
 				root.CFrame = CFrame.lookAt(Vector3.new(0, 3, 0), Vector3.new(1, 3, 0))
 				local target = makeInteractablePart("Right", Vector3.new(1, 3, 0), interactionTypes.PICKUP_TYPE)
 				table.insert(fixtures, target)
-			controller.start()
+			controller:start()
 			pressF()
 			expect(controller:getTarget()).to.equal(target)
 			end)
@@ -305,7 +305,7 @@ return function()
 				local target = makeInteractablePart("Pickup", Vector3.new(0, 3, -1), interactionTypes.PICKUP_TYPE)
 				table.insert(fixtures, target)
 			local received: Instance? = nil
-			controller.register(interactionTypes.PICKUP_TYPE, {
+			controller:register(interactionTypes.PICKUP_TYPE, {
 				interact = function(value: Instance)
 					received = value
 				end,
@@ -318,7 +318,7 @@ return function()
 
 		describe("lifecycle", function()
 			it("starts enabled with one high-priority F binding", function()
-			expect(controller.isEnabled()).to.equal(true)
+				expect(controller:isEnabled()).to.equal(true)
 			controller:start()
 			local info = (ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]
 			expect(info).to.be.ok()
@@ -334,22 +334,41 @@ return function()
 
 			it("stops idempotently and clears the target", function()
 				controller:start()
-			controller.stop()
-			controller.stop()
+			controller:stop()
+			controller:stop()
 				expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.equal(nil)
 				expect(controller:getTarget()).to.equal(nil)
 			end)
 
 			it("honors enabled state before and after start", function()
-			controller.setEnabled(false)
+			controller:setEnabled(false)
 				controller:start()
 				expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.equal(nil)
-			controller.setEnabled(true)
+			controller:setEnabled(true)
 				expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.be.ok()
-			controller.setEnabled(false)
+			controller:setEnabled(false)
 				expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.equal(nil)
-			controller.setEnabled(true)
-				expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.be.ok()
+				controller:setEnabled(true)
+					expect((ContextActionService:GetAllBoundActionInfo() :: any)[ACTION_NAME]).to.be.ok()
+			end)
+
+			it("isolates enabled state and handlers between instances", function()
+				local first = InteractionController.new(nil, probeConfig)
+				local second = InteractionController.new(nil, probeConfig)
+				table.insert(controllers, first)
+				table.insert(controllers, second)
+
+				first:setEnabled(false)
+				first:register(interactionTypes.PICKUP_TYPE, {
+					interact = function(_target: Instance)
+						error("first handler must not be shared")
+					end,
+				})
+
+				expect(first:isEnabled()).to.equal(false)
+				expect(second:isEnabled()).to.equal(true)
+				expect(first:getTarget()).to.equal(nil)
+				expect(second:getTarget()).to.equal(nil)
 			end)
 
 			it("allows the dialogue binding to remain above the generic binding", function()

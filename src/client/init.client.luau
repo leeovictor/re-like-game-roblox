@@ -63,6 +63,7 @@ local doorController = DoorController.new({
 local dialogueInteractionController = DialogueInteractionController.new({
 	show = showDialogue,
 })
+local interactionController = InteractionController.new(nil, nil)
 
 FootstepController.start()
 
@@ -71,10 +72,11 @@ InventoryController.start()
 TransitionController.start()
 ObjectiveController.start()
 PickupEventBridge.start()
-InteractionController.register("Door", doorController)
-InteractionController.register("Pickup", PickupController)
-InteractionController.register("Dialogue", dialogueInteractionController)
-InteractionController.start()
+
+interactionController:register("Door", doorController)
+interactionController:register("Pickup", PickupController)
+interactionController:register("Dialogue", dialogueInteractionController)
+interactionController:start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)

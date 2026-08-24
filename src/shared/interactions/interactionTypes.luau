@@ -11,15 +11,6 @@ export type ProbeConfig = {
 	forwardOffset: number,
 }
 
-export type Controller = {
-	start: () -> (),
-	stop: () -> (),
-	register: (interactionType: string, handler: InteractionHandler) -> (),
-	setEnabled: (enabled: boolean) -> (),
-	isEnabled: () -> boolean,
-	getTarget: () -> Instance?,
-}
-
 return {
 	INTERACTABLE_TAG = "Interactable",
 	INTERACTION_TYPE_ATTRIBUTE = "InteractionType",
