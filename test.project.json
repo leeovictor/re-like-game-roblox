@@ -61,6 +61,9 @@
           "camera": {
             "$path": "src/client/camera"
           },
+          "cinematics": {
+            "$path": "src/client/cinematics"
+          },
           "doors": {
             "$path": "src/client/doors"
           },
