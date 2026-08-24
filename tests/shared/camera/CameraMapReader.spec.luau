@@ -34,6 +34,7 @@ end
 
 local function newCameraSystem(): Folder
 	local root = newFolder("CameraSystem", nil)
+	root.Parent = workspace
 	local shots = newFolder("Shots", root)
 	local zones = newFolder("Zones", root)
 	root:SetAttribute("DefaultShotId", "Center")
@@ -57,7 +58,7 @@ end
 
 local function readFails(root: Instance): (boolean, any)
 	return pcall(function()
-		CameraMapReader.read(root)
+		CameraMapReader.read(root.Name)
 	end)
 end
 
@@ -75,7 +76,8 @@ return function()
 		end)
 
 		it("converte shots e zonas para CameraConfig", function()
-			local config = CameraMapReader.read(newCameraSystem())
+			local root = newCameraSystem()
+			local config = CameraMapReader.read(root.Name)
 			expect(config.defaultShotId).to.equal("Center")
 			expect(config.shots.North.fieldOfView).to.equal(60)
 			expect(config.zones[1].id).to.equal("Second")
@@ -88,7 +90,7 @@ return function()
 			local zones = getFolder(root, "Zones")
 			getPart(zones, "First"):SetAttribute("Order", 1)
 
-			local config = CameraMapReader.read(root)
+			local config = CameraMapReader.read(root.Name)
 			expect(config.zones[1].id).to.equal("First")
 			expect(config.zones[2].id).to.equal("Second")
 		end)
@@ -102,7 +104,7 @@ return function()
 			getPart(shots, "Center").CFrame = expectedShotCFrame
 			getPart(zones, "Second").Size = expectedZoneSize
 
-			local config = CameraMapReader.read(root)
+			local config = CameraMapReader.read(root.Name)
 			expect(config.shots.Center.cframe).to.equal(expectedShotCFrame)
 			expect(config.zones[1].volume.size).to.equal(expectedZoneSize)
 		end)

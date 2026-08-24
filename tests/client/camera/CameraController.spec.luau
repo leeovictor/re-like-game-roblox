@@ -1,26 +1,51 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client") :: any
 local require = require :: (ModuleScript) -> any
+local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(client.camera.CameraController)
 
-local function newConfig(): any
-	return {
-		defaultShotId = "Default",
-		shots = {
-			Default = { cframe = CFrame.new(0, 10, -20), fieldOfView = 55 },
-			First = { cframe = CFrame.new(0, 10, 20), fieldOfView = 65 },
-		},
-		zones = {
-			{
-				id = "FirstZone",
-				volume = { cframe = CFrame.new(), size = Vector3.new(10, 10, 10) },
-				shotId = "First",
-			},
-		},
-	}
+local createdCameraSystem: Folder?
+
+local function newCameraSystem(): Folder
+	local root = Instance.new("Folder")
+	root.Name = "CameraSystem"
+	root.Parent = workspace
+
+	local shots = Instance.new("Folder")
+	shots.Name = "Shots"
+	shots.Parent = root
+
+	local zones = Instance.new("Folder")
+	zones.Name = "Zones"
+	zones.Parent = root
+
+	root:SetAttribute("DefaultShotId", "Default")
+
+	local defaultShot = Instance.new("Part")
+	defaultShot.Name = "Default"
+	defaultShot.CFrame = CFrame.new(0, 10, -20)
+	defaultShot:SetAttribute("FieldOfView", 55)
+	defaultShot.Parent = shots
+
+	local firstShot = Instance.new("Part")
+	firstShot.Name = "First"
+	firstShot.CFrame = CFrame.new(0, 10, 20)
+	firstShot:SetAttribute("FieldOfView", 65)
+	firstShot.Parent = shots
+
+	local zone = Instance.new("Part")
+	zone.Name = "FirstZone"
+	zone.Size = Vector3.new(10, 10, 10)
+	zone:SetAttribute("ShotId", "First")
+	zone:SetAttribute("Order", 1)
+	zone.Parent = zones
+
+	createdCameraSystem = root
+	return root
 end
 
 local function waitFor(predicate: () -> boolean): boolean
@@ -65,13 +90,18 @@ return function()
 
 			rootPart.Anchored = true
 			rootPart.CFrame = CFrame.new(0, 0, 20)
-			controller = CameraController.new(newConfig())
+			newCameraSystem()
+			controller = CameraController.new(CameraMapReader)
 			controller:start()
 		end)
 
 		afterEach(function()
 			if controller ~= nil then
 				controller:stop()
+			end
+			if createdCameraSystem ~= nil then
+				createdCameraSystem:Destroy()
+				createdCameraSystem = nil
 			end
 			rootPart.CFrame = previousRootCFrame
 			rootPart.Anchored = previousAnchored

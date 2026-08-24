@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local CameraConfig = require(ReplicatedStorage.Shared.camera.CameraConfig)
+local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraResolver = require(ReplicatedStorage.Shared.camera.CameraResolver)
 
 local CameraController = {}
@@ -90,7 +91,8 @@ local function update(self: CameraController): ()
 	end
 end
 
-function CameraController.new(config: CameraConfig.Config): CameraController
+function CameraController.new(cameraMapReader: CameraMapReader.CameraMapReader): CameraController
+	local config = cameraMapReader.read("CameraSystem")
 	local self = setmetatable({
 		config = config,
 		resolver = CameraResolver.new(config),

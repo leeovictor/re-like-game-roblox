@@ -4,6 +4,10 @@ local CameraConfig = require(script.Parent.CameraConfig)
 
 local CameraMapReader = {}
 
+export type CameraMapReader = {
+	read: (rootName: string) -> CameraConfig.Config,
+}
+
 type PendingZone = {
 	name: string,
 	order: number,
@@ -15,8 +19,8 @@ local function fail(instanceType: string, instanceName: string, problem: string)
 end
 
 local function requireFolder(parent: Instance, name: string): Folder
-	local child = parent:FindFirstChild(name)
-	if child == nil or not child:IsA("Folder") then
+	local child = parent:WaitForChild(name)
+	if not child:IsA("Folder") then
 		fail("Folder", parent.Name, string.format('deve conter a pasta "%s"', name))
 	end
 	return child :: Folder
@@ -30,11 +34,12 @@ local function requireString(instance: Instance, attributeName: string): string
 	return value :: string
 end
 
-function CameraMapReader.read(root: Instance?): CameraConfig.Config
-	if root == nil or not root:IsA("Folder") then
-		fail("Instance", if root == nil then "nil" else root.Name, "deve ser uma Folder")
+function CameraMapReader.read(rootName: string): CameraConfig.Config
+	local cameraSystem = workspace:WaitForChild(rootName)
+	if not cameraSystem:IsA("Folder") then
+		fail("Instance", cameraSystem.Name, "deve ser uma Folder")
 	end
-	local rootFolder = root :: Folder
+	local rootFolder = cameraSystem :: Folder
 
 	local shotsFolder = requireFolder(rootFolder, "Shots")
 	local zonesFolder = requireFolder(rootFolder, "Zones")

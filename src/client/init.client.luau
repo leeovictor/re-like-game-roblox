@@ -30,15 +30,8 @@ if not game:IsLoaded() then
 end
 
 local cameraSystem = workspace:WaitForChild("CameraSystem")
-local shotsFolder = cameraSystem:WaitForChild("Shots")
-cameraSystem:WaitForChild("Zones")
-local defaultShotId = cameraSystem:GetAttribute("DefaultShotId")
-if type(defaultShotId) == "string" and defaultShotId ~= "" then
-	shotsFolder:WaitForChild(defaultShotId)
-end
-local cameraConfig = CameraMapReader.read(cameraSystem)
+local cameraController = CameraController.new(CameraMapReader)
 CameraVisibility.hide(cameraSystem)
-local cameraController = CameraController.new(cameraConfig)
 cameraController:start()
 TankController.start()
 
