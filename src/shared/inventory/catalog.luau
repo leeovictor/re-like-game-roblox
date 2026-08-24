@@ -20,6 +20,13 @@ local items: { [ItemId]: ItemDefinition } = {
 		stackable = false,
 		capabilities = { "unlock" },
 	},
+	pliers = {
+		id = "pliers",
+		name = "Pliers",
+		category = "tool",
+		stackable = false,
+		capabilities = { "unlock" },
+	},
 	handgun = {
 		id = "handgun",
 		name = "Handgun",
@@ -40,14 +47,7 @@ local items: { [ItemId]: ItemDefinition } = {
 		category = "consumable",
 		stackable = false,
 		capabilities = { "consume", "heal" },
-	},
-	iron_key = {
-		id = "iron_key",
-		name = "Iron Key",
-		category = "key",
-		stackable = false,
-		capabilities = { "unlock" },
-	},
+	}
 }
 
 return items
