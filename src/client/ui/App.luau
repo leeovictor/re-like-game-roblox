@@ -11,12 +11,14 @@ local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 local ObjectiveNotification = require(script.Parent.ObjectiveNotification)
 local InventorySlot = require(script.Parent.InventorySlot)
+local DropdownMenu = require(script.Parent.DropdownMenu)
+local ConfirmationModal = require(script.Parent.ConfirmationModal)
 
 local INVENTORY_SLOT_COUNT = 6
 local INVENTORY_GRID_COLUMNS = 3
 local INVENTORY_CELL_SIZE = UDim2.fromOffset(88, 88)
 local INVENTORY_GAP = 8
-local _DROPDOWN_WIDTH = 144
+local DROPDOWN_WIDTH = 144
 
 local mockActionLabelsByItemId: { [string]: { string } } = {
 	access_card = { "usar", "descartar" },
@@ -29,7 +31,7 @@ local mockActionLabelsByItemId: { [string]: { string } } = {
 local function App()
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local selectedItemUid: string?, setSelectedItemUid: (string?) -> () = React.useState(nil :: string?)
-	local _confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
+	local confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
 	local objectives = useObjectives()
@@ -101,6 +103,7 @@ local function App()
 		end
 
 		local gridChildren = {}
+		local overlayChildren = {}
 		for index = 1, INVENTORY_SLOT_COUNT do
 			local instance = inventory.items[index]
 			local displayItem = if instance ~= nil
@@ -136,6 +139,25 @@ local function App()
 					end
 					else nil,
 			})
+
+			local column = ((index - 1) % INVENTORY_GRID_COLUMNS) + 1
+			local dropdownPosition = if column < INVENTORY_GRID_COLUMNS
+				then UDim2.new(1, INVENTORY_GAP, 0, 0)
+				else UDim2.new(0, -DROPDOWN_WIDTH - INVENTORY_GAP, 0, 0)
+			overlayChildren[tostring(index)] = React.createElement("Frame", {
+				BackgroundTransparency = 1,
+				ClipsDescendants = false,
+				Size = INVENTORY_CELL_SIZE,
+				ZIndex = 10,
+			}, {
+				Menu = if instance ~= nil and selectedItemUid == instance.uid
+					then React.createElement(DropdownMenu, {
+						visible = true,
+						options = actionOptions,
+						position = dropdownPosition,
+					})
+					else nil,
+			})
 		end
 
 		gridChildren.Layout = React.createElement("UIGridLayout", {
@@ -145,11 +167,32 @@ local function App()
 			FillDirectionMaxCells = INVENTORY_GRID_COLUMNS,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		})
+		local overlayLayout = React.createElement("UIGridLayout", {
+			CellPadding = UDim2.fromOffset(INVENTORY_GAP, INVENTORY_GAP),
+			CellSize = INVENTORY_CELL_SIZE,
+			FillDirection = Enum.FillDirection.Horizontal,
+			FillDirectionMaxCells = INVENTORY_GRID_COLUMNS,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		})
+		overlayChildren.Layout = overlayLayout
 		inventoryContent = React.createElement("Frame", {
 			BackgroundTransparency = 1,
+			ClipsDescendants = false,
 			Position = UDim2.fromOffset(16, 44),
 			Size = UDim2.new(1, -32, 0, 184),
-		}, gridChildren)
+		}, {
+			Grid = React.createElement("Frame", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 1),
+				ZIndex = 1,
+			}, gridChildren),
+			Overlay = React.createElement("Frame", {
+				BackgroundTransparency = 1,
+				ClipsDescendants = false,
+				Size = UDim2.fromScale(1, 1),
+				ZIndex = 10,
+			}, overlayChildren),
+		})
 	end
 
 	local inventoryPanel = if inventoryVisible then React.createElement("Frame", {
@@ -286,6 +329,18 @@ local function App()
 			Panel = objectivePanel,
 		}),
 		InventoryPanel = inventoryPanel,
+		ConfirmationModal = React.createElement(ConfirmationModal, {
+			visible = confirmationItemUid ~= nil,
+			message = "Deseja descartar o item?",
+			cancelLabel = "não",
+			confirmLabel = "sim",
+			onCancel = function()
+				setConfirmationItemUid(nil)
+			end,
+			onConfirm = function()
+				setConfirmationItemUid(nil)
+			end,
+		}),
 		Dialogue = if dialogueText ~= nil
 			then React.createElement("TextLabel", {
 				AnchorPoint = Vector2.new(0.5, 1),

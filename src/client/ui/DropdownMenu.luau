@@ -37,7 +37,7 @@ local function DropdownMenu(props: Props)
 			Text = option.label,
 			TextColor3 = Color3.fromRGB(241, 237, 255),
 			TextSize = 13,
-			Activated = option.onActivated,
+			[React.Event.Activated] = option.onActivated,
 		}, {
 			Corner = React.createElement("UICorner", {
 				CornerRadius = UDim.new(0, 5),

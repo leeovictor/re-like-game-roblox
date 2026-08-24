@@ -84,7 +84,7 @@ local function ConfirmationModal(props: Props)
 					Text = props.cancelLabel,
 					TextColor3 = Color3.fromRGB(225, 222, 239),
 					TextSize = 14,
-					Activated = props.onCancel,
+					[React.Event.Activated] = props.onCancel,
 					ZIndex = 103,
 				}, {
 					Corner = React.createElement("UICorner", {
@@ -100,7 +100,7 @@ local function ConfirmationModal(props: Props)
 					Text = props.confirmLabel,
 					TextColor3 = Color3.fromRGB(255, 255, 255),
 					TextSize = 14,
-					Activated = props.onConfirm,
+					[React.Event.Activated] = props.onConfirm,
 					ZIndex = 103,
 				}, {
 					Corner = React.createElement("UICorner", {

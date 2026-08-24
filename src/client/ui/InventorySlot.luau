@@ -88,13 +88,17 @@ local function InventorySlot(props: Props)
 		})
 	end
 
-	return React.createElement("TextButton", {
+	local buttonProps = {
 		AutoButtonColor = false,
 		BackgroundColor3 = Color3.fromRGB(39, 42, 56),
 		Size = SLOT_SIZE,
 		Text = "",
-		Activated = if isInteractive then props.onActivated else nil,
-	}, children)
+	}
+	if isInteractive and props.onActivated ~= nil then
+		buttonProps[React.Event.Activated] = props.onActivated
+	end
+
+	return React.createElement("TextButton", buttonProps, children)
 end
 
 return InventorySlot
