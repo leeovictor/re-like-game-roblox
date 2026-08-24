@@ -2,14 +2,22 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client") :: any
 local require = require :: (ModuleScript) -> any
 local DialogueController = require(client.dialogue.DialogueController)
+local TankController = require(client.player.TankController)
 
 local CONFIRM_ACTION = "DungeonDialogueConfirm"
 local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
 local NEXT_ACTION = "DungeonDialogueNext"
+
+local function invokeForward(inputState: Enum.UserInputState)
+	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
+	expect(info).to.be.ok()
+	TankController.handleInput("DungeonTankForward", inputState)
+end
 
 type SignalConnection = {
 	Disconnect: (self: SignalConnection) -> (),
@@ -26,6 +34,7 @@ return function()
 
 		afterEach(function()
 			DialogueController.stop()
+			TankController.stop()
 			for _, connection in signalConnections do
 				connection:Disconnect()
 			end
@@ -111,6 +120,22 @@ return function()
 			DialogueController.start()
 			DialogueController.show("Pode aparecer")
 			expect(DialogueController.getState().text).to.equal("Pode aparecer")
+		end)
+
+		it("preserva o lock de movimento de outro dono ao fechar o dialogo", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+			TankController.start()
+			local otherRelease = TankController.acquireMovementLock()
+			DialogueController.show("Dialogo bloqueado")
+
+			DialogueController.stop()
+			invokeForward(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
+
+			otherRelease()
 		end)
 	end)
 end

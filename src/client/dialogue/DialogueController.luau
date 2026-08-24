@@ -45,6 +45,7 @@ local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value + 1
 local changed = (Signal.new() :: any) :: ChangedSignal
 local state: DialogState? = nil
 local activeCallback: ActiveCallback? = nil
+local movementRelease: (() -> ())? = nil
 local started = false
 local generation = 0
 
@@ -89,6 +90,12 @@ local function unbindActions(): ()
 end
 
 local function closeCurrent(optionId: string?, reason: DialogReason): ()
+	local release = movementRelease
+	movementRelease = nil
+	if release ~= nil then
+		release()
+	end
+
 	if state == nil then
 		return
 	end
@@ -97,7 +104,6 @@ local function closeCurrent(optionId: string?, reason: DialogReason): ()
 	local callback = activeCallback
 	activeCallback = nil
 	unbindActions()
-	TankController.setMovementEnabled(true)
 	publish(nil)
 	if callback ~= nil then
 		callback(optionId, reason)
@@ -256,7 +262,7 @@ function controller.show(text: string, callback: ShowCallback?): ()
 
 	activeCallback = callback :: any
 	local dialogGeneration = generation
-	TankController.setMovementEnabled(false)
+	movementRelease = TankController.acquireMovementLock()
 	publish({
 		kind = "message",
 		text = validatedText,
@@ -285,7 +291,7 @@ function controller.ask(text: string, options: { DialogOption }, callback: AskCa
 
 	activeCallback = callback :: any
 	local dialogGeneration = generation
-	TankController.setMovementEnabled(false)
+	movementRelease = TankController.acquireMovementLock()
 	publish({
 		kind = "question",
 		text = validatedText,

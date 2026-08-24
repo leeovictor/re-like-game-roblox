@@ -41,6 +41,8 @@ local input: InputState = {
 
 local started = false
 local movementEnabled = true
+local movementLockCount = 0
+local movementLockGeneration = 0
 local renderConnection: RBXScriptConnection? = nil
 local inputEndedConnection: RBXScriptConnection? = nil
 local activeHumanoid: Humanoid? = nil
@@ -62,6 +64,10 @@ local function resetInput(): ()
 	input.left = false
 	input.right = false
 	input.running = false
+end
+
+local function canMove(): boolean
+	return movementEnabled and movementLockCount == 0
 end
 
 local function syncInput(): ()
@@ -100,7 +106,7 @@ local function acquireHumanoid(humanoid: Humanoid): ()
 end
 
 local function updateInput(actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
-	if not movementEnabled then
+	if not canMove() then
 		return Enum.ContextActionResult.Sink
 	end
 
@@ -161,7 +167,7 @@ local function update(deltaTime: number): ()
 	acquireHumanoid(humanoid)
 
 	local isTextBoxFocused = UserInputService:GetFocusedTextBox()
-	if movementEnabled and input.running and not isTextBoxFocused then
+	if canMove() and input.running and not isTextBoxFocused then
 		humanoid.WalkSpeed = RUN_SPEED
 	else
 		humanoid.WalkSpeed = WALK_SPEED
@@ -173,7 +179,7 @@ local function update(deltaTime: number): ()
 	end
 
 	local lookVector = controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
-	if not movementEnabled then
+	if not canMove() then
 		controlledLookVector = lookVector
 		rootPart.AssemblyAngularVelocity = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
@@ -246,9 +252,11 @@ export type TankController = {
 	start: () -> (),
 	stop: () -> (),
 	setMovementEnabled: (enabled: boolean) -> (),
+	acquireMovementLock: () -> (() -> ()),
+	handleInput: (actionName: string, inputState: Enum.UserInputState) -> Enum.ContextActionResult,
 }
 
-local controller = {} :: TankController
+local controller = { handleInput = updateInput } :: TankController
 
 function controller.start(): ()
 	if started then
@@ -266,6 +274,9 @@ end
 
 function controller.stop(): ()
 	if not started then
+		movementLockCount = 0
+		movementLockGeneration += 1
+		resetInput()
 		return
 	end
 
@@ -281,6 +292,8 @@ function controller.stop(): ()
 	unbindActions()
 	resetInput()
 	releaseHumanoid()
+	movementLockCount = 0
+	movementLockGeneration += 1
 end
 
 function controller.setMovementEnabled(enabled: boolean): ()
@@ -289,6 +302,30 @@ function controller.setMovementEnabled(enabled: boolean): ()
 		syncInput()
 	else
 		resetInput()
+	end
+end
+
+function controller.acquireMovementLock(): () -> ()
+	if movementLockCount == 0 then
+		movementLockGeneration += 1
+	end
+
+	local acquiredGeneration = movementLockGeneration
+	movementLockCount += 1
+	resetInput()
+
+	local released = false
+	return function(): ()
+		if released then
+			return
+		end
+		released = true
+
+		if acquiredGeneration ~= movementLockGeneration then
+			return
+		end
+
+		movementLockCount -= 1
 	end
 end
 

@@ -7,6 +7,12 @@ local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("C
 local require = require :: (ModuleScript) -> any
 local TankController = require(client.player.TankController)
 
+local function invokeForward(inputState: Enum.UserInputState)
+	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
+	expect(info).to.be.ok()
+	TankController.handleInput("DungeonTankForward", inputState)
+end
+
 return function()
 	describe("TankController", function()
 		afterEach(function()
@@ -60,6 +66,33 @@ return function()
 			local actualLook = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z).Unit
 			expect(actualLook.X).to.be.near(expectedLook.X, 0.001)
 			expect(actualLook.Z).to.be.near(expectedLook.Z, 0.001)
+		end)
+
+		it("mantem o movimento bloqueado enquanto qualquer lock estiver ativo", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+			TankController.start()
+			local firstRelease = TankController.acquireMovementLock()
+			local secondRelease = TankController.acquireMovementLock()
+
+			invokeForward(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
+
+			firstRelease()
+			invokeForward(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
+
+			secondRelease()
+			invokeForward(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			task.wait()
+			expect(humanoid.MoveDirection.Magnitude > 0).to.equal(true)
+
+			firstRelease()
+			secondRelease()
 		end)
 	end)
 end
