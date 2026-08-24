@@ -30,35 +30,57 @@ if not game:IsLoaded() then
 end
 
 local cameraSystem = workspace:WaitForChild("CameraSystem")
-local cameraController = CameraController.new(CameraMapReader)
+local cameraController = CameraController.new({
+	cameraMapReader = CameraMapReader,
+})
 CameraVisibility.hide(cameraSystem)
 cameraController:start()
-TankController.start()
+local tankController = TankController.new()
+tankController:start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()
 
+local dialogueController = DialogueController.new({
+	movement = tankController,
+})
+dialogueController:start()
+
 local cinematicController = CinematicController.new({
 	camera = cameraController,
-	movement = TankController,
+	movement = tankController,
 	sound = cinematicSoundPlayer,
+})
+
+local function showDialogue(text: string, callback: ((nil, string) -> ())?): ()
+	dialogueController:show(text, callback)
+end
+
+local doorController = DoorController.new({
+	inventory = InventoryController,
+	dialogue = dialogueController,
+	transition = TransitionController,
+})
+local dialogueInteractionController = DialogueInteractionController.new({
+	show = showDialogue,
 })
 
 FootstepController.start()
 
 PickupNotificationController.start()
 InventoryController.start()
-DialogueController.start()
 TransitionController.start()
 ObjectiveController.start()
 PickupEventBridge.start()
-InteractionController.register("Door", DoorController)
+InteractionController.register("Door", doorController)
 InteractionController.register("Pickup", PickupController)
-InteractionController.register("Dialogue", DialogueInteractionController)
+InteractionController.register("Dialogue", dialogueInteractionController)
 InteractionController.start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)
-root:render(React.createElement(App))
+root:render(React.createElement(App, {
+	dialogueController = dialogueController,
+}))
 
 local manualCinematic = {
 	{

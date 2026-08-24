@@ -1,6 +1,3 @@
---!strict
-
-local CinematicController = {}
 local CameraController = require(script.Parent.Parent.camera.CameraController)
 local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
 local TankController = require(script.Parent.Parent.player.TankController)
@@ -31,7 +28,7 @@ export type Timeline = { TimelineStep }
 
 export type Dependencies = {
 	camera: CameraController.CameraController,
-	movement: TankController.TankController,
+	movement: TankController.MovementController,
 	sound: CinematicSoundPlayer.CinematicSoundPlayer,
 }
 
@@ -50,8 +47,8 @@ type Controller = {
 	isPlaying: (self: Controller) -> boolean,
 }
 
-local ControllerMethods = {}
-ControllerMethods.__index = ControllerMethods
+local CinematicController = {}
+CinematicController.__index = CinematicController
 
 local function isFinite(value: number): boolean
 	return value == value and value ~= math.huge and value ~= -math.huge
@@ -361,7 +358,7 @@ local function runExecution(
 	end
 
 	local acquired, release = pcall(function(): () -> ()
-		return self.dependencies.movement.acquireMovementLock()
+		return self.dependencies.movement:acquireMovementLock()
 	end)
 	if not acquired then
 		warn("CinematicController movement lock failed: " .. tostring(release))
@@ -411,19 +408,7 @@ local function runExecution(
 	end
 end
 
-local function createController(dependencies: Dependencies): Controller
-	local self = setmetatable({
-		dependencies = dependencies,
-		state = "idle",
-		generation = 0,
-		nextExecutionId = 0,
-		currentExecutionId = nil,
-		movementRelease = nil,
-	}, ControllerMethods)
-	return (self :: any) :: Controller
-end
-
-function ControllerMethods.preload(self: Controller, timeline: any): boolean
+function CinematicController.preload(self: Controller, timeline: any): boolean
 	if self.state ~= "idle" then
 		return false
 	end
@@ -451,7 +436,7 @@ function ControllerMethods.preload(self: Controller, timeline: any): boolean
 	return result == true
 end
 
-function ControllerMethods.play(self: Controller, timeline: any): boolean
+function CinematicController.play(self: Controller, timeline: any): boolean
 	if self.state ~= "idle" then
 		return false
 	end
@@ -474,7 +459,7 @@ function ControllerMethods.play(self: Controller, timeline: any): boolean
 	return true
 end
 
-function ControllerMethods.stop(self: Controller): ()
+function CinematicController.stop(self: Controller): ()
 	self.generation += 1
 	local executionId = self.currentExecutionId
 	local release = self.movementRelease
@@ -494,12 +479,20 @@ function ControllerMethods.stop(self: Controller): ()
 	end
 end
 
-function ControllerMethods.isPlaying(self: Controller): boolean
+function CinematicController.isPlaying(self: Controller): boolean
 	return self.state == "playing"
 end
 
 function CinematicController.new(dependencies: Dependencies): Controller
-	return createController(dependencies)
+	local self = setmetatable({
+		dependencies = dependencies,
+		state = "idle",
+		generation = 0,
+		nextExecutionId = 0,
+		currentExecutionId = nil,
+		movementRelease = nil,
+	}, CinematicController)
+	return (self :: any) :: Controller
 end
 
 return CinematicController

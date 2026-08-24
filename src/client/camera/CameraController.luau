@@ -29,6 +29,10 @@ export type CameraController = {
 	clearCinematicShot: (self: CameraController) -> (),
 }
 
+export type Dependencies = {
+	cameraMapReader: CameraMapReader.CameraMapReader,
+}
+
 local function ensureScriptableCamera(camera: Camera)
 	if camera.CameraType ~= Enum.CameraType.Scriptable then
 		camera.CameraType = Enum.CameraType.Scriptable
@@ -91,8 +95,8 @@ local function update(self: CameraController): ()
 	end
 end
 
-function CameraController.new(cameraMapReader: CameraMapReader.CameraMapReader): CameraController
-	local config = cameraMapReader.read("CameraSystem")
+function CameraController.new(dependencies: Dependencies): CameraController
+	local config = dependencies.cameraMapReader.read("CameraSystem")
 	local self = setmetatable({
 		config = config,
 		resolver = CameraResolver.new(config),

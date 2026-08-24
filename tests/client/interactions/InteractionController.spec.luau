@@ -9,6 +9,8 @@ local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("C
 local require = require :: (ModuleScript) -> any
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local InteractionController = require(client.interactions.InteractionController)
+local TankController = require(client.player.TankController)
+local DialogueController = require(client.dialogue.DialogueController)
 
 local ACTION_NAME = "DungeonInteraction"
 local probeConfig = { size = Vector3.new(2, 2, 2), forwardOffset = 1 }
@@ -64,6 +66,8 @@ return function()
 		local originalCharacterParent: Instance?
 		local fixtures: { Instance } = {}
 		local controllers: { any } = {}
+		local tankControllers: { any } = {}
+		local dialogueControllers: { any } = {}
 		local connections: { SignalConnection } = {}
 		local warnings: { string } = {}
 		local controller: any
@@ -92,6 +96,14 @@ return function()
 				activeController.stop()
 			end
 			controllers = {}
+			for _, dialogueController in dialogueControllers do
+				dialogueController:stop()
+			end
+			dialogueControllers = {}
+			for _, tankController in tankControllers do
+				tankController:stop()
+			end
+			tankControllers = {}
 			currentController = nil
 			for _, connection in connections do
 				connection:Disconnect()
@@ -341,14 +353,20 @@ return function()
 			end)
 
 			it("allows the dialogue binding to remain above the generic binding", function()
-				local dialogue = require(client.dialogue.DialogueController)
-				dialogue.start()
-				dialogue.show("Blocking")
+				local tankController = TankController.new()
+				local dialogueController = DialogueController.new({
+					movement = tankController,
+				})
+				table.insert(tankControllers, tankController)
+				table.insert(dialogueControllers, dialogueController)
+				tankController:start()
+				dialogueController:start()
+				dialogueController:show("Blocking")
 				controller:start()
 				local actions = ContextActionService:GetAllBoundActionInfo() :: any
 				expect(actions.DungeonDialogueConfirm.priorityLevel).to.equal(Enum.ContextActionPriority.High.Value + 1)
 				expect(actions[ACTION_NAME].priorityLevel).to.equal(Enum.ContextActionPriority.High.Value)
-				dialogue.stop()
+				dialogueController:stop()
 			end)
 		end)
 	end)

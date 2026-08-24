@@ -31,23 +31,29 @@ type InputState = {
 	running: boolean,
 }
 
-local input: InputState = {
-	forward = false,
-	backward = false,
-	left = false,
-	right = false,
-	running = false,
+export type TankController = {
+	input: InputState,
+	started: boolean,
+	movementLockCount: number,
+	movementLockGeneration: number,
+	renderConnection: RBXScriptConnection?,
+	inputEndedConnection: RBXScriptConnection?,
+	activeHumanoid: Humanoid?,
+	originalAutoRotate: boolean?,
+	originalWalkSpeed: number?,
+	controlledLookVector: Vector3?,
+	start: (self: TankController) -> (),
+	stop: (self: TankController) -> (),
+	acquireMovementLock: (self: TankController) -> (() -> ()),
+	handleInput: (self: TankController, actionName: string, inputState: Enum.UserInputState) -> Enum.ContextActionResult,
 }
 
-local started = false
-local movementLockCount = 0
-local movementLockGeneration = 0
-local renderConnection: RBXScriptConnection? = nil
-local inputEndedConnection: RBXScriptConnection? = nil
-local activeHumanoid: Humanoid? = nil
-local originalAutoRotate: boolean? = nil
-local originalWalkSpeed: number? = nil
-local controlledLookVector: Vector3? = nil
+export type MovementController = {
+	acquireMovementLock: (self: MovementController) -> (() -> ()),
+}
+
+local TankController = {}
+TankController.__index = TankController
 
 local function horizontalUnit(vector: Vector3): Vector3
 	local horizontal = Vector3.new(vector.X, 0, vector.Z)
@@ -57,54 +63,54 @@ local function horizontalUnit(vector: Vector3): Vector3
 	return horizontal.Unit
 end
 
-local function resetInput(): ()
-	input.forward = false
-	input.backward = false
-	input.left = false
-	input.right = false
-	input.running = false
+local function resetInput(self: TankController): ()
+	self.input.forward = false
+	self.input.backward = false
+	self.input.left = false
+	self.input.right = false
+	self.input.running = false
 end
 
-local function canMove(): boolean
-	return movementLockCount == 0
+local function canMove(self: TankController): boolean
+	return self.movementLockCount == 0
 end
 
-local function syncInput(): ()
-	input.forward = UserInputService:IsKeyDown(Enum.KeyCode.W)
-	input.backward = UserInputService:IsKeyDown(Enum.KeyCode.S)
-	input.left = UserInputService:IsKeyDown(Enum.KeyCode.A)
-	input.right = UserInputService:IsKeyDown(Enum.KeyCode.D)
-	input.running = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+local function syncInput(self: TankController): ()
+	self.input.forward = UserInputService:IsKeyDown(Enum.KeyCode.W)
+	self.input.backward = UserInputService:IsKeyDown(Enum.KeyCode.S)
+	self.input.left = UserInputService:IsKeyDown(Enum.KeyCode.A)
+	self.input.right = UserInputService:IsKeyDown(Enum.KeyCode.D)
+	self.input.running = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
 end
 
-local function releaseHumanoid(): ()
-	local humanoid = activeHumanoid
-	if humanoid ~= nil and originalAutoRotate ~= nil then
-		humanoid.AutoRotate = originalAutoRotate
+local function releaseHumanoid(self: TankController): ()
+	local humanoid = self.activeHumanoid
+	if humanoid ~= nil and self.originalAutoRotate ~= nil then
+		humanoid.AutoRotate = self.originalAutoRotate
 	end
-	if humanoid ~= nil and originalWalkSpeed ~= nil then
-		humanoid.WalkSpeed = originalWalkSpeed
+	if humanoid ~= nil and self.originalWalkSpeed ~= nil then
+		humanoid.WalkSpeed = self.originalWalkSpeed
 	end
 
-	activeHumanoid = nil
-	originalAutoRotate = nil
-	originalWalkSpeed = nil
-	controlledLookVector = nil
+	self.activeHumanoid = nil
+	self.originalAutoRotate = nil
+	self.originalWalkSpeed = nil
+	self.controlledLookVector = nil
 end
 
-local function acquireHumanoid(humanoid: Humanoid): ()
-	if activeHumanoid == humanoid then
+local function acquireHumanoid(self: TankController, humanoid: Humanoid): ()
+	if self.activeHumanoid == humanoid then
 		return
 	end
 
-	releaseHumanoid()
-	activeHumanoid = humanoid
-	originalAutoRotate = humanoid.AutoRotate
-	originalWalkSpeed = humanoid.WalkSpeed
+	releaseHumanoid(self)
+	self.activeHumanoid = humanoid
+	self.originalAutoRotate = humanoid.AutoRotate
+	self.originalWalkSpeed = humanoid.WalkSpeed
 	humanoid.AutoRotate = false
 end
 
-local function updateInput(actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
+local function updateInput(self: TankController, actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
 	local isPressed = if inputState == Enum.UserInputState.Begin then true elseif inputState == Enum.UserInputState.End
 		or inputState == Enum.UserInputState.Cancel then false
 		else nil
@@ -114,110 +120,120 @@ local function updateInput(actionName: string, inputState: Enum.UserInputState):
 	end
 
 	if actionName == ACTION_FORWARD then
-		input.forward = isPressed
+		self.input.forward = isPressed
 	elseif actionName == ACTION_BACKWARD then
-		input.backward = isPressed
+		self.input.backward = isPressed
 	elseif actionName == ACTION_LEFT then
-		input.left = isPressed
+		self.input.left = isPressed
 	elseif actionName == ACTION_RIGHT then
-		input.right = isPressed
+		self.input.right = isPressed
 	elseif actionName == ACTION_RUN then
-		input.running = isPressed
+		self.input.running = isPressed
 	end
 
 	return Enum.ContextActionResult.Sink
 end
 
-local function handleInputEnded(inputObject: InputObject): ()
+local function handleInputEnded(self: TankController, inputObject: InputObject): ()
 	if inputObject.KeyCode == Enum.KeyCode.W then
-		input.forward = false
+		self.input.forward = false
 	elseif inputObject.KeyCode == Enum.KeyCode.S then
-		input.backward = false
+		self.input.backward = false
 	elseif inputObject.KeyCode == Enum.KeyCode.A then
-		input.left = false
+		self.input.left = false
 	elseif inputObject.KeyCode == Enum.KeyCode.D then
-		input.right = false
+		self.input.right = false
 	elseif inputObject.KeyCode == Enum.KeyCode.LeftShift then
-		input.running = false
+		self.input.running = false
 	end
 end
 
-local function update(deltaTime: number): ()
-	if not started then
+local function update(self: TankController, deltaTime: number): ()
+	if not self.started then
 		return
 	end
 
 	local player = Players.LocalPlayer
 	local character = player.Character
 	if character == nil then
-		releaseHumanoid()
+		releaseHumanoid(self)
 		return
 	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid == nil then
-		releaseHumanoid()
+		releaseHumanoid(self)
 		return
 	end
-	acquireHumanoid(humanoid)
+	acquireHumanoid(self, humanoid)
 
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if rootPart == nil or not rootPart:IsA("BasePart") then
 		return
 	end
 
-	humanoid.WalkSpeed = if input.running then RUN_SPEED else WALK_SPEED
+	humanoid.WalkSpeed = if self.input.running then RUN_SPEED else WALK_SPEED
 	
-	local lookVector = controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
-	if not canMove() then
-		controlledLookVector = lookVector
+	local lookVector = self.controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
+	if not canMove(self) then
+		self.controlledLookVector = lookVector
 		rootPart.AssemblyAngularVelocity = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
 		return
 	end
 
-	local motion = TankControlMath.calculate(lookVector, input, deltaTime)
+	local motion = TankControlMath.calculate(lookVector, self.input, deltaTime)
 	if motion.rotationRadians ~= 0 then
 		lookVector = horizontalUnit(CFrame.Angles(0, motion.rotationRadians, 0):VectorToWorldSpace(lookVector))
 	end
-	controlledLookVector = lookVector
+	self.controlledLookVector = lookVector
 	rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
 	rootPart.AssemblyAngularVelocity = Vector3.zero
 	humanoid:Move(motion.moveDirection, false)
 end
 
-local function bindActions(): ()
+local function bindActions(self: TankController): ()
 	ContextActionService:BindActionAtPriority(
 		ACTION_FORWARD,
-		updateInput,
+		function(actionName, inputState)
+			return self:handleInput(actionName, inputState)
+		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.W
 	)
 	ContextActionService:BindActionAtPriority(
 		ACTION_BACKWARD,
-		updateInput,
+		function(actionName, inputState)
+			return self:handleInput(actionName, inputState)
+		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.S
 	)
 	ContextActionService:BindActionAtPriority(
 		ACTION_LEFT,
-		updateInput,
+		function(actionName, inputState)
+			return self:handleInput(actionName, inputState)
+		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.A
 	)
 	ContextActionService:BindActionAtPriority(
 		ACTION_RIGHT,
-		updateInput,
+		function(actionName, inputState)
+			return self:handleInput(actionName, inputState)
+		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.D
 	)
 	ContextActionService:BindActionAtPriority(
 		ACTION_RUN,
-		updateInput,
+		function(actionName, inputState)
+			return self:handleInput(actionName, inputState)
+		end,
 		false,
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.LeftShift
@@ -230,60 +246,77 @@ local function unbindActions(): ()
 	end
 end
 
-export type TankController = {
-	start: () -> (),
-	stop: () -> (),
-	acquireMovementLock: () -> (() -> ()),
-	handleInput: (actionName: string, inputState: Enum.UserInputState) -> Enum.ContextActionResult,
-}
-
-local controller = { handleInput = updateInput } :: TankController
-
-function controller.start(): ()
-	if started then
-		return
-	end
-
-	started = true
-	resetInput()
-	syncInput()
-	inputEndedConnection = UserInputService.InputEnded:Connect(handleInputEnded)
-	bindActions()
-	renderConnection = RunService.PreRender:Connect(update)
-	update(0)
+function TankController.new(): TankController
+	local self = setmetatable({
+		input = {
+			forward = false,
+			backward = false,
+			left = false,
+			right = false,
+			running = false,
+		},
+		started = false,
+		movementLockCount = 0,
+		movementLockGeneration = 0,
+		renderConnection = nil,
+		inputEndedConnection = nil,
+		activeHumanoid = nil,
+		originalAutoRotate = nil,
+		originalWalkSpeed = nil,
+		controlledLookVector = nil,
+	}, TankController)
+	return (self :: any) :: TankController
 end
 
-function controller.stop(): ()
-	if not started then
-		movementLockCount = 0
-		movementLockGeneration += 1
-		resetInput()
+function TankController.start(self: TankController): ()
+	if self.started then
 		return
 	end
 
-	started = false
-	if renderConnection ~= nil then
-		renderConnection:Disconnect()
-		renderConnection = nil
+	self.started = true
+	resetInput(self)
+	syncInput(self)
+	self.inputEndedConnection = UserInputService.InputEnded:Connect(function(inputObject)
+		handleInputEnded(self, inputObject)
+	end)
+	bindActions(self)
+	self.renderConnection = RunService.PreRender:Connect(function(deltaTime)
+		update(self, deltaTime)
+	end)
+	update(self, 0)
+end
+
+function TankController.stop(self: TankController): ()
+	if not self.started then
+		self.movementLockCount = 0
+		self.movementLockGeneration += 1
+		resetInput(self)
+		return
 	end
-	if inputEndedConnection ~= nil then
-		inputEndedConnection:Disconnect()
-		inputEndedConnection = nil
+
+	self.started = false
+	if self.renderConnection ~= nil then
+		self.renderConnection:Disconnect()
+		self.renderConnection = nil
+	end
+	if self.inputEndedConnection ~= nil then
+		self.inputEndedConnection:Disconnect()
+		self.inputEndedConnection = nil
 	end
 	unbindActions()
-	resetInput()
-	releaseHumanoid()
-	movementLockCount = 0
-	movementLockGeneration += 1
+	resetInput(self)
+	releaseHumanoid(self)
+	self.movementLockCount = 0
+	self.movementLockGeneration += 1
 end
 
-function controller.acquireMovementLock(): () -> ()
-	if movementLockCount == 0 then
-		movementLockGeneration += 1
+function TankController.acquireMovementLock(self: TankController): () -> ()
+	if self.movementLockCount == 0 then
+		self.movementLockGeneration += 1
 	end
 
-	local acquiredGeneration = movementLockGeneration
-	movementLockCount += 1
+	local acquiredGeneration = self.movementLockGeneration
+	self.movementLockCount += 1
 
 	local released = false
 	return function(): ()
@@ -292,13 +325,21 @@ function controller.acquireMovementLock(): () -> ()
 		end
 		released = true
 
-		if acquiredGeneration ~= movementLockGeneration then
+		if acquiredGeneration ~= self.movementLockGeneration then
 			return
 		end
 
-		movementLockCount -= 1
-		syncInput()
+		self.movementLockCount -= 1
+		syncInput(self)
 	end
 end
 
-return controller
+function TankController.handleInput(
+	self: TankController,
+	actionName: string,
+	inputState: Enum.UserInputState
+): Enum.ContextActionResult
+	return updateInput(self, actionName, inputState)
+end
+
+return TankController

@@ -42,12 +42,27 @@ local NEXT_ACTION = "DungeonDialogueNext"
 local ACTIONS = { CONFIRM_ACTION, CANCEL_ACTION, PREVIOUS_ACTION, NEXT_ACTION }
 local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value + 1
 
-local changed = (Signal.new() :: any) :: ChangedSignal
-local state: DialogState? = nil
-local activeCallback: ActiveCallback? = nil
-local movementRelease: (() -> ())? = nil
-local started = false
-local generation = 0
+export type Dependencies = {
+	movement: TankController.MovementController,
+}
+
+export type DialogueController = {
+	dependencies: Dependencies,
+	changed: ChangedSignal,
+	state: DialogState?,
+	activeCallback: ActiveCallback?,
+	movementRelease: (() -> ())?,
+	started: boolean,
+	generation: number,
+	start: (self: DialogueController) -> (),
+	stop: (self: DialogueController) -> (),
+	getState: (self: DialogueController) -> DialogState?,
+	show: (self: DialogueController, text: string, callback: ShowCallback?) -> (),
+	ask: (self: DialogueController, text: string, options: { DialogOption }, callback: AskCallback?) -> (),
+}
+
+local DialogueController = {}
+DialogueController.__index = DialogueController
 
 local function validateText(value: any, label: string): string
 	if type(value) ~= "string" or value == "" then
@@ -78,9 +93,9 @@ local function validateOptions(value: any): { DialogOption }
 	return copy
 end
 
-local function publish(nextState: DialogState?): ()
-	state = nextState
-	changed:Fire(nextState)
+local function publish(self: DialogueController, nextState: DialogState?): ()
+	self.state = nextState
+	self.changed:Fire(nextState)
 end
 
 local function unbindActions(): ()
@@ -89,34 +104,34 @@ local function unbindActions(): ()
 	end
 end
 
-local function closeCurrent(optionId: string?, reason: DialogReason): ()
-	local release = movementRelease
-	movementRelease = nil
+local function closeCurrent(self: DialogueController, optionId: string?, reason: DialogReason): ()
+	local release = self.movementRelease
+	self.movementRelease = nil
 	if release ~= nil then
 		release()
 	end
 
-	if state == nil then
+	if self.state == nil then
 		return
 	end
 
-	generation += 1
-	local callback = activeCallback
-	activeCallback = nil
+	self.generation += 1
+	local callback = self.activeCallback
+	self.activeCallback = nil
 	unbindActions()
-	publish(nil)
+	publish(self, nil)
 	if callback ~= nil then
 		callback(optionId, reason)
 	end
 end
 
-local function reveal(): ()
-	local current = state
+local function reveal(self: DialogueController): ()
+	local current = self.state
 	if current == nil or not current.isTyping then
 		return
 	end
 
-	publish({
+	publish(self, {
 		kind = current.kind,
 		text = current.text,
 		visibleText = current.text,
@@ -126,7 +141,7 @@ local function reveal(): ()
 	})
 end
 
-local function startTyping(text: string, dialogGeneration: number): ()
+local function startTyping(self: DialogueController, text: string, dialogGeneration: number): ()
 	task.spawn(function()
 		local boundaries = { 1 }
 		for byteIndex in utf8.codes(text) do
@@ -138,13 +153,13 @@ local function startTyping(text: string, dialogGeneration: number): ()
 
 		for index = 2, #boundaries do
 			task.wait(CHARACTER_DELAY)
-			local current = state
-			if generation ~= dialogGeneration or current == nil or not current.isTyping then
+			local current = self.state
+			if self.generation ~= dialogGeneration or current == nil or not current.isTyping then
 				return
 			end
 			local visibleText = string.sub(text, 1, boundaries[index] - 1)
 			local isTyping = index < #boundaries
-			publish({
+			publish(self, {
 				kind = current.kind,
 				text = current.text,
 				visibleText = visibleText,
@@ -156,27 +171,27 @@ local function startTyping(text: string, dialogGeneration: number): ()
 	end)
 end
 
-local function handleAction(actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
+local function handleAction(self: DialogueController, actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
 	if inputState ~= Enum.UserInputState.Begin then
 		return Enum.ContextActionResult.Sink
 	end
 
-	local current = state
+	local current = self.state
 	if current == nil then
 		return Enum.ContextActionResult.Sink
 	end
 
 	if actionName == CONFIRM_ACTION then
 		if current.isTyping then
-			reveal()
+			reveal(self)
 		elseif current.kind == "message" then
-			closeCurrent(nil, "completed")
+			closeCurrent(self, nil, "completed")
 		else
 			local selected = current.options[current.selectedIndex :: number]
-			closeCurrent(selected.id, "completed")
+			closeCurrent(self, selected.id, "completed")
 		end
 	elseif actionName == CANCEL_ACTION then
-		closeCurrent(nil, "cancelled")
+		closeCurrent(self, nil, "cancelled")
 	elseif actionName == PREVIOUS_ACTION and current.kind == "question" and not current.isTyping then
 		local selectedIndex = math.max(1, (current.selectedIndex :: number) - 1)
 		local nextState: DialogState = {
@@ -187,7 +202,7 @@ local function handleAction(actionName: string, inputState: Enum.UserInputState,
 			options = current.options,
 			selectedIndex = selectedIndex,
 		}
-		publish(nextState)
+		publish(self, nextState)
 	elseif actionName == NEXT_ACTION and current.kind == "question" and not current.isTyping then
 		local selectedIndex = math.min(#current.options, (current.selectedIndex :: number) + 1)
 		local nextState: DialogState = {
@@ -198,72 +213,77 @@ local function handleAction(actionName: string, inputState: Enum.UserInputState,
 			options = current.options,
 			selectedIndex = selectedIndex,
 		}
-		publish(nextState)
+		publish(self, nextState)
 	end
 
 	return Enum.ContextActionResult.Sink
 end
 
-local function bindActions(): ()
-	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.F)
-	ContextActionService:BindActionAtPriority(CANCEL_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.Escape)
-	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.A)
-	ContextActionService:BindActionAtPriority(NEXT_ACTION, handleAction, false, ACTION_PRIORITY, Enum.KeyCode.D)
+local function bindActions(self: DialogueController): ()
+	local callback = function(actionName, inputState, inputObject)
+		return handleAction(self, actionName, inputState, inputObject)
+	end
+	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.F)
+	ContextActionService:BindActionAtPriority(CANCEL_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.Escape)
+	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.A)
+	ContextActionService:BindActionAtPriority(NEXT_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.D)
 end
 
-export type DialogueController = {
-	start: () -> (),
-	stop: () -> (),
-	getState: () -> DialogState?,
-	show: (text: string, callback: ShowCallback?) -> (),
-	ask: (text: string, options: { DialogOption }, callback: AskCallback?) -> (),
-	changed: typeof(changed),
-}
+function DialogueController.new(dependencies: Dependencies): DialogueController
+	local self = setmetatable({
+		dependencies = dependencies,
+		changed = (Signal.new() :: any) :: ChangedSignal,
+		state = nil,
+		activeCallback = nil,
+		movementRelease = nil,
+		started = false,
+		generation = 0,
+	}, DialogueController)
+	return (self :: any) :: DialogueController
+end
 
-local controller = { changed = changed } :: DialogueController
-
-function controller.start(): ()
-	if started then
+function DialogueController.start(self: DialogueController): ()
+	if self.started then
 		return
 	end
-	started = true
+	self.started = true
 end
 
-function controller.stop(): ()
-	if not started and state == nil then
+function DialogueController.stop(self: DialogueController): ()
+	if not self.started and self.state == nil then
 		unbindActions()
 		return
 	end
 
-	started = false
-	if state ~= nil then
-		closeCurrent(nil, "cancelled")
+	self.started = false
+	if self.state ~= nil then
+		closeCurrent(self, nil, "cancelled")
 	else
 		unbindActions()
 	end
 end
 
-function controller.getState(): DialogState?
-	return state
+function DialogueController.getState(self: DialogueController): DialogState?
+	return self.state
 end
 
-function controller.show(text: string, callback: ShowCallback?): ()
-	if not started then
+function DialogueController.show(self: DialogueController, text: string, callback: ShowCallback?): ()
+	if not self.started then
 		return
 	end
 
 	local validatedText = validateText(text, "text")
-	local hadState = state ~= nil
-	local previousGeneration = generation
-	closeCurrent(nil, "replaced")
-	if (hadState and generation ~= previousGeneration + 1) or state ~= nil then
+	local hadState = self.state ~= nil
+	local previousGeneration = self.generation
+	closeCurrent(self, nil, "replaced")
+	if (hadState and self.generation ~= previousGeneration + 1) or self.state ~= nil then
 		return
 	end
 
-	activeCallback = callback :: any
-	local dialogGeneration = generation
-	movementRelease = TankController.acquireMovementLock()
-	publish({
+	self.activeCallback = callback :: any
+	local dialogGeneration = self.generation
+	self.movementRelease = self.dependencies.movement:acquireMovementLock()
+	publish(self, {
 		kind = "message",
 		text = validatedText,
 		visibleText = "",
@@ -271,28 +291,28 @@ function controller.show(text: string, callback: ShowCallback?): ()
 		options = {},
 		selectedIndex = nil,
 	})
-	bindActions()
-	startTyping(validatedText, dialogGeneration)
+	bindActions(self)
+	startTyping(self, validatedText, dialogGeneration)
 end
 
-function controller.ask(text: string, options: { DialogOption }, callback: AskCallback?): ()
-	if not started then
+function DialogueController.ask(self: DialogueController, text: string, options: { DialogOption }, callback: AskCallback?): ()
+	if not self.started then
 		return
 	end
 
 	local validatedText = validateText(text, "text")
 	local validatedOptions = validateOptions(options)
-	local hadState = state ~= nil
-	local previousGeneration = generation
-	closeCurrent(nil, "replaced")
-	if (hadState and generation ~= previousGeneration + 1) or state ~= nil then
+	local hadState = self.state ~= nil
+	local previousGeneration = self.generation
+	closeCurrent(self, nil, "replaced")
+	if (hadState and self.generation ~= previousGeneration + 1) or self.state ~= nil then
 		return
 	end
 
-	activeCallback = callback :: any
-	local dialogGeneration = generation
-	movementRelease = TankController.acquireMovementLock()
-	publish({
+	self.activeCallback = callback :: any
+	local dialogGeneration = self.generation
+	self.movementRelease = self.dependencies.movement:acquireMovementLock()
+	publish(self, {
 		kind = "question",
 		text = validatedText,
 		visibleText = "",
@@ -300,8 +320,8 @@ function controller.ask(text: string, options: { DialogOption }, callback: AskCa
 		options = validatedOptions,
 		selectedIndex = 1,
 	})
-	bindActions()
-	startTyping(validatedText, dialogGeneration)
+	bindActions(self)
+	startTyping(self, validatedText, dialogGeneration)
 end
 
-return controller
+return DialogueController

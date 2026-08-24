@@ -13,6 +13,11 @@ local ObjectiveNotification = require(script.Parent.ObjectiveNotification)
 local InventorySlot = require(script.Parent.InventorySlot)
 local DropdownMenu = require(script.Parent.DropdownMenu)
 local ConfirmationModal = require(script.Parent.ConfirmationModal)
+local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
+
+type Props = {
+	dialogueController: DialogueController.DialogueController,
+}
 
 local INVENTORY_SLOT_COUNT = 6
 local INVENTORY_GRID_COLUMNS = 3
@@ -34,14 +39,14 @@ local mockActionLabelsByItemId: { [string]: { string } } = {
 	medkit = { "usar", "descartar" },
 }
 
-local function App()
+local function App(props: Props)
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local selectedItemUid: string?, setSelectedItemUid: (string?) -> () = React.useState(nil :: string?)
 	local confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
 	local objectives = useObjectives()
-	local dialogue = useDialogue()
+	local dialogue = useDialogue(props.dialogueController)
 
 	local selectionEffectDependencies: { unknown } = { inventory, selectedItemUid }
 	React.useEffect(function()

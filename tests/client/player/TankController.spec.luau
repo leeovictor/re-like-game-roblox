@@ -7,27 +7,33 @@ local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("C
 local require = require :: (ModuleScript) -> any
 local TankController = require(client.player.TankController)
 
-local function invokeForward(inputState: Enum.UserInputState)
+local function invokeForward(controller, inputState: Enum.UserInputState)
 	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
 	expect(info).to.be.ok()
-	TankController.handleInput("DungeonTankForward", inputState)
+	controller:handleInput("DungeonTankForward", inputState)
 end
 
-local function invokeRun(inputState: Enum.UserInputState)
+local function invokeRun(controller, inputState: Enum.UserInputState)
 	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankRun
 	expect(info).to.be.ok()
-	TankController.handleInput("DungeonTankRun", inputState)
+	controller:handleInput("DungeonTankRun", inputState)
 end
 
 return function()
 	describe("TankController", function()
+		local controller
+
+		beforeEach(function()
+			controller = TankController.new()
+		end)
+
 		afterEach(function()
-			TankController.stop()
+			controller:stop()
 		end)
 
 		it("binds the tank actions once", function()
-			TankController.start()
-			TankController.start()
+			controller:start()
+			controller:start()
 
 			local actions = ContextActionService:GetAllBoundActionInfo() :: any
 			local expectedActions = {
@@ -47,8 +53,8 @@ return function()
 		end)
 
 		it("unbinds actions when stopped", function()
-			TankController.start()
-			TankController.stop()
+			controller:start()
+			controller:stop()
 
 			local actions = ContextActionService:GetAllBoundActionInfo() :: any
 			expect(actions.DungeonTankForward).to.equal(nil)
@@ -62,8 +68,8 @@ return function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
-			TankController.start()
-			invokeRun(Enum.UserInputState.Begin)
+			controller:start()
+			invokeRun(controller, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			task.wait()
 
@@ -75,11 +81,11 @@ return function()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 			local originalWalkSpeed = humanoid.WalkSpeed
 
-			TankController.start()
-			invokeRun(Enum.UserInputState.Begin)
+			controller:start()
+			invokeRun(controller, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			task.wait()
-			TankController.stop()
+			controller:stop()
 
 			expect(humanoid.WalkSpeed).to.equal(originalWalkSpeed)
 		end)
@@ -88,7 +94,7 @@ return function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local rootPart = character:WaitForChild("HumanoidRootPart") :: BasePart
 
-			TankController.start()
+			controller:start()
 			RunService.PreRender:Wait()
 
 			local expectedLook = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z).Unit
@@ -104,16 +110,16 @@ return function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
-			TankController.start()
-			local firstRelease = TankController.acquireMovementLock()
-			local secondRelease = TankController.acquireMovementLock()
+			controller:start()
+			local firstRelease = controller:acquireMovementLock()
+			local secondRelease = controller:acquireMovementLock()
 
-			invokeForward(Enum.UserInputState.Begin)
+			invokeForward(controller, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
 
 			firstRelease()
-			invokeForward(Enum.UserInputState.Begin)
+			invokeForward(controller, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
 
@@ -123,6 +129,23 @@ return function()
 
 			firstRelease()
 			secondRelease()
+		end)
+
+		it("mantem locks isolados entre instancias", function()
+			local lockedController = TankController.new()
+			local activeController = TankController.new()
+			local release = lockedController:acquireMovementLock()
+
+			activeController:start()
+			activeController:handleInput("DungeonTankForward", Enum.UserInputState.Begin)
+
+			expect(lockedController.movementLockCount).to.equal(1)
+			expect(activeController.movementLockCount).to.equal(0)
+			expect(activeController.input.forward).to.equal(true)
+			expect(lockedController.input.forward).to.equal(false)
+			release()
+			activeController:stop()
+			lockedController:stop()
 		end)
 	end)
 end

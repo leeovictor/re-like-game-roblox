@@ -3,7 +3,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
-local DialogueController = require(script.Parent.DialogueController)
 
 type InteractionHandler = interactionTypes.InteractionHandler
 
@@ -86,13 +85,6 @@ local function createController(dependencies: Dependencies): InteractionHandler
 	return controller
 end
 
-local defaultDependencies: Dependencies = {
-	show = DialogueController.show,
-}
-
-local defaultController = createController(defaultDependencies)
-
 return {
 	new = createController,
-	interact = defaultController.interact,
 }

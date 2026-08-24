@@ -3,10 +3,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local controller = require(script.Parent.DialogueController)
+local DialogueController = require(script.Parent.DialogueController)
 
-local function useDialogue()
-	local dialogue, setDialogue = React.useState(controller.getState())
+local function useDialogue(controller: DialogueController.DialogueController)
+	local dialogue, setDialogue = React.useState(controller:getState())
 
 	React.useEffect(function()
 		local connection = controller.changed:Connect(function(nextDialogue)
@@ -16,7 +16,7 @@ local function useDialogue()
 		return function()
 			connection:Disconnect()
 		end
-	end, {})
+	end, { controller })
 
 	return dialogue
 end

@@ -13,10 +13,10 @@ local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
 local NEXT_ACTION = "DungeonDialogueNext"
 
-local function invokeForward(inputState: Enum.UserInputState)
+local function invokeForward(controller, inputState: Enum.UserInputState)
 	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
 	expect(info).to.be.ok()
-	TankController.handleInput("DungeonTankForward", inputState)
+	controller:handleInput("DungeonTankForward", inputState)
 end
 
 type SignalConnection = {
@@ -26,15 +26,22 @@ type SignalConnection = {
 return function()
 	describe("DialogueController", function()
 		local signalConnections: { SignalConnection } = {}
+		local tankController
+		local dialogueController
 
 		beforeEach(function()
 			signalConnections = {}
-			DialogueController.start()
+			tankController = TankController.new()
+			dialogueController = DialogueController.new({
+				movement = tankController,
+			})
+			tankController:start()
+			dialogueController:start()
 		end)
 
 		afterEach(function()
-			DialogueController.stop()
-			TankController.stop()
+			dialogueController:stop()
+			tankController:stop()
 			for _, connection in signalConnections do
 				connection:Disconnect()
 			end
@@ -43,33 +50,33 @@ return function()
 
 		it("replaces the active dialog and notifies the old callback", function()
 			local oldReason: string? = nil
-			DialogueController.show("Mensagem antiga", function(_: nil, reason: string)
+			dialogueController:show("Mensagem antiga", function(_: nil, reason: string)
 				oldReason = reason
 			end)
 
-			DialogueController.show("Mensagem nova")
+			dialogueController:show("Mensagem nova")
 
 			expect(oldReason).to.equal("replaced")
-			expect(DialogueController.getState().text).to.equal("Mensagem nova")
+			expect(dialogueController:getState().text).to.equal("Mensagem nova")
 		end)
 
 		it("keeps the active dialog when a new input is invalid", function()
-			DialogueController.show("Mensagem valida")
+			dialogueController:show("Mensagem valida")
 
 			local ok = pcall(function()
-				DialogueController.ask("Pergunta invalida", {
+				dialogueController:ask("Pergunta invalida", {
 					{ id = "same", text = "Uma" },
 					{ id = "same", text = "Duas" },
 				}, function() end)
 			end)
 
 			expect(ok).to.equal(false)
-			expect(DialogueController.getState().text).to.equal("Mensagem valida")
+			expect(dialogueController:getState().text).to.equal("Mensagem valida")
 		end)
 
 		it("binds input above the tank priority and unbinds on stop", function()
-			DialogueController.show("Bloquear movimento")
-			DialogueController.start()
+			dialogueController:show("Bloquear movimento")
+			dialogueController:start()
 
 			local actions = ContextActionService:GetAllBoundActionInfo() :: any
 			local expectedActions = {
@@ -86,7 +93,7 @@ return function()
 				expect(table.find(actionInfo.inputTypes, keyCode)).to.be.ok()
 			end
 
-			DialogueController.stop()
+			dialogueController:stop()
 			actions = ContextActionService:GetAllBoundActionInfo() :: any
 			expect(actions[CONFIRM_ACTION]).to.equal(nil)
 			expect(actions[CANCEL_ACTION]).to.equal(nil)
@@ -95,14 +102,14 @@ return function()
 		end)
 
 		it("preserves a dialog started by a stop callback", function()
-			DialogueController.show("Dialogo inicial", function()
-				DialogueController.start()
-				DialogueController.show("Proximo dialogo")
+			dialogueController:show("Dialogo inicial", function()
+				dialogueController:start()
+				dialogueController:show("Proximo dialogo")
 			end)
 
-			DialogueController.stop()
+			dialogueController:stop()
 
-			local state = DialogueController.getState()
+			local state = dialogueController:getState()
 			expect(state).to.be.ok()
 			expect(state.text).to.equal("Proximo dialogo")
 
@@ -112,30 +119,48 @@ return function()
 		end)
 
 		it("does not show a dialog after stop until restarted", function()
-			DialogueController.stop()
-			DialogueController.show("Nao deve aparecer")
+			dialogueController:stop()
+			dialogueController:show("Nao deve aparecer")
 
-			expect(DialogueController.getState()).to.equal(nil)
+			expect(dialogueController:getState()).to.equal(nil)
 
-			DialogueController.start()
-			DialogueController.show("Pode aparecer")
-			expect(DialogueController.getState().text).to.equal("Pode aparecer")
+			dialogueController:start()
+			dialogueController:show("Pode aparecer")
+			expect(dialogueController:getState().text).to.equal("Pode aparecer")
 		end)
 
 		it("preserva o lock de movimento de outro dono ao fechar o dialogo", function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
-			TankController.start()
-			local otherRelease = TankController.acquireMovementLock()
-			DialogueController.show("Dialogo bloqueado")
+			local otherRelease = tankController:acquireMovementLock()
+			dialogueController:show("Dialogo bloqueado")
 
-			DialogueController.stop()
-			invokeForward(Enum.UserInputState.Begin)
+			dialogueController:stop()
+			invokeForward(tankController, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
 
 			otherRelease()
+		end)
+
+		it("isola estado e signal entre instancias", function()
+			local first = DialogueController.new({ movement = tankController })
+			local second = DialogueController.new({ movement = tankController })
+			local observed = false
+
+			first:start()
+			second:start()
+			table.insert(signalConnections, second.changed:Connect(function()
+				observed = true
+			end))
+			first:show("Somente o primeiro")
+
+			expect(first:getState().text).to.equal("Somente o primeiro")
+			expect(second:getState()).to.equal(nil)
+			expect(observed).to.equal(false)
+			first:stop()
+			second:stop()
 		end)
 	end)
 end

@@ -91,7 +91,9 @@ return function()
 			rootPart.Anchored = true
 			rootPart.CFrame = CFrame.new(0, 0, 20)
 			newCameraSystem()
-			controller = CameraController.new(CameraMapReader)
+			controller = CameraController.new({
+				cameraMapReader = CameraMapReader,
+			})
 			controller:start()
 		end)
 
