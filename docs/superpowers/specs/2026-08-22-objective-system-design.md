@@ -127,11 +127,11 @@ door_blocked
   Payload: { name = "door_blocked", doorKey = string }
 
 door_unlocked
-  InteractDoor retornou sucesso para a acao unlock.
+  `DoorManager` retornou sucesso local para a acao unlock.
   Payload: { name = "door_unlocked", doorKey = string }
 
 door_entered
-  A transicao terminou e InteractDoor retornou sucesso para enter.
+  A transicao terminou e `DoorManager` retornou sucesso local para enter.
   Payload: { name = "door_entered", doorKey = string }
 
 item_collected
@@ -142,12 +142,12 @@ item_collected
 
 ### Publicacao por DoorController
 
-O controller continuara coordenando inventario, remoto, dialogo e transicao.
+O controller continuara coordenando o `DoorManager`, dialogo e transicao.
 Somente depois de determinar o resultado semantico ele publicara o evento:
 
 1. Porta trancada sem item local: publica `door_blocked` e mostra o dialogo.
-2. Porta trancada com item: chama `InteractDoor`.
-3. Unlock aceito pelo servidor: publica `door_unlocked`.
+2. Porta trancada com item: chama `DoorManager:unlock`.
+3. Unlock local aceito: publica `door_unlocked`.
 4. Unlock rejeitado por falta do item: publica `door_blocked` e mostra o dialogo.
 5. Porta ja destrancada: executa a transicao.
 6. Entrada aceita: publica `door_entered`.

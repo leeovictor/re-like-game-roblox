@@ -1,5 +1,10 @@
 # Design: Sistema de Portas e Transicoes
 
+> **Documento historico:** a autoridade server-side descrita aqui, `InteractDoor`,
+> `iron_key` e `StudioDoorScene` foram supersedidos pelo design
+> `2026-08-24-door-manager-client-side-design.md`. Este documento nao e o
+> contrato atual de runtime.
+
 Data: 2026-08-18
 Status: Aprovado pelo usuario para especificacao
 

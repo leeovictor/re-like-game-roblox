@@ -33,12 +33,12 @@ alteracao local que a mantem desabilitada sera preservada.
 | Indicador | Nenhum indicador visual de gameplay |
 | Bloqueio | `setEnabled(false/true)` no controller generico |
 | Arquitetura client-side | Detector generico e handlers por dominio |
-| Arquitetura server-side | Cada dominio mantem seu proprio service e remoto |
-| Porta | Mantem `InteractDoor` e suas regras atuais |
+| Arquitetura server-side | Pickups mantem sua autoridade; portas sao locais no cliente |
+| Porta | `DoorManager` e `DoorController` client-side |
 | Pickup | Usa novo `CollectPickup`; `ProximityPrompt` deixa de ser caminho de interacao |
 | Pickups authored | `Part` ou `Model` com `ItemId` obrigatorio e `Quantity` opcional |
 | Autoridade | O servidor cria itens, valida pedidos e aplica mutacoes |
-| Cena de teste | `StudioDoorScene` fica fora do escopo e nao sera alterada |
+| Cena de teste | Nenhuma cena de teste server-side e criada |
 | Testes | Uma unica sessao Play limpa, com `failed == 0` no servidor e cliente |
 
 ## Arquitetura
@@ -48,7 +48,7 @@ src/shared/interactions/interactionTypes.luau
   constantes da tag e do atributo comuns
 
 src/shared/remotes.luau
-  mantem InteractDoor e adiciona CollectPickup
+  mantem somente os remotes de inventario e pickups
 
 src/client/interactions/InteractionController.luau
   captura F, busca o alvo e encaminha para handlers registrados
@@ -59,8 +59,8 @@ src/client/doors/DoorController.luau
 src/client/pickups/PickupController.luau
   handler client-side que solicita a coleta
 
-src/server/doors/DoorService.luau
-  autoridade server-side de unlock e enter
+src/client/doors/DoorManager.luau
+  valida, desbloqueia e move localmente
 
 src/server/pickups/PickupService.luau
   registra pickups, valida CollectPickup e adiciona itens ao inventario
@@ -73,8 +73,8 @@ src/server/init.server.luau
 ```
 
 Nao sera criado um `InteractionService` server-side. O detector e o contrato
-comum serao genericos no cliente, enquanto cada dominio continuara dono das
-regras, da autoridade e do remoto que conhece.
+comum serao genericos no cliente. Pickups continuam com autoridade server-side;
+portas usam `DoorManager` e `DoorController` localmente, sem `InteractDoor`.
 
 ## Contrato dos alvos
 
