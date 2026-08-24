@@ -10,14 +10,32 @@ local useInventory = require(script.Parent.Parent.inventory.useInventory)
 local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 local ObjectiveNotification = require(script.Parent.ObjectiveNotification)
+local InventorySlot = require(script.Parent.InventorySlot)
+
+local INVENTORY_SLOT_COUNT = 6
+local INVENTORY_GRID_COLUMNS = 3
+local INVENTORY_CELL_SIZE = UDim2.fromOffset(88, 88)
+local INVENTORY_GAP = 8
+local _DROPDOWN_WIDTH = 144
+
+local mockActionLabelsByItemId: { [string]: { string } } = {
+	access_card = { "usar", "descartar" },
+	pliers = { "usar", "descartar" },
+	handgun = { "equipar", "descartar" },
+	handgun_ammo = { "descartar" },
+	medkit = { "usar", "descartar" },
+}
 
 local function App()
 	local inventoryVisible, setInventoryVisible = React.useState(false)
+	local selectedItemUid: string?, setSelectedItemUid: (string?) -> () = React.useState(nil :: string?)
+	local _confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
 	local objectives = useObjectives()
 	local dialogue = useDialogue()
 
+	local selectionEffectDependencies: { unknown } = { inventory, selectedItemUid }
 	React.useEffect(function()
 		local connection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 			if input.KeyCode ~= Enum.KeyCode.T then
@@ -37,48 +55,101 @@ local function App()
 		end
 	end, {})
 
-	local inventoryRows = {}
+	React.useEffect(function()
+		if inventory == nil or selectedItemUid == nil then
+			return
+		end
 
-	if inventory ~= nil then
-		for index, instance in inventory.items do
-			local itemId = instance.itemId
+		for index = 1, INVENTORY_SLOT_COUNT do
+			local instance = inventory.items[index]
+			if instance ~= nil and instance.uid == selectedItemUid then
+				return
+			end
+		end
+
+		setSelectedItemUid(nil)
+	end, selectionEffectDependencies)
+
+	local inventoryContent
+	if inventory == nil then
+		inventoryContent = React.createElement("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -8, 0, 28),
+			Font = Enum.Font.Gotham,
+			Text = "Carregando inventário...",
+			TextColor3 = Color3.fromRGB(173, 179, 198),
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextSize = 14,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+	else
+		local function isItemEquipped(uid: string): boolean
+			for _, equippedUid in inventory.equipped do
+				if equippedUid == uid then
+					return true
+				end
+			end
+			return false
+		end
+
+		local function resolveDisplayItem(itemId: items.ItemId, quantity: number?)
 			local item = items[itemId]
-			local itemName = if item ~= nil then item.name else itemId
-			local quantity = if instance.quantity ~= nil then string.format(" x%d", instance.quantity) else ""
+			return {
+				name = if item ~= nil then item.name else itemId,
+				quantity = quantity,
+			}
+		end
 
-			inventoryRows[tostring(index) .. ":" .. instance.uid] = React.createElement("TextLabel", {
-				BackgroundTransparency = 1,
-				LayoutOrder = index,
-				Size = UDim2.new(1, -24, 0, 28),
-				Font = Enum.Font.Gotham,
-				Text = itemName .. quantity,
-				TextColor3 = Color3.fromRGB(225, 222, 239),
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				TextSize = 14,
-				TextXAlignment = Enum.TextXAlignment.Left,
+		local gridChildren = {}
+		for index = 1, INVENTORY_SLOT_COUNT do
+			local instance = inventory.items[index]
+			local displayItem = if instance ~= nil
+				then resolveDisplayItem(instance.itemId, instance.quantity)
+				else nil
+			local isEquipped = if instance ~= nil then isItemEquipped(instance.uid) else false
+			local actionOptions: { { label: string, onActivated: () -> () } } = {}
+
+			if instance ~= nil then
+				local actionLabels = mockActionLabelsByItemId[instance.itemId]
+				if actionLabels ~= nil then
+					for _, label in actionLabels do
+						table.insert(actionOptions, {
+							label = label,
+							onActivated = function()
+								setSelectedItemUid(nil)
+								if label == "descartar" then
+									setConfirmationItemUid(instance.uid)
+								end
+							end,
+						})
+					end
+				end
+			end
+
+			gridChildren[tostring(index)] = React.createElement(InventorySlot, {
+				item = displayItem,
+				equipped = isEquipped,
+				actions = actionOptions,
+				onActivated = if instance ~= nil
+					then function()
+						setSelectedItemUid(instance.uid)
+					end
+					else nil,
 			})
 		end
-	end
 
-	local listChildren = inventoryRows
-	listChildren.ListLayout = React.createElement("UIListLayout", {
-		Padding = UDim.new(0, 2),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	})
-	if inventory == nil then
-		listChildren = {
-			Loading = React.createElement("TextLabel", {
-				BackgroundTransparency = 1,
-				Size = UDim2.new(1, -8, 0, 28),
-				Font = Enum.Font.Gotham,
-				Text = "Carregando inventário...",
-				TextColor3 = Color3.fromRGB(173, 179, 198),
-				TextTruncate = Enum.TextTruncate.AtEnd,
-				TextSize = 14,
-				TextXAlignment = Enum.TextXAlignment.Left,
-			}),
-			ListLayout = listChildren.ListLayout,
-		}
+		gridChildren.Layout = React.createElement("UIGridLayout", {
+			CellPadding = UDim2.fromOffset(INVENTORY_GAP, INVENTORY_GAP),
+			CellSize = INVENTORY_CELL_SIZE,
+			FillDirection = Enum.FillDirection.Horizontal,
+			FillDirectionMaxCells = INVENTORY_GRID_COLUMNS,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		})
+		inventoryContent = React.createElement("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(16, 44),
+			Size = UDim2.new(1, -32, 0, 184),
+		}, gridChildren)
 	end
 
 	local inventoryPanel = if inventoryVisible then React.createElement("Frame", {
@@ -86,7 +157,7 @@ local function App()
 			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
 			BackgroundTransparency = 0.08,
 			Position = UDim2.fromOffset(24, 154),
-			Size = UDim2.new(1, -48, 0, 220),
+			Size = UDim2.new(1, -48, 0, 244),
 		}, {
 			Corner = React.createElement("UICorner", {
 				CornerRadius = UDim.new(0, 10),
@@ -96,7 +167,7 @@ local function App()
 				Transparency = 0.25,
 			}),
 			SizeConstraint = React.createElement("UISizeConstraint", {
-				MaxSize = Vector2.new(360, 220),
+				MaxSize = Vector2.new(360, 244),
 			}),
 			Title = React.createElement("TextLabel", {
 				BackgroundTransparency = 1,
@@ -109,16 +180,7 @@ local function App()
 				TextSize = 16,
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}),
-			List = React.createElement("ScrollingFrame", {
-				BackgroundTransparency = 1,
-				BorderSizePixel = 0,
-				Position = UDim2.fromOffset(16, 44),
-				Size = UDim2.new(1, -32, 1, -56),
-				AutomaticCanvasSize = Enum.AutomaticSize.Y,
-				CanvasSize = UDim2.new(0, 0, 0, 0),
-				ScrollBarImageColor3 = Color3.fromRGB(107, 92, 168),
-				ScrollBarThickness = 4,
-			}, listChildren),
+			Content = inventoryContent,
 		})
 		else nil
 
