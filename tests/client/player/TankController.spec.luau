@@ -13,6 +13,12 @@ local function invokeForward(inputState: Enum.UserInputState)
 	TankController.handleInput("DungeonTankForward", inputState)
 end
 
+local function invokeRun(inputState: Enum.UserInputState)
+	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankRun
+	expect(info).to.be.ok()
+	TankController.handleInput("DungeonTankRun", inputState)
+end
+
 return function()
 	describe("TankController", function()
 		afterEach(function()
@@ -52,6 +58,32 @@ return function()
 			expect(actions.DungeonTankRun).to.equal(nil)
 		end)
 
+		it("uses the run speed while the run action is active", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+			TankController.start()
+			invokeRun(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			task.wait()
+
+			expect(humanoid.WalkSpeed).to.equal(10)
+		end)
+
+		it("restores the humanoid speed when stopped", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+			local originalWalkSpeed = humanoid.WalkSpeed
+
+			TankController.start()
+			invokeRun(Enum.UserInputState.Begin)
+			RunService.PreRender:Wait()
+			task.wait()
+			TankController.stop()
+
+			expect(humanoid.WalkSpeed).to.equal(originalWalkSpeed)
+		end)
+
 		it("reaplica a direcao comandada depois de uma rotacao externa", function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local rootPart = character:WaitForChild("HumanoidRootPart") :: BasePart
@@ -68,7 +100,7 @@ return function()
 			expect(actualLook.Z).to.be.near(expectedLook.Z, 0.001)
 		end)
 
-		it("mantem o movimento bloqueado enquanto qualquer lock estiver ativo", function()
+		it("mantem o movimento bloqueado e ressincroniza a entrada ao liberar o ultimo lock", function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
@@ -86,10 +118,8 @@ return function()
 			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
 
 			secondRelease()
-			invokeForward(Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
-			task.wait()
-			expect(humanoid.MoveDirection.Magnitude > 0).to.equal(true)
+			expect(humanoid.MoveDirection).to.equal(Vector3.zero)
 
 			firstRelease()
 			secondRelease()

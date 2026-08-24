@@ -40,7 +40,6 @@ local input: InputState = {
 }
 
 local started = false
-local movementEnabled = true
 local movementLockCount = 0
 local movementLockGeneration = 0
 local renderConnection: RBXScriptConnection? = nil
@@ -67,7 +66,7 @@ local function resetInput(): ()
 end
 
 local function canMove(): boolean
-	return movementEnabled and movementLockCount == 0
+	return movementLockCount == 0
 end
 
 local function syncInput(): ()
@@ -106,10 +105,6 @@ local function acquireHumanoid(humanoid: Humanoid): ()
 end
 
 local function updateInput(actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
-	if not canMove() then
-		return Enum.ContextActionResult.Sink
-	end
-
 	local isPressed = if inputState == Enum.UserInputState.Begin then true elseif inputState == Enum.UserInputState.End
 		or inputState == Enum.UserInputState.Cancel then false
 		else nil
@@ -166,29 +161,16 @@ local function update(deltaTime: number): ()
 	end
 	acquireHumanoid(humanoid)
 
-	local isTextBoxFocused = UserInputService:GetFocusedTextBox()
-	if canMove() and input.running and not isTextBoxFocused then
-		humanoid.WalkSpeed = RUN_SPEED
-	else
-		humanoid.WalkSpeed = WALK_SPEED
-	end
-
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if rootPart == nil or not rootPart:IsA("BasePart") then
 		return
 	end
 
+	humanoid.WalkSpeed = if input.running then RUN_SPEED else WALK_SPEED
+	
 	local lookVector = controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
 	if not canMove() then
 		controlledLookVector = lookVector
-		rootPart.AssemblyAngularVelocity = Vector3.zero
-		humanoid:Move(Vector3.zero, false)
-		return
-	end
-
-	if isTextBoxFocused then
-		controlledLookVector = lookVector
-		rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
 		rootPart.AssemblyAngularVelocity = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
 		return
@@ -251,7 +233,6 @@ end
 export type TankController = {
 	start: () -> (),
 	stop: () -> (),
-	setMovementEnabled: (enabled: boolean) -> (),
 	acquireMovementLock: () -> (() -> ()),
 	handleInput: (actionName: string, inputState: Enum.UserInputState) -> Enum.ContextActionResult,
 }
@@ -296,15 +277,6 @@ function controller.stop(): ()
 	movementLockGeneration += 1
 end
 
-function controller.setMovementEnabled(enabled: boolean): ()
-	movementEnabled = enabled
-	if enabled then
-		syncInput()
-	else
-		resetInput()
-	end
-end
-
 function controller.acquireMovementLock(): () -> ()
 	if movementLockCount == 0 then
 		movementLockGeneration += 1
@@ -312,7 +284,6 @@ function controller.acquireMovementLock(): () -> ()
 
 	local acquiredGeneration = movementLockGeneration
 	movementLockCount += 1
-	resetInput()
 
 	local released = false
 	return function(): ()
@@ -326,6 +297,7 @@ function controller.acquireMovementLock(): () -> ()
 		end
 
 		movementLockCount -= 1
+		syncInput()
 	end
 end
 
