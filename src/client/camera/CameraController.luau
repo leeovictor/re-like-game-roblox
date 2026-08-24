@@ -16,11 +16,16 @@ export type CameraController = {
 	player: Player?,
 	camera: Camera?,
 	renderConnection: RBXScriptConnection?,
+	playerShotId: CameraConfig.ShotId?,
+	cinematicShotId: CameraConfig.ShotId?,
 	currentShotId: CameraConfig.ShotId?,
 	started: boolean,
 	start: (self: CameraController) -> (),
 	stop: (self: CameraController) -> (),
 	getCurrentShotId: (self: CameraController) -> CameraConfig.ShotId?,
+	hasShot: (self: CameraController, shotId: CameraConfig.ShotId) -> boolean,
+	setCinematicShot: (self: CameraController, shotId: CameraConfig.ShotId) -> boolean,
+	clearCinematicShot: (self: CameraController) -> (),
 }
 
 local function update(self: CameraController): ()
@@ -50,7 +55,17 @@ local function update(self: CameraController): ()
 
 	local position = rootPart.Position
 	local zoneShotId = self.resolver:resolve(position)
-	local desiredShotId = zoneShotId or self.currentShotId or self.config.defaultShotId
+	if zoneShotId ~= nil then
+		self.playerShotId = zoneShotId
+	elseif self.playerShotId == nil then
+		self.playerShotId = self.config.defaultShotId
+	end
+
+	local desiredShotId = self.cinematicShotId or self.playerShotId
+	if desiredShotId == nil then
+		return
+	end
+
 	if desiredShotId ~= self.currentShotId then
 		local shot = self.config.shots[desiredShotId]
 		if shot == nil then
@@ -72,6 +87,8 @@ function CameraController.new(config: CameraConfig.Config): CameraController
 		player = nil,
 		camera = nil,
 		renderConnection = nil,
+		playerShotId = nil,
+		cinematicShotId = nil,
 		currentShotId = nil,
 		started = false,
 	}, CameraController)
@@ -118,12 +135,33 @@ function CameraController.stop(self: CameraController): ()
 		end
 	end
 
+	self.playerShotId = nil
+	self.cinematicShotId = nil
 	self.currentShotId = nil
 	self.started = false
 end
 
 function CameraController.getCurrentShotId(self: CameraController): CameraConfig.ShotId?
 	return self.currentShotId
+end
+
+function CameraController.hasShot(self: CameraController, shotId: CameraConfig.ShotId): boolean
+	return self.config.shots[shotId] ~= nil
+end
+
+function CameraController.setCinematicShot(self: CameraController, shotId: CameraConfig.ShotId): boolean
+	if not self:hasShot(shotId) then
+		return false
+	end
+
+	self.cinematicShotId = shotId
+	update(self)
+	return true
+end
+
+function CameraController.clearCinematicShot(self: CameraController): ()
+	self.cinematicShotId = nil
+	update(self)
 end
 
 return CameraController

@@ -99,6 +99,36 @@ return function()
 			expect(camera.FieldOfView).to.equal(65)
 		end)
 
+		it("mantem o shot cinematic durante o PreRender", function()
+			expect(controller:setCinematicShot("First")).to.equal(true)
+
+			RunService.PreRender:Wait()
+			task.wait()
+
+			expect(controller:getCurrentShotId()).to.equal("First")
+			expect(camera.CFrame).to.equal(CFrame.new(0, 10, 20))
+			expect(camera.FieldOfView).to.equal(65)
+		end)
+
+		it("restaura o shot normal atual ao limpar o override", function()
+			rootPart.CFrame = CFrame.new()
+			expect(waitFor(function()
+				return controller:getCurrentShotId() == "First"
+			end)).to.equal(true)
+
+			expect(controller:setCinematicShot("Default")).to.equal(true)
+			RunService.PreRender:Wait()
+			expect(controller:getCurrentShotId()).to.equal("Default")
+
+			controller:clearCinematicShot()
+			RunService.PreRender:Wait()
+			task.wait()
+
+			expect(controller:getCurrentShotId()).to.equal("First")
+			expect(camera.CFrame).to.equal(CFrame.new(0, 10, 20))
+			expect(camera.FieldOfView).to.equal(65)
+		end)
+
 		it("limpa o shot atual ao parar", function()
 			expect(waitFor(function()
 				return controller:getCurrentShotId() == "Default"
