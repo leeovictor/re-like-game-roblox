@@ -25,15 +25,6 @@
     "ServerScriptService": {
       "Server": {
         "$className": "Folder",
-        "inventory": {
-          "$path": "src/server/inventory"
-        },
-        "items": {
-          "$path": "src/server/items"
-        },
-        "pickups": {
-          "$path": "src/server/pickups"
-        },
         "player": {
           "$path": "src/server/player"
         }
