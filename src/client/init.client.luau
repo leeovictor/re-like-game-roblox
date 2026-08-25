@@ -47,7 +47,7 @@ local dialogueController = DialogueController.new({
 })
 dialogueController:start()
 
-local cinematicController = CinematicController.new({
+local _cinematicController = CinematicController.new({
 	camera = cameraController,
 	movement = tankController,
 	sound = cinematicSoundPlayer,
@@ -98,34 +98,3 @@ local root = ReactRoblox.createRoot(playerGui)
 root:render(React.createElement(App, {
 	dialogueController = dialogueController,
 }))
-
-local manualCinematic = {
-	{
-		frame = 1,
-		duration = 2,
-		effects = {
-			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
-			{ name = "set-camera-shot", attributes = { shot = "Final_G" } },
-		} :: { any },
-	},
-	{
-		frame = 2,
-		duration = 2,
-		effects = {
-			{ name = "set-camera-shot", attributes = { shot = "MachineRoom_MachineCloseUp" } },
-		} :: { any },
-	},
-	{
-		frame = 3,
-		duration = 2,
-		effects = {
-			{ name = "play-sound", attributes = { soundId = "rbxassetid://131940090612749" } },
-			{ name = "set-camera-shot", attributes = { shot = "Start_Enter_Cave_C" } },
-		} :: { any },
-	},
-};
-
-task.delay(5, function()
-	local result = cinematicController:play(manualCinematic)
-	print('cinematic result', result)
-end)
