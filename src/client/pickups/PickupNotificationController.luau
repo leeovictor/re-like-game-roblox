@@ -2,26 +2,29 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local remotes = require(ReplicatedStorage.Shared.remotes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-type Connection = RBXScriptConnection
 type SignalConnection = {
 	Disconnect: (self: SignalConnection) -> (),
+}
+export type Source = {
+	Connect: (self: Source, callback: (itemId: string) -> ()) -> SignalConnection,
+}
+export type Dependencies = {
+	source: Source,
 }
 type ChangedSignal = {
 	Fire: (self: ChangedSignal, itemId: string) -> (),
 	Connect: (self: ChangedSignal, callback: (itemId: string) -> ()) -> SignalConnection,
 }
 
-local pickupCollected = remotes.PickupCollected :: RemoteEvent
 local changed = (Signal.new() :: any) :: ChangedSignal
-local connection: Connection? = nil
+local connection: SignalConnection? = nil
 local started = false
 local sessionGeneration = 0
 
 export type PickupNotificationController = {
-	start: () -> (),
+	start: (dependencies: Dependencies) -> (),
 	stop: () -> (),
 	changed: typeof(changed),
 }
@@ -30,7 +33,7 @@ local controller = {
 	changed = changed,
 } :: PickupNotificationController
 
-function controller.start(): ()
+function controller.start(dependencies: Dependencies): ()
 	if started then
 		return
 	end
@@ -38,7 +41,7 @@ function controller.start(): ()
 	sessionGeneration += 1
 	local generation = sessionGeneration
 	started = true
-	connection = pickupCollected.OnClientEvent:Connect(function(itemId: string)
+	connection = dependencies.source:Connect(function(itemId: string)
 		if not started or generation ~= sessionGeneration then
 			return
 		end

@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
@@ -12,12 +13,13 @@ local DialogueInteractionController = require(script.dialogue.DialogueInteractio
 local DoorController = require(script.doors.DoorController)
 local DoorManager = require(script.doors.DoorManager)
 local TransitionController = require(script.doors.TransitionController)
-local PickupEventBridge = require(script.events.PickupEventBridge)
 local InventoryController = require(script.inventory.InventoryController)
 local InteractionController = require(script.interactions.InteractionController)
 local ObjectiveController = require(script.objectives.ObjectiveController)
-local PickupController = require(script.pickups.PickupController)
+local PickupInteraction = require(script.pickups.PickupInteraction)
+local PickupManager = require(script.pickups.PickupManager)
 local PickupNotificationController = require(script.pickups.PickupNotificationController)
+local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 local FootstepController = require(script.player.FootstepController)
 local TankController = require(script.player.TankController)
 local React = require(ReplicatedStorage.Packages.React)
@@ -63,8 +65,21 @@ local interactionController = InteractionController.new(nil, nil)
 
 FootstepController.start()
 
-PickupNotificationController.start()
 InventoryController.start()
+local factory = ItemInstanceFactory.new(function(): string
+	return HttpService:GenerateGUID(false)
+end)
+local pickupManager = PickupManager.new({
+	inventory = InventoryController,
+	factory = factory,
+})
+pickupManager:start()
+local pickupInteraction = PickupInteraction.new({
+	manager = pickupManager,
+})
+PickupNotificationController.start({
+	source = pickupManager.collected,
+})
 TransitionController.start()
 local doorManager = DoorManager.new({
 	inventory = InventoryController,
@@ -75,10 +90,9 @@ local doorController = DoorController.new({
 	transition = TransitionController,
 })
 ObjectiveController.start()
-PickupEventBridge.start()
 
 interactionController:register("Door", doorController)
-interactionController:register("Pickup", PickupController)
+interactionController:register("Pickup", pickupInteraction)
 interactionController:register("Dialogue", dialogueInteractionController)
 interactionController:start()
 
