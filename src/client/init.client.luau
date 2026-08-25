@@ -12,6 +12,7 @@ local DialogueInteractionController = require(script.dialogue.DialogueInteractio
 local DoorController = require(script.doors.DoorController)
 local DoorManager = require(script.doors.DoorManager)
 local TransitionController = require(script.doors.TransitionController)
+local EnemyController = require(script.enemies.EnemyController)
 local InventoryController = require(script.inventory.InventoryController)
 local InteractionController = require(script.interactions.InteractionController)
 local ObjectiveController = require(script.objectives.ObjectiveController)
@@ -39,6 +40,8 @@ CameraVisibility.hide(cameraSystem)
 cameraController:start()
 local tankController = TankController.new()
 tankController:start()
+local enemyController = EnemyController.new()
+enemyController:start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()
 

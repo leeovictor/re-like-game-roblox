@@ -58,6 +58,9 @@
           "dialogue": {
             "$path": "src/client/dialogue"
           },
+          "enemies": {
+            "$path": "src/client/enemies"
+          },
           "events": {
             "$path": "src/client/events"
           },
