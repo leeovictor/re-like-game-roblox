@@ -7,10 +7,11 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
 local ACTION_NAME = "DungeonInteraction"
-local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value
+local ACTION_PRIORITY = ActionPriorities.INTERACTION
 local DEBUG_ENABLED = false
 local DEFAULT_CONFIG: interactionTypes.ProbeConfig = {
 	size = Vector3.new(3, 7, 2),

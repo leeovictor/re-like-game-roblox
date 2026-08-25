@@ -3,6 +3,7 @@
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local TankController = require(script.Parent.Parent.player.TankController)
 
@@ -40,7 +41,7 @@ local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
 local NEXT_ACTION = "DungeonDialogueNext"
 local ACTIONS = { CONFIRM_ACTION, CANCEL_ACTION, PREVIOUS_ACTION, NEXT_ACTION }
-local ACTION_PRIORITY = Enum.ContextActionPriority.High.Value + 1
+local ACTION_PRIORITY = ActionPriorities.DIALOGUE
 
 export type Dependencies = {
 	movement: TankController.MovementController,

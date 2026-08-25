@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
 local TankControlMath = require(ReplicatedStorage.Shared.player.TankControlMath)
 
 local ACTION_FORWARD = "DungeonTankForward"
@@ -15,24 +16,43 @@ local ACTION_RIGHT = "DungeonTankRight"
 local ACTION_RUN = "DungeonTankRun"
 local WALK_SPEED = 5
 local RUN_SPEED = 10
-local ACTIONS = {
-	ACTION_FORWARD,
-	ACTION_BACKWARD,
-	ACTION_LEFT,
-	ACTION_RIGHT,
-	ACTION_RUN,
+local ACTION_PRIORITY = ActionPriorities.MOVEMENT
+
+export type InputState = TankControlMath.InputState & { running: boolean }
+
+export type TankControllerConfig = {
+	walkSpeed: number?,
+	runSpeed: number?,
 }
 
-type InputState = {
-	forward: boolean,
-	backward: boolean,
-	left: boolean,
-	right: boolean,
-	running: boolean,
+type InputField = "forward" | "backward" | "left" | "right" | "running"
+
+type KeyBinding = {
+	actionName: string,
+	keyCode: Enum.KeyCode,
+	field: InputField,
+}
+
+type BoundActionCallback = (
+	actionName: string,
+	inputState: Enum.UserInputState,
+	inputObject: InputObject?
+) -> Enum.ContextActionResult
+
+-- Fonte unica do mapeamento tecla -> acao -> campo de InputState; binding,
+-- unbinding e sincronizacao de entrada derivam daqui.
+local KEY_BINDINGS: { KeyBinding } = {
+	{ actionName = ACTION_FORWARD, keyCode = Enum.KeyCode.W, field = "forward" },
+	{ actionName = ACTION_BACKWARD, keyCode = Enum.KeyCode.S, field = "backward" },
+	{ actionName = ACTION_LEFT, keyCode = Enum.KeyCode.A, field = "left" },
+	{ actionName = ACTION_RIGHT, keyCode = Enum.KeyCode.D, field = "right" },
+	{ actionName = ACTION_RUN, keyCode = Enum.KeyCode.LeftShift, field = "running" },
 }
 
 export type TankController = {
 	input: InputState,
+	walkSpeed: number,
+	runSpeed: number,
 	started: boolean,
 	movementLockCount: number,
 	movementLockGeneration: number,
@@ -45,7 +65,6 @@ export type TankController = {
 	start: (self: TankController) -> (),
 	stop: (self: TankController) -> (),
 	acquireMovementLock: (self: TankController) -> (() -> ()),
-	handleInput: (self: TankController, actionName: string, inputState: Enum.UserInputState) -> Enum.ContextActionResult,
 }
 
 export type MovementController = {
@@ -55,13 +74,8 @@ export type MovementController = {
 local TankController = {}
 TankController.__index = TankController
 
-local function horizontalUnit(vector: Vector3): Vector3
-	local horizontal = Vector3.new(vector.X, 0, vector.Z)
-	if horizontal.Magnitude == 0 then
-		return Vector3.new(0, 0, -1)
-	end
-	return horizontal.Unit
-end
+-- CFrame.lookAt exige uma direcao valida; o fallback e o olhar padrao do Roblox.
+local DEFAULT_LOOK_VECTOR = Vector3.new(0, 0, -1)
 
 local function resetInput(self: TankController): ()
 	self.input.forward = false
@@ -76,11 +90,9 @@ local function canMove(self: TankController): boolean
 end
 
 local function syncInput(self: TankController): ()
-	self.input.forward = UserInputService:IsKeyDown(Enum.KeyCode.W)
-	self.input.backward = UserInputService:IsKeyDown(Enum.KeyCode.S)
-	self.input.left = UserInputService:IsKeyDown(Enum.KeyCode.A)
-	self.input.right = UserInputService:IsKeyDown(Enum.KeyCode.D)
-	self.input.running = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+	for _, binding in KEY_BINDINGS do
+		self.input[binding.field] = UserInputService:IsKeyDown(binding.keyCode)
+	end
 end
 
 local function releaseHumanoid(self: TankController): ()
@@ -119,33 +131,49 @@ local function updateInput(self: TankController, actionName: string, inputState:
 		return Enum.ContextActionResult.Sink
 	end
 
-	if actionName == ACTION_FORWARD then
-		self.input.forward = isPressed
-	elseif actionName == ACTION_BACKWARD then
-		self.input.backward = isPressed
-	elseif actionName == ACTION_LEFT then
-		self.input.left = isPressed
-	elseif actionName == ACTION_RIGHT then
-		self.input.right = isPressed
-	elseif actionName == ACTION_RUN then
-		self.input.running = isPressed
+	for _, binding in KEY_BINDINGS do
+		if binding.actionName == actionName then
+			self.input[binding.field] = isPressed
+		end
 	end
 
 	return Enum.ContextActionResult.Sink
 end
 
 local function handleInputEnded(self: TankController, inputObject: InputObject): ()
-	if inputObject.KeyCode == Enum.KeyCode.W then
-		self.input.forward = false
-	elseif inputObject.KeyCode == Enum.KeyCode.S then
-		self.input.backward = false
-	elseif inputObject.KeyCode == Enum.KeyCode.A then
-		self.input.left = false
-	elseif inputObject.KeyCode == Enum.KeyCode.D then
-		self.input.right = false
-	elseif inputObject.KeyCode == Enum.KeyCode.LeftShift then
-		self.input.running = false
+	for _, binding in KEY_BINDINGS do
+		if inputObject.KeyCode == binding.keyCode then
+			self.input[binding.field] = false
+		end
 	end
+end
+
+type ResolvedCharacter = {
+	humanoid: Humanoid,
+	rootPart: BasePart,
+}
+
+local function resolveCharacter(self: TankController): ResolvedCharacter?
+	local player = Players.LocalPlayer
+	local character = player.Character
+	if character == nil then
+		releaseHumanoid(self)
+		return nil
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid == nil then
+		releaseHumanoid(self)
+		return nil
+	end
+	acquireHumanoid(self, humanoid)
+
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if rootPart == nil or not rootPart:IsA("BasePart") then
+		return nil
+	end
+
+	return { humanoid = humanoid, rootPart = rootPart }
 end
 
 local function update(self: TankController, deltaTime: number): ()
@@ -153,29 +181,21 @@ local function update(self: TankController, deltaTime: number): ()
 		return
 	end
 
-	local player = Players.LocalPlayer
-	local character = player.Character
+	local character = resolveCharacter(self)
 	if character == nil then
-		releaseHumanoid(self)
 		return
 	end
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid == nil then
-		releaseHumanoid(self)
-		return
-	end
-	acquireHumanoid(self, humanoid)
+	local humanoid = character.humanoid
+	local rootPart = character.rootPart
 
-	local rootPart = character:FindFirstChild("HumanoidRootPart")
-	if rootPart == nil or not rootPart:IsA("BasePart") then
-		return
-	end
+	humanoid.WalkSpeed = if self.input.running then self.runSpeed else self.walkSpeed
 
-	humanoid.WalkSpeed = if self.input.running then RUN_SPEED else WALK_SPEED
-	
-	local lookVector = self.controlledLookVector or horizontalUnit(rootPart.CFrame.LookVector)
+	local lookVector = self.controlledLookVector
+		or TankControlMath.horizontalUnit(rootPart.CFrame.LookVector, DEFAULT_LOOK_VECTOR)
 	if not canMove(self) then
+		-- O look vector fica congelado enquanto o movimento esta bloqueado;
+		-- ao liberar o lock, o personagem retorna a orientacao anterior.
 		self.controlledLookVector = lookVector
 		rootPart.AssemblyAngularVelocity = Vector3.zero
 		humanoid:Move(Vector3.zero, false)
@@ -184,7 +204,10 @@ local function update(self: TankController, deltaTime: number): ()
 
 	local motion = TankControlMath.calculate(lookVector, self.input, deltaTime)
 	if motion.rotationRadians ~= 0 then
-		lookVector = horizontalUnit(CFrame.Angles(0, motion.rotationRadians, 0):VectorToWorldSpace(lookVector))
+		lookVector = TankControlMath.horizontalUnit(
+			CFrame.Angles(0, motion.rotationRadians, 0):VectorToWorldSpace(lookVector),
+			DEFAULT_LOOK_VECTOR
+		)
 	end
 	self.controlledLookVector = lookVector
 	rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
@@ -193,60 +216,39 @@ local function update(self: TankController, deltaTime: number): ()
 end
 
 local function bindActions(self: TankController): ()
-	ContextActionService:BindActionAtPriority(
-		ACTION_FORWARD,
-		function(actionName, inputState)
-			return self:handleInput(actionName, inputState)
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.W
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_BACKWARD,
-		function(actionName, inputState)
-			return self:handleInput(actionName, inputState)
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.S
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_LEFT,
-		function(actionName, inputState)
-			return self:handleInput(actionName, inputState)
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.A
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_RIGHT,
-		function(actionName, inputState)
-			return self:handleInput(actionName, inputState)
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.D
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_RUN,
-		function(actionName, inputState)
-			return self:handleInput(actionName, inputState)
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.LeftShift
-	)
-end
-
-local function unbindActions(): ()
-	for _, actionName in ACTIONS do
-		ContextActionService:UnbindAction(actionName)
+	for _, binding in KEY_BINDINGS do
+		local callback: BoundActionCallback = function(actionName, inputState, _inputObject)
+			return updateInput(self, actionName, inputState)
+		end
+		((self :: any)._testBoundActionCallbacks :: { [string]: BoundActionCallback })[binding.actionName] = callback
+		ContextActionService:BindActionAtPriority(
+			binding.actionName,
+			callback,
+			false,
+			ACTION_PRIORITY,
+			binding.keyCode
+		)
 	end
 end
 
-function TankController.new(): TankController
+local function unbindActions(): ()
+	for _, binding in KEY_BINDINGS do
+		ContextActionService:UnbindAction(binding.actionName)
+	end
+end
+
+function TankController.new(config: TankControllerConfig?): TankController
+	local walkSpeed = WALK_SPEED
+	local runSpeed = RUN_SPEED
+	if config ~= nil then
+		if config.walkSpeed ~= nil then
+			walkSpeed = config.walkSpeed
+		end
+		if config.runSpeed ~= nil then
+			runSpeed = config.runSpeed
+		end
+	end
+
 	local self = setmetatable({
 		input = {
 			forward = false,
@@ -255,6 +257,9 @@ function TankController.new(): TankController
 			right = false,
 			running = false,
 		},
+		_testBoundActionCallbacks = {},
+		walkSpeed = walkSpeed,
+		runSpeed = runSpeed,
 		started = false,
 		movementLockCount = 0,
 		movementLockGeneration = 0,
@@ -266,6 +271,13 @@ function TankController.new(): TankController
 		controlledLookVector = nil,
 	}, TankController)
 	return (self :: any) :: TankController
+end
+
+function TankController._testGetBoundActionCallback(
+	self: TankController,
+	actionName: string
+): BoundActionCallback?
+	return ((self :: any)._testBoundActionCallbacks :: { [string]: BoundActionCallback })[actionName]
 end
 
 function TankController.start(self: TankController): ()
@@ -288,6 +300,8 @@ end
 
 function TankController.stop(self: TankController): ()
 	if not self.started then
+		local internalSelf = self :: any
+		internalSelf._testBoundActionCallbacks = {}
 		self.movementLockCount = 0
 		self.movementLockGeneration += 1
 		resetInput(self)
@@ -304,6 +318,8 @@ function TankController.stop(self: TankController): ()
 		self.inputEndedConnection = nil
 	end
 	unbindActions()
+	local internalSelf = self :: any
+	internalSelf._testBoundActionCallbacks = {}
 	resetInput(self)
 	releaseHumanoid(self)
 	self.movementLockCount = 0
@@ -332,14 +348,6 @@ function TankController.acquireMovementLock(self: TankController): () -> ()
 		self.movementLockCount -= 1
 		syncInput(self)
 	end
-end
-
-function TankController.handleInput(
-	self: TankController,
-	actionName: string,
-	inputState: Enum.UserInputState
-): Enum.ContextActionResult
-	return updateInput(self, actionName, inputState)
 end
 
 return TankController

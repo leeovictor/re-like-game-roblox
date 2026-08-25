@@ -2,9 +2,11 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("Client") :: any
 local require = require :: (ModuleScript) -> any
+local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
 local DialogueController = require(client.dialogue.DialogueController)
 local TankController = require(client.player.TankController)
 
@@ -13,10 +15,14 @@ local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
 local NEXT_ACTION = "DungeonDialogueNext"
 
+local function invokeBoundAction(controller, actionName: string, inputState: Enum.UserInputState)
+	local callback = (controller :: any):_testGetBoundActionCallback(actionName)
+	expect(callback).to.be.ok()
+	return (callback :: any)(actionName, inputState)
+end
+
 local function invokeForward(controller, inputState: Enum.UserInputState)
-	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
-	expect(info).to.be.ok()
-	controller:handleInput("DungeonTankForward", inputState)
+	return invokeBoundAction(controller, "DungeonTankForward", inputState)
 end
 
 type SignalConnection = {
@@ -89,7 +95,7 @@ return function()
 			for actionName, keyCode in expectedActions do
 				local actionInfo = actions[actionName]
 				expect(actionInfo).to.be.ok()
-				expect(actionInfo.priorityLevel).to.equal(Enum.ContextActionPriority.High.Value + 1)
+				expect(actionInfo.priorityLevel).to.equal(ActionPriorities.DIALOGUE)
 				expect(table.find(actionInfo.inputTypes, keyCode)).to.be.ok()
 			end
 

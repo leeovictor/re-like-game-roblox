@@ -85,5 +85,17 @@ return function()
 
 			expect(motion.rotationRadians).to.equal(0)
 		end)
+
+		it("usa o fallback quando a projecao horizontal e nula", function()
+			local direction = TankControlMath.horizontalUnit(Vector3.new(0, 5, 0), Vector3.new(0, 0, -1))
+
+			assertVectorNear(direction, Vector3.new(0, 0, -1))
+		end)
+
+		it("descarta o componente vertical antes de normalizar", function()
+			local direction = TankControlMath.horizontalUnit(Vector3.new(3, 10, -4), Vector3.zero)
+
+			assertVectorNear(direction, Vector3.new(3, 0, -4).Unit)
+		end)
 	end)
 end

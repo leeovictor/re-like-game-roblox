@@ -16,10 +16,12 @@ export type Motion = {
 	rotationRadians: number,
 }
 
-local function horizontalUnit(vector: Vector3): Vector3
+-- Projeta o vetor no plano horizontal e normaliza; usa o fallback quando a
+-- projecao e nula (vetor puramente vertical).
+function TankControlMath.horizontalUnit(vector: Vector3, fallback: Vector3): Vector3
 	local horizontal = Vector3.new(vector.X, 0, vector.Z)
 	if horizontal.Magnitude == 0 then
-		return Vector3.zero
+		return fallback
 	end
 	return horizontal.Unit
 end
@@ -29,7 +31,7 @@ function TankControlMath.calculate(lookVector: Vector3, input: InputState, delta
 	local rotationAmount = (if input.left then 1 else 0) - (if input.right then 1 else 0)
 
 	return {
-		moveDirection = horizontalUnit(lookVector) * moveAmount,
+		moveDirection = TankControlMath.horizontalUnit(lookVector, Vector3.zero) * moveAmount,
 		rotationRadians = ROTATION_RADIANS_PER_SECOND * rotationAmount * deltaTime,
 	}
 end

@@ -7,16 +7,18 @@ local client = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("C
 local require = require :: (ModuleScript) -> any
 local TankController = require(client.player.TankController)
 
+local function invokeBoundAction(controller, actionName: string, inputState: Enum.UserInputState)
+	local callback = (controller :: any):_testGetBoundActionCallback(actionName)
+	expect(callback).to.be.ok()
+	return (callback :: any)(actionName, inputState)
+end
+
 local function invokeForward(controller, inputState: Enum.UserInputState)
-	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankForward
-	expect(info).to.be.ok()
-	controller:handleInput("DungeonTankForward", inputState)
+	return invokeBoundAction(controller, "DungeonTankForward", inputState)
 end
 
 local function invokeRun(controller, inputState: Enum.UserInputState)
-	local info = (ContextActionService:GetAllBoundActionInfo() :: any).DungeonTankRun
-	expect(info).to.be.ok()
-	controller:handleInput("DungeonTankRun", inputState)
+	return invokeBoundAction(controller, "DungeonTankRun", inputState)
 end
 
 return function()
@@ -64,16 +66,29 @@ return function()
 			expect(actions.DungeonTankRun).to.equal(nil)
 		end)
 
-		it("uses the run speed while the run action is active", function()
+		it("usa a velocidade de corrida configurada enquanto a acao de corrida esta ativa", function()
 			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
+			controller = TankController.new({ walkSpeed = 4, runSpeed = 8 })
 			controller:start()
 			invokeRun(controller, Enum.UserInputState.Begin)
 			RunService.PreRender:Wait()
 			task.wait()
 
-			expect(humanoid.WalkSpeed).to.equal(10)
+			expect(humanoid.WalkSpeed).to.equal(8)
+		end)
+
+		it("usa a velocidade de caminhada configurada quando nao esta correndo", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+			controller = TankController.new({ walkSpeed = 4, runSpeed = 8 })
+			controller:start()
+			RunService.PreRender:Wait()
+			task.wait()
+
+			expect(humanoid.WalkSpeed).to.equal(4)
 		end)
 
 		it("restores the humanoid speed when stopped", function()
@@ -137,7 +152,7 @@ return function()
 			local release = lockedController:acquireMovementLock()
 
 			activeController:start()
-			activeController:handleInput("DungeonTankForward", Enum.UserInputState.Begin)
+			invokeForward(activeController, Enum.UserInputState.Begin)
 
 			expect(lockedController.movementLockCount).to.equal(1)
 			expect(activeController.movementLockCount).to.equal(0)
@@ -146,6 +161,53 @@ return function()
 			release()
 			activeController:stop()
 			lockedController:stop()
+		end)
+
+		it("ignora releases duplicados do mesmo lock", function()
+			controller:start()
+			local release = controller:acquireMovementLock()
+
+			release()
+			release()
+
+			expect(controller.movementLockCount).to.equal(0)
+		end)
+
+		it("invalida releases de locks criados antes de stop", function()
+			controller:start()
+			local staleRelease = controller:acquireMovementLock()
+			controller:stop()
+			controller:start()
+			local keepRelease = controller:acquireMovementLock()
+			expect(controller.movementLockCount).to.equal(1)
+
+			staleRelease()
+			expect(controller.movementLockCount).to.equal(1)
+
+			keepRelease()
+			expect(controller.movementLockCount).to.equal(0)
+		end)
+
+		it("retorna a orientacao anterior ao lock apos liberar o movimento", function()
+			local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+			local rootPart = character:WaitForChild("HumanoidRootPart") :: BasePart
+
+			controller:start()
+			RunService.PreRender:Wait()
+
+			local expectedLook = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z).Unit
+			local release = controller:acquireMovementLock()
+			rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(90), 0)
+			RunService.PreRender:Wait()
+			task.wait()
+
+			release()
+			RunService.PreRender:Wait()
+			task.wait()
+
+			local actualLook = Vector3.new(rootPart.CFrame.LookVector.X, 0, rootPart.CFrame.LookVector.Z).Unit
+			expect(actualLook.X).to.be.near(expectedLook.X, 0.001)
+			expect(actualLook.Z).to.be.near(expectedLook.Z, 0.001)
 		end)
 	end)
 end
