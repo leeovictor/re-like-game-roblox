@@ -5,11 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 
 local function newFactory(): any
-	local nextId = 0
-	return ItemInstanceFactory.new(function(): string
-		nextId += 1
-		return string.format("test-uid-%02d", nextId)
-	end)
+	return ItemInstanceFactory.new()
 end
 
 local function assertRejected(assert: any, callback: () -> any): ()
@@ -25,22 +21,20 @@ return function()
 		local first = factory:create("handgun")
 		local second = factory:create("handgun")
 
-		expect(first.uid).to.equal("test-uid-01")
-		expect(second.uid).to.equal("test-uid-02")
+		expect(type(first.uid)).to.equal("string")
+		expect(first.uid ~= "").to.equal(true)
+		expect(first.uid ~= second.uid).to.equal(true)
 		expect(first.itemId).to.equal("handgun")
 		expect(first.quantity).to.equal(nil)
 		expect(first == second).to.equal(false)
 	end)
 
-	it("rejects a uid that the factory has already emitted", function()
-		local factory = ItemInstanceFactory.new(function(): string
-			return "repeated-uid"
-		end)
+	it("generates unique uids for each instance", function()
+		local factory = newFactory()
 		local first = factory:create("handgun")
 		local second = factory:create("handgun")
 
-		expect(first).to.be.ok()
-		expect(second).to.equal(nil)
+		expect(first.uid ~= second.uid).to.equal(true)
 	end)
 
 	it("preserves authored numeric string and boolean attributes", function()

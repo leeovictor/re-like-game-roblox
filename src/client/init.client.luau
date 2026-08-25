@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 
 local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
@@ -66,9 +65,7 @@ local interactionController = InteractionController.new(nil, nil)
 FootstepController.start()
 
 InventoryController.start()
-local factory = ItemInstanceFactory.new(function(): string
-	return HttpService:GenerateGUID(false)
-end)
+local factory = ItemInstanceFactory.new()
 local pickupManager = PickupManager.new({
 	inventory = InventoryController,
 	factory = factory,

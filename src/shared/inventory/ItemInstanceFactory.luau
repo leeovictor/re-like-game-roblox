@@ -1,11 +1,11 @@
 --!strict
 
+local HttpService = game:GetService("HttpService")
 local items = require(script.Parent.items)
 
 type ItemId = items.ItemId
 type ItemAttributes = items.ItemAttributes
 type ItemInstance = items.ItemInstance
-type UidGenerator = () -> string
 
 export type Factory = {
 	create: (self: Factory, itemId: ItemId, attributes: ItemAttributes?, quantity: number?) -> ItemInstance?,
@@ -39,9 +39,12 @@ local function copyAttributes(attributes: ItemAttributes?): ItemAttributes?
 	return copy
 end
 
-function ItemInstanceFactory.new(uidGenerator: UidGenerator): Factory
+function ItemInstanceFactory.new(): Factory
 	local issuedUids: { [string]: boolean } = {}
 	local service = {} :: Factory
+	local function generateUid(): string
+		return HttpService:GenerateGUID(false)
+	end
 
 	function service:create(itemId: ItemId, attributes: ItemAttributes?, quantity: number?): ItemInstance?
 		local item = items[itemId]
@@ -62,7 +65,7 @@ function ItemInstanceFactory.new(uidGenerator: UidGenerator): Factory
 		if attributes ~= nil and copiedAttributes == nil then
 			return nil
 		end
-		local uid = uidGenerator()
+		local uid = generateUid()
 		if type(uid) ~= "string" or uid == "" or issuedUids[uid] then
 			return nil
 		end
