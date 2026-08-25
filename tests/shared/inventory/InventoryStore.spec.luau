@@ -1,9 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
-
-local InventoryStore = require(ServerScriptService.Server.inventory.InventoryStore)
+local InventoryStore = require(ReplicatedStorage.Shared.inventory.InventoryStore)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 
 type Attribute = items.ItemAttribute
@@ -138,8 +136,8 @@ return function()
 	end)
 
 	it("does not merge individual instances", function()
-		local state: State = InventoryStore.addInstance(InventoryStore.defaultInventory(), { uid = "key-001", itemId = "iron_key" } :: any) :: State
-		expect(InventoryStore.addQuantity(state, "iron_key", 1)).to.equal(nil)
+		local state: State = InventoryStore.addInstance(InventoryStore.defaultInventory(), { uid = "card-001", itemId = "access_card" } :: any) :: State
+		expect(InventoryStore.addQuantity(state, "access_card", 1)).to.equal(nil)
 	end)
 
 	it("does not merge stacks with different authored attributes", function()
@@ -163,7 +161,7 @@ return function()
 
 	it("uses the equip capability from the shared catalog", function()
 		expect(items.handgun.capabilities[1] ~= nil).to.equal(true)
-		expect(InventoryStore.equip((InventoryStore.addInstance(InventoryStore.defaultInventory(), { uid = "key-001", itemId = "iron_key" } :: any) :: State), "weapon", "key-001")).to.equal(nil)
+		expect(InventoryStore.equip((InventoryStore.addInstance(InventoryStore.defaultInventory(), { uid = "card-001", itemId = "access_card" } :: any) :: State), "weapon", "card-001")).to.equal(nil)
 	end)
 end)
 end

@@ -1,8 +1,8 @@
 --!strict
 
-local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local ItemInstanceFactory = require(ServerScriptService.Server.items.ItemInstanceFactory)
+local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 
 local function newFactory(): any
 	local nextId = 0
@@ -111,8 +111,8 @@ return function()
 
 	it("returns independent attribute tables", function()
 		local factory = newFactory()
-		local first = factory:create("iron_key", { label = "old" })
-		local second = factory:create("iron_key", { label = "new" })
+		local first = factory:create("access_card", { label = "old" })
+		local second = factory:create("access_card", { label = "new" })
 
 		first.attributes.label = "changed"
 		expect(second.attributes.label).to.equal("new")

@@ -1,6 +1,6 @@
 --!strict
 
-local items = require(script.Parent.Parent.Parent.Parent.ReplicatedStorage.Shared.inventory.items)
+local items = require(script.Parent.items)
 
 type ItemAttributes = items.ItemAttributes
 type ItemInstance = items.ItemInstance

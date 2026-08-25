@@ -59,7 +59,7 @@ return function()
 			expect(hasCapability(items.medkit.capabilities, "heal")).to.be.ok()
 			expect(hasCapability(items.handgun.capabilities, "equip")).to.be.ok()
 			expect(hasCapability(items.handgun_ammo.capabilities, "reload-ammo")).to.be.ok()
-			expect(hasCapability(items.iron_key.capabilities, "unlock")).to.be.ok()
+			expect(hasCapability(items.access_card.capabilities, "unlock")).to.be.ok()
 		end)
 	end)
 end
