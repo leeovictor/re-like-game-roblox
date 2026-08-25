@@ -1,5 +1,10 @@
 # Design: Sistema de Objetivos Event-Driven
 
+> **Atualização:** `item_collected` agora é emitido por `PickupInteraction`
+> através de `GameplayEvents`, após confirmação local do `PickupManager`.
+> As referências posteriores a `PickupEventBridge` e `PickupCollected` são
+> históricas e não descrevem o runtime atual.
+
 Data: 2026-08-22  
 Status: Aprovado pelo usuario para especificacao
 
@@ -35,7 +40,7 @@ por tres segundos e um som sera reproduzido uma vez para o lote.
 | Porta sem chave | Publica `door_blocked` |
 | Porta destrancada com chave | Publica `door_unlocked` somente apos sucesso |
 | Entrada por porta aberta | Publica `door_entered` somente apos sucesso |
-| Coleta | `item_collected` vem da confirmacao existente `PickupCollected` |
+| Coleta | `item_collected` vem de `PickupInteraction` após sucesso do `PickupManager` |
 | Identificador de porta | Atributo estavel `DoorKey`, sem fallback para o nome do Model |
 | Lista no inventario | Mostra objetivos da etapa atual, inclusive concluidos com marcacao |
 | Aviso | Um unico aviso por lote de novos objetivos, por tres segundos |
@@ -72,8 +77,8 @@ duplicado sem necessidade para este jogo single-player. Foi rejeitada.
 src/client/events/GameplayEvents.luau
   barramento local de eventos semanticos
 
-src/client/events/PickupEventBridge.luau
-  converte PickupCollected em item_collected
+src/client/pickups/PickupInteraction.luau
+  publica item_collected após a coleta local confirmada
 
 src/client/objectives/ObjectiveConfig.luau
   definicoes editaveis pelo game designer
@@ -92,9 +97,9 @@ src/client/ui/App.luau
 ```
 
 O `DoorController` publicara eventos pelo barramento, mas nao importara o
-`ObjectiveController`. O adaptador de pickup escutara o remoto
-`PickupCollected`, que ja e disparado pelo servidor somente apos uma coleta
-confirmada, e publicara o evento client-side correspondente. O
+`ObjectiveController`. O `PickupInteraction` delegara a coleta ao
+`PickupManager` e publicara o evento client-side correspondente somente após
+sucesso. O
 `ObjectiveController` sera apenas um dos assinantes do barramento; outros
 sistemas poderao assinar os mesmos eventos sem modificar os publishers.
 

@@ -1,5 +1,10 @@
 # Design: Sistema Generico de Interacoes
 
+> **Atualização histórica:** as seções que descrevem `PickupController`,
+> `PickupService` e remotes refletem o design anterior. O fluxo atual usa
+> `PickupInteraction` e `PickupManager` client-side; referências posteriores
+> aos nomes antigos devem ser lidas como histórico.
+
 Data: 2026-08-22  
 Status: Aprovado pelo usuario para especificacao
 

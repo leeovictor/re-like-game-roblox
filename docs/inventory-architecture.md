@@ -1,253 +1,90 @@
 # Arquitetura do Sistema de Inventário
 
-Este documento descreve a arquitetura implementada atualmente em `src/`, sem
-propor alterações de comportamento.
+Este documento descreve a arquitetura client-side implementada atualmente em
+`src/`. O inventário é volátil e existe somente durante a sessão do cliente.
 
 ## Visão Geral
 
-O servidor é a autoridade do inventário. O cliente recebe snapshots somente
-para leitura e envia pedidos de uso por remotes Roblox. O estado é representado
-por instâncias concretas de itens, enquanto o catálogo compartilhado define os
-metadados e as capacidades disponíveis.
+```text
+InventoryController local
+  -> InventoryStore shared
+  -> estado vazio da sessão
 
-```mermaid
-flowchart TB
-    subgraph CLIENT["Cliente · StarterPlayerScripts.Client"]
-        INITC["init.client.luau"]
-        CONTROLLER["InventoryController<br/>estado replicado + Signal"]
-        HOOK["useInventory.luau<br/>hook React"]
-        APP["App.luau<br/>lista do inventário"]
-        NOTIFY["PickupNotificationController<br/>+ usePickupNotification"]
-    end
+PickupManager
+  -> pickups authored
+  -> InventoryController.addInstance
+  -> sinal local collected
 
-    subgraph SHARED["Shared · ReplicatedStorage.Shared"]
-        CATALOG["catalog.luau<br/>ItemDefinition + capacidades"]
-        TYPES["items.luau<br/>ItemInstance + InventoryState v2"]
-        REMOTES["remotes.luau<br/>InventoryChanged · GetInventory<br/>UseItem · PickupCollected"]
-    end
-
-    subgraph SERVER["Servidor · ServerScriptService.Server"]
-        INITS["init.server.luau<br/>composição dos serviços"]
-        INV["InventoryService<br/>estado autoritativo por Player"]
-        STORE["InventoryStore<br/>validação + mutações puras"]
-        FACTORY["ItemInstanceFactory<br/>UID + instâncias validadas"]
-        PICKUP["PickupService<br/>Part + ProximityPrompt"]
-        USE["ItemUseService<br/>validação + lock + coordenação"]
-        REGISTRY["ItemBehaviorRegistry<br/>behaviors por capability"]
-    end
-
-    WORLD["Workspace<br/>Pickups / ProximityPrompt"]
-    GAMEPLAY["Sistemas de gameplay<br/>vida · combate · portas<br/>consumidores externos"]
-
-    INITC --> CONTROLLER
-    INITC --> APP
-    APP --> HOOK
-    HOOK --> CONTROLLER
-
-    CONTROLLER <-->|"GetInventory / InventoryChanged"| REMOTES
-    CONTROLLER -. "UseItem" .-> REMOTES
-    REMOTES -->|"PickupCollected"| NOTIFY
-
-    REMOTES --> INV
-    REMOTES --> USE
-    INITS --> INV
-    INITS --> FACTORY
-    INITS --> REGISTRY
-    INITS --> USE
-    INITS --> PICKUP
-
-    CATALOG --> TYPES
-    CATALOG --> STORE
-    CATALOG --> FACTORY
-    CATALOG --> USE
-    TYPES -. "payloads" .-> REMOTES
-    TYPES --> INV
-    TYPES --> USE
-
-    INV --> STORE
-    WORLD -->|"Triggered(player)"| PICKUP
-    PICKUP -->|"create(itemId, attrs, qty)"| FACTORY
-    PICKUP -->|"addInstance(player, instance)"| INV
-    INV -->|"snapshot novo"| REMOTES
-
-    USE --> REGISTRY
-    USE -->|"find + applyUseMutations"| INV
-    USE -. "effect data" .-> GAMEPLAY
-
-    classDef client fill:#18354a,stroke:#5bb6c9,color:#eef7f8
-    classDef shared fill:#3d3424,stroke:#d6a756,color:#fff7e5
-    classDef server fill:#273d32,stroke:#7ac28b,color:#effbf1
-    classDef external fill:#2d3037,stroke:#9298a3,color:#f0f2f5,stroke-dasharray:5 4
-
-    class INITC,CONTROLLER,HOOK,APP,NOTIFY client
-    class CATALOG,TYPES,REMOTES shared
-    class INITS,INV,STORE,FACTORY,PICKUP,USE,REGISTRY server
-    class WORLD,GAMEPLAY external
+PickupInteraction
+  -> GameplayEvents.item_collected
+  -> ObjectiveController
 ```
+
+`InventoryController` permanece ativo durante respawns e começa vazio em uma
+nova sessão. Não há save, checkpoint ou persistência entre sessões nesta etapa.
 
 ## Componentes
 
-| Componente | Responsabilidade atual |
+| Componente | Responsabilidade |
 | --- | --- |
-| `shared/inventory/catalog.luau` | Catálogo declarativo com nome, categoria, regra de empilhamento e capacidades. |
-| `shared/inventory/items.luau` | Tipos compartilhados de `ItemInstance`, `InventoryState`, pedidos e resultados de uso. |
-| `shared/remotes.luau` | Cria ou reutiliza os remotes em `ReplicatedStorage.Remotes`. |
-| `server/inventory/InventoryStore.luau` | Valida, copia e transforma estados sem mutação compartilhada. |
-| `server/inventory/InventoryService.luau` | Mantém estado volátil por jogador, aplica mutações e replica snapshots. |
-| `server/items/ItemInstanceFactory.luau` | Gera `uid`s e cria instâncias com quantidade e atributos básicos válidos. |
-| `server/items/ItemBehaviorRegistry.luau` | Registra handlers server-side por capability. |
-| `server/items/ItemUseService.luau` | Valida pedidos, encontra a instância compatível, impede uso concorrente e coordena mutações. |
-| `server/pickups/PickupService.luau` | Cria pickups no mundo e transfere instâncias ao inventário após `ProximityPrompt.Triggered`. |
-| `client/inventory/InventoryController.luau` | Mantém a réplica local e expõe o snapshot para a UI. |
-| `client/inventory/useInventory.luau` | Faz a ponte entre o `Signal` do controller e o estado React. |
-| `client/ui/App.luau` | Renderiza a lista de itens e a notificação de coleta. |
+| `shared/inventory/catalog.luau` | Catálogo declarativo, regras de empilhamento e capacidades. |
+| `shared/inventory/items.luau` | Tipos de itens e estado versão 2. |
+| `shared/inventory/InventoryStore.luau` | Validação, cópia profunda e mutações puras. |
+| `shared/inventory/ItemInstanceFactory.luau` | Criação validada de instâncias e UIDs. |
+| `client/inventory/InventoryController.luau` | Estado local da sessão, `addInstance` e sinal `changed`. |
+| `client/pickups/PickupManager.luau` | Registro, validação e coleta de pickups authored. |
+| `client/pickups/PickupInteraction.luau` | Adapta pickups ao `InteractionController` e publica o evento semântico. |
+| `client/pickups/PickupNotificationController.luau` | Converte o sinal local de coleta em estado para a UI. |
+| `client/doors/DoorManager.luau` | Consulta o inventário local para desbloquear portas sem consumir itens. |
+| `client/events/GameplayEvents.luau` | Barramento local de eventos semânticos. |
 
-## Modelo de Dados
+## Pickups Authored
+
+Um pickup válido é uma `BasePart` ou `Model` descendente de `Workspace` com:
+
+```text
+tag: Interactable
+InteractionType: "Pickup"
+ItemId: string não vazia
+Quantity: number opcional
+```
+
+`PickupManager` registra o pickup, cria sua `ItemInstance` uma única vez,
+desabilita `ProximityPrompt`s descendentes e coleta apenas após revalidar a
+configuração e a distância do personagem. A falha de inserção preserva o
+objeto no mapa. Pickups gerados, spawn aleatório e `pendingGenerated` estão
+fora desta migração.
+
+## Eventos E UI
+
+Após `InventoryController.addInstance` retornar sucesso, o manager destrói o
+pickup e emite `collected`. `PickupInteraction` então publica:
 
 ```lua
-type ItemInstance = {
-    uid: string,
-    itemId: string,
-    quantity: number?,
-    attributes: { [string]: string | number | boolean }?,
-}
-
-type InventoryState = {
-    version: number, -- atualmente 2
-    items: { ItemInstance },
-    equipped: { [string]: string }, -- slot -> uid
-}
+GameplayEvents.emit({ name = "item_collected", itemId = itemId })
 ```
 
-O `itemId` aponta para uma definição estática do catálogo. O `uid` identifica
-uma instância concreta, permitindo que duas instâncias do mesmo tipo tenham
-atributos diferentes. Itens empilháveis usam `quantity`.
+O `ObjectiveController` e a notificação assinam fontes locais independentes.
+A UI permanece inalterada, incluindo as ações mock existentes em `App.luau`.
 
-## Fluxos Principais
-
-### 1. Carregamento e sincronização inicial
-
-```mermaid
-sequenceDiagram
-    participant P as Player
-    participant S as InventoryService
-    participant R as Remotes
-    participant C as InventoryController
-    participant UI as App / React
-
-    P->>S: PlayerAdded
-    S->>S: cria estado vazio da sessão
-    S-->>R: InventoryChanged:FireClient(snapshot)
-    S->>P: LoadCharacterAsync
-    C->>R: GetInventory:InvokeServer()
-    R-->>C: snapshot atual
-    C->>UI: changed:Fire(snapshot)
-    UI->>UI: renderiza inventário
-```
-
-Em `PlayerAdded`, `InventoryService` cria um estado vazio da sessão, notifica o
-cliente com o snapshot inicial e carrega o personagem imediatamente depois da
-notificação. Ao sair, o estado do jogador é descartado sem salvamento.
-
-### 2. Coleta de pickup
-
-```mermaid
-sequenceDiagram
-    participant P as Player
-    participant W as Workspace / ProximityPrompt
-    participant PK as PickupService
-    participant F as ItemInstanceFactory
-    participant S as InventoryService
-    participant R as Remotes
-    participant UI as UI
-
-    PK->>F: cria instância authored com uid
-    P->>W: aproxima-se e aciona prompt
-    W->>PK: Triggered(player)
-    PK->>S: addInstance(player, instance)
-    alt coleta aceita
-        S->>S: InventoryStore valida e substitui estado
-        S-->>R: InventoryChanged(snapshot)
-        PK->>W: destrói Part
-        PK-->>R: PickupCollected(itemId)
-        R-->>UI: atualiza lista e notificação
-    else coleta rejeitada
-        S-->>PK: false
-        PK->>W: reabilita prompt e preserva Part
-    end
-```
-
-O cliente não solicita a coleta. A autoridade é o callback server-side do
-`ProximityPrompt`.
-
-### 3. Uso de item
-
-```mermaid
-sequenceDiagram
-    participant UI as UI / sistema cliente
-    participant C as InventoryController
-    participant R as UseItem
-    participant U as ItemUseService
-    participant B as ItemBehaviorRegistry
-    participant S as InventoryService
-    participant G as Gameplay externo
-
-    UI->>C: use(UseRequest)
-    C->>R: InvokeServer(request)
-    R->>U: valida request e contexto
-    U->>B: resolve capability
-    U->>S: find instância compatível
-    U->>B: canUse / use
-    B-->>U: efeito + mutações declaradas
-    U->>S: applyUseMutations atomicamente
-    S-->>U: sucesso ou falha
-    U-->>R: UseResult
-    R-->>C: UseResult
-    U-.->G: sistemas concretos aplicam efeitos de domínio
-```
-
-`ItemUseService` mantém um lock por jogador, revalida a instância e só aplica
-as mutações depois que o behavior retorna dados de resultado. O payload do
-cliente não define valores de efeito.
-
-### 4. Estado de sessão
-
-O inventário existe somente na memória do servidor durante a sessão atual.
-`InventoryService` cria um estado vazio para cada jogador ao entrar, mantém o
-estado autoritativo e o remove em `PlayerRemoving`. O estado é descartado quando
-o jogador sai ou quando o servidor reinicia; não há carregamento ou salvamento
-entre sessões.
-
-## Autoridade e Limites
-
-- O estado autoritativo fica privado dentro de `InventoryService`.
-- `InventoryStore` não depende de APIs Roblox e opera como lógica pura.
-- O cliente não altera o inventário diretamente.
-- `InventoryChanged` representa snapshots replicados; `PickupCollected`
-  representa o evento transitório da coleta.
-- O catálogo não contém funções nem comportamentos executáveis.
-- Behaviors concretos de vida, combate, portas e outros domínios são externos ao
-  núcleo do inventário.
-
-## Localização no Projeto
+## Localização
 
 ```text
 src/shared/inventory/catalog.luau
 src/shared/inventory/items.luau
-src/shared/remotes.luau
+src/shared/inventory/InventoryStore.luau
+src/shared/inventory/ItemInstanceFactory.luau
 
-src/server/init.server.luau
-src/server/inventory/InventoryStore.luau
-src/server/inventory/InventoryService.luau
-src/server/items/ItemInstanceFactory.luau
-src/server/items/ItemBehaviorRegistry.luau
-src/server/items/ItemUseService.luau
-src/server/pickups/PickupService.luau
-
-src/client/init.client.luau
 src/client/inventory/InventoryController.luau
 src/client/inventory/useInventory.luau
+src/client/pickups/PickupManager.luau
+src/client/pickups/PickupInteraction.luau
 src/client/pickups/PickupNotificationController.luau
 src/client/pickups/usePickupNotification.luau
+src/client/events/GameplayEvents.luau
 src/client/ui/App.luau
 ```
+
+O servidor mantém somente serviços ainda necessários, como
+`CharacterLightService`; não há runtime server-side de inventário, uso ou
+coleta de pickups.

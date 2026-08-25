@@ -1,5 +1,8 @@
 # Pickup Interaction Migration Implementation Plan
 
+> **Superseded:** este plano descreve a migração server-authoritative anterior.
+> O fluxo atual está definido em `2026-08-24-client-inventory-pickups-design.md`.
+
 > **For agentic workers:** Use the implementation workflow selected by the user. Steps use checkbox (`- [ ]`) syntax for tracking. Do not create commits; the user explicitly requested that this worktree remain uncommitted.
 
 **Goal:** Migrar pickups authored e pickups gerados para o contrato comum, substituir `ProximityPrompt` por `F` e manter a coleta server-authoritative atraves de `CollectPickup`.

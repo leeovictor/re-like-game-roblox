@@ -1,5 +1,9 @@
 # Design: Pickup de Itens no Inventario
 
+> **Historico:** este design descreve a autoridade server-side original. Foi
+> supersedido por `2026-08-24-client-inventory-pickups-design.md`; o runtime
+> atual usa `InventoryController` e `PickupManager` no cliente.
+
 Data: 2026-08-17  
 Status: Aprovado pelo usuario para especificacao
 
