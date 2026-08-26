@@ -23,6 +23,9 @@ export type MovementController = {
 	setLookVector: (self: MovementController, lookVector: Vector3) -> (),
 	setCFrame: (self: MovementController, cframe: CFrame) -> (),
 }
+export type EnemyContext = {
+	enemy: Enemy,
+}
 
 export type Enemy = {
 	model: Model,
@@ -40,7 +43,7 @@ export type Enemy = {
 	destroyed: boolean,
 	update: (self: Enemy, deltaTime: number) -> (),
 	destroy: (self: Enemy) -> (),
-	currentState: EnemyState,
+	currentState: StateObject<EnemyContext>,
 	detectionRadius: number,
 	attackTriggerDistance: number,
 	ellapsedAttackTime: number,
@@ -63,9 +66,14 @@ export type Enemy = {
 	playerAttackOwner: boolean,
 }
 
-export type EnemyState = {
-	name: string,
-	update: (self: Enemy, deltaTime: number) -> State?,
+export type StateMachine<C> = {
+	states: { [string]: StateObject<C> }
+}
+
+export type StateObject<C> = {
+	update: (context: C, deltaTime: number) -> string?,
+	onBegin: (context: C) -> ()?,
+	onEnd: (context: C) -> ()?,
 }
 
 local playerAttackInProgress = false
@@ -141,13 +149,14 @@ local function updateChaseMovement(self: Enemy, root: BasePart, humanoid: Humano
 	root.AssemblyAngularVelocity = Vector3.zero
 end
 
-local idleState: EnemyState = {
-	name = 'idle',
-	update = function (self: Enemy, dt: number)
+local IdleState: StateObject<EnemyContext> = {
+	update = function (context, dt: number)
 		local playerRoot = CharacterRoot.get()
-		local root = self.root
+		local enemyRoot = context.enemy.root
 
-		if playerRoot == nil or root == nil or (playerRoot.Position - root.Position).Magnitude > self.detectionRadius then
+		if 	playerRoot == nil
+			or enemyRoot == nil
+			or (playerRoot.Position - enemyRoot.Position).Magnitude > context.enemy.detectionRadius then
 			return
 		end
 
@@ -155,62 +164,61 @@ local idleState: EnemyState = {
 	end
 }
 
-local chasingState: EnemyState = {
-	name = 'chasing',
-	update = function (self: Enemy, dt: number)
-		self.pathElapsed += dt
+local ChasingState: StateObject<EnemyContext> = {
+	update = function (context, dt: number)
+		context.enemy.pathElapsed += dt
 		local playerRoot = CharacterRoot.get()
-		local root = self.root
-		local path = self.path
+		local root = context.enemy.root
+		local path = context.enemy.path
 		
 		if root == nil or path == nil or playerRoot == nil then
 			return 'idle'
 		end
 
-		if (playerRoot.Position - root.Position).Magnitude <= self.attackTriggerDistance then
-			self.attackTriggerDistance = getAttackTriggerDistance()
-			self.pathElapsed = 0;
+		if (playerRoot.Position - root.Position).Magnitude <= context.enemy.attackTriggerDistance then
+			context.enemy.attackTriggerDistance = getAttackTriggerDistance()
+			context.enemy.pathElapsed = 0;
 			return 'try_attack';
 		end
-		local humanoid = self.humanoid
+		local humanoid = context.enemy.humanoid
 		if humanoid == nil then
 			return 'idle'
 		end
 
-		if self.pathElapsed >= PATH_RECOMPUTE_INTERVAL then
-			self.pathElapsed = 0
+		if context.enemy.pathElapsed >= PATH_RECOMPUTE_INTERVAL then
+			context.enemy.pathElapsed = 0
 			local ok, errorMessage = pcall(function()
 				path:ComputeAsync(root.Position, playerRoot.Position)
 			end)
 
 			if not ok then
-				failPath(self, ("ComputeAsync failed: %s"):format(tostring(errorMessage)))
+				failPath(context.enemy, ("ComputeAsync failed: %s"):format(tostring(errorMessage)))
 				return 'idle'
 			end
 
 			if path.Status ~= Enum.PathStatus.Success then
-				failPath(self, ("Pathfinding failed with status: %s"):format(path.Status.Name))
+				failPath(context.enemy, ("Pathfinding failed with status: %s"):format(path.Status.Name))
 				return 'idle'
 			end
 
 			local waypoints = path:GetWaypoints()
 			for _, waypoint in waypoints do
 				if waypoint.Action == Enum.PathWaypointAction.Jump then
-					failPath(self, "jump waypoint is unsupported")
+					failPath(context.enemy, "jump waypoint is unsupported")
 					return
 				end
 			end
 
 			if #waypoints < 2 then
-				failPath(self, "no usable waypoint")
+				failPath(context.enemy, "no usable waypoint")
 				return
 			end
 
-			self.chaseWaypoints = waypoints
-			self.chaseWaypointIndex = 2
+			context.enemy.chaseWaypoints = waypoints
+			context.enemy.chaseWaypointIndex = 2
 		end
 
-		updateChaseMovement(self, root, humanoid, playerRoot, dt)
+		updateChaseMovement(context.enemy, root, humanoid, playerRoot, dt)
 		return
 	end
 }
@@ -268,24 +276,25 @@ local function getAttackOrientations(
 	return enemyTargetCFrame, playerTargetCFrame
 end
 
-local tryAttack: EnemyState = {
-	name = 'try_attack',
-	update = function (self: Enemy, dt: number)
-		if not self.humanoid then
+local tryAttack: StateObject<EnemyContext> = {
+	update = function (context, dt: number)
+		local enemy = context.enemy
+		
+		if not enemy.humanoid then
 			return 'idle'
 		end
 
 		local playerRoot = CharacterRoot.get()
-		local root = self.root
+		local root = enemy.root
 
 		if not playerRoot or not root then
 			return 'idle'
 		end
 		
-		if not self.attackSetup then
-			self.realAttackTime = getAttackTime()
-			self.oldSpeed = self.humanoid.WalkSpeed
-			self.humanoid.WalkSpeed = ATTACK_INITIAL_SPEED
+		if not enemy.attackSetup then
+			enemy.realAttackTime = getAttackTime()
+			enemy.oldSpeed = enemy.humanoid.WalkSpeed
+			enemy.humanoid.WalkSpeed = ATTACK_INITIAL_SPEED
 			local attackDirection = (playerRoot.Position - root.Position).Unit
 			local attackAngle = math.rad(math.random(ATTACK_DIRECTION_MIN_ANGLE, ATTACK_DIRECTION_MAX_ANGLE))
 			local attackDirectionSign = if math.random(0, 1) == 0 then -1 else 1
@@ -308,38 +317,38 @@ local tryAttack: EnemyState = {
 			attackAngle *= attackDirectionSign
 			print('attack angle', attackAngle)
 			local attackMovementDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
-			self.attackDirection = horizontalUnit(attackMovementDirection, root.CFrame.LookVector)
-			self.debugHitbox = if debugEnabled then createDebugHitbox() else nil
+			enemy.attackDirection = horizontalUnit(attackMovementDirection, root.CFrame.LookVector)
+			enemy.debugHitbox = if debugEnabled then createDebugHitbox() else nil
 			
-			self.attackSetup = true
+			enemy.attackSetup = true
 		end
 		
-		self.ellapsedAttackTime += dt
-		local attackTime = self.realAttackTime :: number
-		local attackDirection = self.attackDirection
+		enemy.ellapsedAttackTime += dt
+		local attackTime = enemy.realAttackTime :: number
+		local attackDirection = enemy.attackDirection
 		if attackDirection == nil then
 			return 'idle'
 		end
 		local currentDirection = horizontalUnit(root.CFrame.LookVector, attackDirection)
 		local blend = 1 - math.exp(-TRY_ATTACK_TURN_SPEED * dt)
 		local movementDirection = horizontalUnit(currentDirection:Lerp(attackDirection, blend), attackDirection)
-		self.humanoid:Move(movementDirection, false)
+		enemy.humanoid:Move(movementDirection, false)
 		root.CFrame = CFrame.lookAt(root.Position, root.Position + movementDirection)
-		local attackProgress = math.clamp(self.ellapsedAttackTime / attackTime, 0, 1)
+		local attackProgress = math.clamp(enemy.ellapsedAttackTime / attackTime, 0, 1)
 		if attackProgress <= ATTACK_ACCELERATION_RATIO then
 			local accelerationProgress = attackProgress / ATTACK_ACCELERATION_RATIO
-			self.humanoid.WalkSpeed = ATTACK_INITIAL_SPEED
+			enemy.humanoid.WalkSpeed = ATTACK_INITIAL_SPEED
 				+ (ATTACK_PEAK_SPEED - ATTACK_INITIAL_SPEED) * accelerationProgress
 		else
 			local decelerationProgress = (attackProgress - ATTACK_ACCELERATION_RATIO)
 				/ (1 - ATTACK_ACCELERATION_RATIO)
-			self.humanoid.WalkSpeed = ATTACK_PEAK_SPEED
+			enemy.humanoid.WalkSpeed = ATTACK_PEAK_SPEED
 				+ (ATTACK_END_SPEED - ATTACK_PEAK_SPEED) * decelerationProgress
 		end
 		
 		-- check for player collision with the hitbox
-		if self.debugHitbox ~= nil then
-			self.debugHitbox.CFrame = root.CFrame * hitBox.rootOffset
+		if enemy.debugHitbox ~= nil then
+			enemy.debugHitbox.CFrame = root.CFrame * hitBox.rootOffset
 		end
 		
 		local params = OverlapParams.new()
@@ -349,8 +358,8 @@ local tryAttack: EnemyState = {
 		end
 		params.IncludeInstances = { playerCharacter }
 		local result = workspace:GetPartBoundsInBox(root.CFrame * hitBox.rootOffset, hitBox.size, params)
-		if #result > 0 and not self.attackEffectResolved then
-			self.attackEffectResolved = true
+		if #result > 0 and not enemy.attackEffectResolved then
+			enemy.attackEffectResolved = true
 			if not canStartPlayerAttack() then
 				print('player attack blocked')
 				return
@@ -361,40 +370,40 @@ local tryAttack: EnemyState = {
 			end
 			print('player attacked')
 
-			self.ellapsedAttackTime = 0
-			self.attackSetup = false
-			self.realAttackTime = nil
-			self.attackDirection = nil
-			self.humanoid.WalkSpeed = self.oldSpeed :: number
-			self.humanoid:Move(Vector3.zero, false)
-			if self.debugHitbox ~= nil then
-				self.debugHitbox:Destroy()
-				self.debugHitbox = nil
+			enemy.ellapsedAttackTime = 0
+			enemy.attackSetup = false
+			enemy.realAttackTime = nil
+			enemy.attackDirection = nil
+			enemy.humanoid.WalkSpeed = enemy.oldSpeed :: number
+			enemy.humanoid:Move(Vector3.zero, false)
+			if enemy.debugHitbox ~= nil then
+				enemy.debugHitbox:Destroy()
+				enemy.debugHitbox = nil
 			end
-			self.attackEffectResolved = false
-			self.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass('Humanoid')
-			self.movementLockRelease = self.movementController:acquireMovementLock()
-			self.attackingEnemyStartCFrame = root.CFrame
-			self.attackingPlayerStartCFrame = playerRoot.CFrame
-			self.attackingEnemyTargetCFrame, self.attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
-			self.movementController:setLookVector(playerRoot.CFrame.LookVector)
-			self.playerAttackOwner = true
+			enemy.attackEffectResolved = false
+			enemy.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass('Humanoid')
+			enemy.movementLockRelease = enemy.movementController:acquireMovementLock()
+			enemy.attackingEnemyStartCFrame = root.CFrame
+			enemy.attackingPlayerStartCFrame = playerRoot.CFrame
+			enemy.attackingEnemyTargetCFrame, enemy.attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
+			enemy.movementController:setLookVector(playerRoot.CFrame.LookVector)
+			enemy.playerAttackOwner = true
 			playerAttackInProgress = true
 			return 'attacking'
 		end
 		
-		if self.ellapsedAttackTime >= attackTime then
-			self.ellapsedAttackTime = 0
-			self.attackSetup = false
-			self.realAttackTime = nil
-			self.attackDirection = nil
-			self.humanoid.WalkSpeed = self.oldSpeed :: number
-			self.humanoid:Move(Vector3.zero, false)
-			if self.debugHitbox ~= nil then
-				self.debugHitbox:Destroy()
-				self.debugHitbox = nil
+		if enemy.ellapsedAttackTime >= attackTime then
+			enemy.ellapsedAttackTime = 0
+			enemy.attackSetup = false
+			enemy.realAttackTime = nil
+			enemy.attackDirection = nil
+			enemy.humanoid.WalkSpeed = enemy.oldSpeed :: number
+			enemy.humanoid:Move(Vector3.zero, false)
+			if enemy.debugHitbox ~= nil then
+				enemy.debugHitbox:Destroy()
+				enemy.debugHitbox = nil
 			end
-			self.attackEffectResolved = false
+			enemy.attackEffectResolved = false
 			return 'stunned'
 		end
 		
@@ -412,21 +421,22 @@ local function getStunTime(): number
 	return STUN_TIME_MIN + math.random() * (STUN_TIME_MAX - STUN_TIME_MIN)
 end
 
-local stunned: EnemyState = {
-	name = 'stunned',
-	update = function (self: Enemy, dt: number)
-		if not self.realStunTime then
-			self.realStunTime = getStunTime()
+local Stunned: StateObject<EnemyContext> = {
+	update = function (context, dt: number)
+		local enemy = context.enemy
+		
+		if not enemy.realStunTime then
+			enemy.realStunTime = getStunTime()
 		end
 	
-		if self.humanoid ~= nil and self.humanoid.MoveDirection ~= Vector3.zero then
-			self.humanoid:Move(Vector3.zero, false)
+		if enemy.humanoid ~= nil and enemy.humanoid.MoveDirection ~= Vector3.zero then
+			enemy.humanoid:Move(Vector3.zero, false)
 		end
 		
-		self.ellapsedStuntime += dt
-		if self.ellapsedStuntime >= (self.realStunTime :: number) then
-			self.ellapsedStuntime = 0;
-			self.realStunTime = nil
+		enemy.ellapsedStuntime += dt
+		if enemy.ellapsedStuntime >= (enemy.realStunTime :: number) then
+			enemy.ellapsedStuntime = 0;
+			enemy.realStunTime = nil
 			return "chasing"
 		end
 		
@@ -434,59 +444,59 @@ local stunned: EnemyState = {
 	end
 }
 
-local attacking: EnemyState = {
-	name = 'attacking',
-	update = function (self: Enemy, dt: number)
-		if self.movementLockRelease == nil then
-			self.movementLockRelease = self.movementController:acquireMovementLock()
+local attacking: StateObject<EnemyContext> = {
+	update = function (context, dt: number)
+		local enemy = context.enemy
+		if enemy.movementLockRelease == nil then
+			enemy.movementLockRelease = enemy.movementController:acquireMovementLock()
 		end
 
-		self.ellapsedAttackingTime += dt
-		local turnProgress = math.clamp(self.ellapsedAttackingTime / ATTACKING_TURN_TIME, 0, 1)
-		local enemyRoot = self.root
-		local enemyStartCFrame = self.attackingEnemyStartCFrame
-		local enemyTargetCFrame = self.attackingEnemyTargetCFrame
-		local playerStartCFrame = self.attackingPlayerStartCFrame
-		local playerTargetCFrame = self.attackingPlayerTargetCFrame
+		enemy.ellapsedAttackingTime += dt
+		local turnProgress = math.clamp(enemy.ellapsedAttackingTime / ATTACKING_TURN_TIME, 0, 1)
+		local enemyRoot = enemy.root
+		local enemyStartCFrame = enemy.attackingEnemyStartCFrame
+		local enemyTargetCFrame = enemy.attackingEnemyTargetCFrame
+		local playerStartCFrame = enemy.attackingPlayerStartCFrame
+		local playerTargetCFrame = enemy.attackingPlayerTargetCFrame
 		if enemyRoot ~= nil and enemyStartCFrame ~= nil and enemyTargetCFrame ~= nil then
 			local interpolatedCFrame = enemyStartCFrame:Lerp(enemyTargetCFrame, turnProgress)
 			enemyRoot.CFrame = CFrame.new(enemyRoot.Position) * (interpolatedCFrame - interpolatedCFrame.Position)
 		end
 		if playerStartCFrame ~= nil and playerTargetCFrame ~= nil then
 			local interpolatedCFrame = playerStartCFrame:Lerp(playerTargetCFrame, turnProgress)
-			self.movementController:setCFrame(interpolatedCFrame)
+			enemy.movementController:setCFrame(interpolatedCFrame)
 		end
 
-		if self.ellapsedAttackingTime < ATTACKING_TIME then
+		if enemy.ellapsedAttackingTime < ATTACKING_TIME then
 			return
 		end
 
-		if self.attackTargetHumanoid ~= nil then
-			self.attackTargetHumanoid:TakeDamage(ATTACKING_DAMAGE)
+		if enemy.attackTargetHumanoid ~= nil then
+			enemy.attackTargetHumanoid:TakeDamage(ATTACKING_DAMAGE)
 		end
-		self.playerAttackOwner = false
+		enemy.playerAttackOwner = false
 		playerAttackInProgress = false
 		playerInvulnerableUntil = os.clock() + PLAYER_INVULNERABILITY_TIME
-		if self.movementLockRelease ~= nil then
-			self.movementLockRelease()
-			self.movementLockRelease = nil
+		if enemy.movementLockRelease ~= nil then
+			enemy.movementLockRelease()
+			enemy.movementLockRelease = nil
 		end
-		self.ellapsedAttackingTime = 0
-		self.attackTargetHumanoid = nil
-		self.attackingEnemyStartCFrame = nil
-		self.attackingEnemyTargetCFrame = nil
-		self.attackingPlayerStartCFrame = nil
-		self.attackingPlayerTargetCFrame = nil
+		enemy.ellapsedAttackingTime = 0
+		enemy.attackTargetHumanoid = nil
+		enemy.attackingEnemyStartCFrame = nil
+		enemy.attackingEnemyTargetCFrame = nil
+		enemy.attackingPlayerStartCFrame = nil
+		enemy.attackingPlayerTargetCFrame = nil
 		return 'stunned'
 	end,
 }
 
 local states = {
-	['idle'] = idleState,
-	['chasing'] = chasingState,
+	['idle'] = IdleState,
+	['chasing'] = ChasingState,
 	['try_attack'] = tryAttack,
 	['attacking'] = attacking,
-	['stunned'] = stunned
+	['stunned'] = Stunned
 }
 
 local Enemy = {}
@@ -539,7 +549,7 @@ function Enemy.new(model: Model, movementController: MovementController): Enemy
 	return (self :: any) :: Enemy
 end
 
-function Enemy.update(self: Enemy, deltaTime: number): ()
+function Enemy.update(self: Enemy, dt: number): ()
 	if self.destroyed then
 		return
 	end
@@ -553,7 +563,9 @@ function Enemy.update(self: Enemy, deltaTime: number): ()
 		return
 	end
 
-	local newState: State? = self.currentState.update(self, deltaTime)
+	local context = { enemy = self }
+
+	local newState: string? = self.currentState.update(context, dt)
 	if not newState then
 		return
 	end
@@ -562,9 +574,21 @@ function Enemy.update(self: Enemy, deltaTime: number): ()
 		warn('invalid state: ', newState)
 		return;
 	end
+
+	if self.currentState == states[newState] then
+		warn('trying transition to state equal to previous state')
+		return
+	end
+
+	if self.currentState.onEnd then
+		self.currentState.onEnd(context)
+	end
 	
-	print('new state', newState)
 	self.currentState = states[newState]
+
+	if self.currentState.onBegin then
+		self.currentState.onBegin(context)
+	end
 end
 
 function Enemy.destroy(self: Enemy): ()
