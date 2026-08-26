@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local EnemyModule = require(script.Parent.Enemy)
+local TankController = require(script.Parent.Parent.player.TankController)
 
 export type EnemyController = {
 	started: boolean,
@@ -21,17 +22,23 @@ type MarkerProperties = {
 
 type ControllerState = EnemyController & {
 	markerProperties: { [BasePart]: MarkerProperties },
+	movement: TankController.MovementController,
+}
+
+export type Dependencies = {
+	movement: TankController.MovementController,
 }
 
 local EnemyController = {}
 EnemyController.__index = EnemyController
 
-function EnemyController.new(): EnemyController
+function EnemyController.new(dependencies: Dependencies): EnemyController
 	local self = setmetatable({
 		started = false,
 		enemies = {},
 		heartbeatConnection = nil,
 		markerProperties = {},
+		movement = dependencies.movement,
 	}, EnemyController)
 	return (self :: any) :: EnemyController
 end
@@ -111,7 +118,7 @@ function EnemyController.start(self: EnemyController): ()
 					clone.Name = "Enemy_" .. child.Name
 					clone.Parent = enemiesFolder
 
-					local enemy = EnemyModule.new(clone)
+					local enemy = EnemyModule.new(clone, state.movement)
 					table.insert(state.enemies, enemy)
 				end
 			end

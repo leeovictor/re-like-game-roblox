@@ -40,7 +40,9 @@ CameraVisibility.hide(cameraSystem)
 cameraController:start()
 local tankController = TankController.new()
 tankController:start()
-local enemyController = EnemyController.new()
+local enemyController = EnemyController.new({
+	movement = tankController,
+})
 enemyController:start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()

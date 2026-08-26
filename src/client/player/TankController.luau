@@ -65,10 +65,14 @@ export type TankController = {
 	start: (self: TankController) -> (),
 	stop: (self: TankController) -> (),
 	acquireMovementLock: (self: TankController) -> (() -> ()),
+	setLookVector: (self: TankController, lookVector: Vector3) -> (),
+	setCFrame: (self: TankController, cframe: CFrame) -> (),
 }
 
 export type MovementController = {
 	acquireMovementLock: (self: MovementController) -> (() -> ()),
+	setLookVector: (self: MovementController, lookVector: Vector3) -> (),
+	setCFrame: (self: MovementController, cframe: CFrame) -> (),
 }
 
 local TankController = {}
@@ -347,6 +351,34 @@ function TankController.acquireMovementLock(self: TankController): () -> ()
 
 		self.movementLockCount -= 1
 		syncInput(self)
+	end
+end
+
+function TankController.setLookVector(self: TankController, lookVector: Vector3): ()
+	local horizontalLookVector = Vector3.new(lookVector.X, 0, lookVector.Z)
+	if horizontalLookVector.Magnitude == 0 then
+		return
+	end
+
+	local controlledLookVector: Vector3 = horizontalLookVector.Unit
+	self.controlledLookVector = controlledLookVector
+	local character = Players.LocalPlayer.Character
+	local rootPart = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
+	if rootPart ~= nil and rootPart:IsA("BasePart") then
+		rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + controlledLookVector)
+	end
+end
+
+function TankController.setCFrame(self: TankController, cframe: CFrame): ()
+	local horizontalLookVector = Vector3.new(cframe.LookVector.X, 0, cframe.LookVector.Z)
+	if horizontalLookVector.Magnitude > 0 then
+		self.controlledLookVector = horizontalLookVector.Unit
+	end
+
+	local character = Players.LocalPlayer.Character
+	local rootPart = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
+	if rootPart ~= nil and rootPart:IsA("BasePart") then
+		rootPart.CFrame = cframe
 	end
 end
 

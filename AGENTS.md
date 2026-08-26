@@ -28,6 +28,12 @@ rojo build -o /tmp/camera-system-plugin.rbxmx plugin.project.json
 mv /tmp/camera-system-plugin.rbxmx /mnt/c/Users/leona/AppData/Local/Roblox/Plugins/camera-system-plugin.rbxmx
 ```
 
+## Git e Commits
+
+- Nao faca commits ao escrever uma spec ou um plano de implementacao.
+- Nao faca commits ao implementar qualquer plano.
+- So faca commit quando o usuario solicitar explicitamente.
+
 ## Verificacao
 
 - Execute Play limpo pelo MCP. `TestEZAutoServer` e `TestEZAutoClient` executam automaticamente as suites server e client ao iniciar o Play. O criterio de sucesso e `failed == 0` nos dois resultados; use Output apenas para detalhes.
