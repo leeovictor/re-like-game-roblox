@@ -4,12 +4,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local EnemyModule = require(script.Parent.Enemy)
+local Enemy = require(script.Parent.Enemy)
 local TankController = require(script.Parent.Parent.player.TankController)
+local types = require(script.Parent.types)
 
 export type EnemyController = {
 	started: boolean,
-	enemies: { EnemyModule.Enemy },
+	enemies: { types.Enemy },
 	heartbeatConnection: RBXScriptConnection?,
 	start: (self: EnemyController) -> (),
 	stop: (self: EnemyController) -> (),
@@ -118,7 +119,7 @@ function EnemyController.start(self: EnemyController): ()
 					clone.Name = "Enemy_" .. child.Name
 					clone.Parent = enemiesFolder
 
-					local enemy = EnemyModule.new(clone, state.movement)
+					local enemy = Enemy.new(clone, state.movement)
 					table.insert(state.enemies, enemy)
 				end
 			end
