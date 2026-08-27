@@ -6,6 +6,7 @@ local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
 local CameraController = require(script.camera.CameraController)
 local CameraVisibility = require(script.camera.CameraVisibility)
 local CinematicController = require(script.cinematics.CinematicController)
+local MachineRoomCinematicController = require(script.cinematics.MachineRoomCinematicController)
 local CinematicSoundPlayer = require(script.cinematics.CinematicSoundPlayer)
 local DialogueController = require(script.dialogue.DialogueController)
 local DialogueInteractionController = require(script.dialogue.DialogueInteractionController)
@@ -52,7 +53,7 @@ local dialogueController = DialogueController.new({
 })
 dialogueController:start()
 
-local _cinematicController = CinematicController.new({
+local cinematicController = CinematicController.new({
 	camera = cameraController,
 	movement = tankController,
 	sound = cinematicSoundPlayer,
@@ -70,6 +71,11 @@ local interactionController = InteractionController.new(nil, nil)
 FootstepController.start()
 
 InventoryController.start()
+local machineRoomCinematicController = MachineRoomCinematicController.new({
+	cinematic = cinematicController,
+	inventory = InventoryController,
+})
+machineRoomCinematicController:start()
 local factory = ItemInstanceFactory.new()
 local pickupManager = PickupManager.new({
 	inventory = InventoryController,
@@ -103,4 +109,5 @@ local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)
 root:render(React.createElement(App, {
 	dialogueController = dialogueController,
+	cinematicController = cinematicController,
 }))

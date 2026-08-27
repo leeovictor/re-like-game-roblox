@@ -1,6 +1,9 @@
 local CameraController = require(script.Parent.Parent.camera.CameraController)
 local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
 local TankController = require(script.Parent.Parent.player.TankController)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ModelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 export type SetCameraShotEffect = {
 	name: "set-camera-shot",
@@ -16,7 +19,15 @@ export type PlaySoundEffect = {
 	},
 }
 
-export type Effect = SetCameraShotEffect | PlaySoundEffect
+export type SetModelProfileEffect = {
+	name: "set-model-profile",
+	attributes: {
+		model: string,
+		profile: string,
+	},
+}
+
+export type Effect = SetCameraShotEffect | PlaySoundEffect | SetModelProfileEffect
 
 export type TimelineStep = {
 	frame: number,
@@ -26,6 +37,18 @@ export type TimelineStep = {
 
 export type Timeline = { TimelineStep }
 
+type SignalConnection = {
+	Disconnect: (self: SignalConnection) -> (),
+}
+
+export type PlayingChangedSignal = {
+	Fire: (self: PlayingChangedSignal, playing: boolean) -> (),
+	Connect: (
+		self: PlayingChangedSignal,
+		callback: (playing: boolean) -> ()
+	) -> SignalConnection,
+}
+
 export type Dependencies = {
 	camera: CameraController.CameraController,
 	movement: TankController.MovementController,
@@ -34,8 +57,9 @@ export type Dependencies = {
 
 type State = "idle" | "preloading" | "playing"
 
-type Controller = {
+export type Controller = {
 	dependencies: Dependencies,
+	playingChanged: PlayingChangedSignal,
 	state: State,
 	generation: number,
 	nextExecutionId: number,
@@ -61,6 +85,25 @@ local function unknownField(value: any, allowed: { [string]: boolean }): string?
 		end
 	end
 	return nil
+end
+
+local function resolveWorkspaceModel(path: string): Model?
+	if string.match(path, "^%.") ~= nil
+		or string.match(path, "%.$") ~= nil
+		or string.match(path, "%.%.") ~= nil
+	then
+		return nil
+	end
+
+	local current: Instance = workspace
+	for segment in string.gmatch(path, "[^%.]+") do
+		local child = current:FindFirstChild(segment)
+		if child == nil then
+			return nil
+		end
+		current = child
+	end
+	return if current:IsA("Model") then current else nil
 end
 
 local function contiguousLength(value: any): (number?, string?)
@@ -141,6 +184,25 @@ local function validateEffect(
 		return {
 			name = "play-sound",
 			attributes = { soundId = value.attributes.soundId },
+		}, nil
+	elseif value.name == "set-model-profile" then
+		field = unknownField(value.attributes, { model = true, profile = true })
+		if field ~= nil then
+			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
+		end
+		if type(value.attributes.model) ~= "string" or value.attributes.model == "" then
+			return nil, string.format("effects[%d].attributes.model must be a non-empty string", index)
+		end
+		if type(value.attributes.profile) ~= "string" or value.attributes.profile == "" then
+			return nil, string.format("effects[%d].attributes.profile must be a non-empty string", index)
+		end
+
+		return {
+			name = "set-model-profile",
+			attributes = {
+				model = value.attributes.model,
+				profile = value.attributes.profile,
+			},
 		}, nil
 	end
 
@@ -261,12 +323,25 @@ local function stopSound(self: Controller, executionId: number): ()
 	end
 end
 
+local function firePlayingChanged(self: Controller, playing: boolean): ()
+	local ok, errorMessage = pcall(function()
+		self.playingChanged:Fire(playing)
+	end)
+	if not ok then
+		warn("CinematicController playingChanged failed: " .. tostring(errorMessage))
+	end
+end
+
 local function finishNormally(self: Controller, executionId: number, release: (() -> ())): ()
 	if self.currentExecutionId ~= executionId then
 		return
 	end
+	local wasPlaying = self.state == "playing"
 	self.state = "idle"
 	self.currentExecutionId = nil
+	if wasPlaying then
+		firePlayingChanged(self, false)
+	end
 	clearCamera(self)
 	releaseMovement(self, release)
 end
@@ -275,8 +350,12 @@ local function finishInterrupted(self: Controller, executionId: number, release:
 	if self.currentExecutionId ~= executionId then
 		return
 	end
+	local wasPlaying = self.state == "playing"
 	self.state = "idle"
 	self.currentExecutionId = nil
+	if wasPlaying then
+		firePlayingChanged(self, false)
+	end
 	stopSound(self, executionId)
 	clearCamera(self)
 	releaseMovement(self, release)
@@ -286,8 +365,12 @@ local function finishWithoutEffects(self: Controller, executionId: number): ()
 	if self.currentExecutionId ~= executionId then
 		return
 	end
+	local wasPlaying = self.state == "playing"
 	self.state = "idle"
 	self.currentExecutionId = nil
+	if wasPlaying then
+		firePlayingChanged(self, false)
+	end
 	stopSound(self, executionId)
 	clearCamera(self)
 end
@@ -307,9 +390,30 @@ local function handlePlaySound(self: Controller, effect: Effect, executionId: nu
 	return true
 end
 
+local function handleSetModelProfile(_self: Controller, effect: Effect, _executionId: number): boolean
+	if effect.name ~= "set-model-profile" then
+		return false
+	end
+
+	local model = resolveWorkspaceModel(effect.attributes.model)
+	if model == nil then
+		warn("CinematicController model path did not resolve to a Model: " .. effect.attributes.model)
+		return false
+	end
+
+	local result = ModelProfiles.setProfile(model, effect.attributes.profile)
+	if not result.success then
+		local firstError = result.errors[1]
+		warn("CinematicController model profile failed: " .. (if firstError ~= nil then firstError.message else "unknown error"))
+		return false
+	end
+	return true
+end
+
 local effectHandlers: { [string]: (self: Controller, effect: Effect, executionId: number) -> boolean } = {
 	["set-camera-shot"] = handleSetCameraShot,
 	["play-sound"] = handlePlaySound,
+	["set-model-profile"] = handleSetModelProfile,
 }
 
 local function executeEffect(self: Controller, effect: Effect, executionId: number): boolean
@@ -370,6 +474,7 @@ local function runExecution(
 
 	self.movementRelease = release
 	self.state = "playing"
+	firePlayingChanged(self, true)
 
 	for _, step in timeline do
 		if not ensureCurrentGeneration(self, executionId, generation) then
@@ -461,6 +566,7 @@ end
 
 function CinematicController.stop(self: Controller): ()
 	self.generation += 1
+	local wasPlaying = self.state == "playing"
 	local executionId = self.currentExecutionId
 	local release = self.movementRelease
 	self.movementRelease = nil
@@ -469,6 +575,9 @@ function CinematicController.stop(self: Controller): ()
 
 	if executionId ~= nil then
 		stopSound(self, executionId)
+	end
+	if wasPlaying then
+		firePlayingChanged(self, false)
 	end
 	clearCamera(self)
 	if release ~= nil then
@@ -486,6 +595,7 @@ end
 function CinematicController.new(dependencies: Dependencies): Controller
 	local self = setmetatable({
 		dependencies = dependencies,
+		playingChanged = (Signal.new() :: any) :: PlayingChangedSignal,
 		state = "idle",
 		generation = 0,
 		nextExecutionId = 0,

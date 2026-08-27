@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local React = require(ReplicatedStorage.Packages.React)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local useDialogue = require(script.Parent.Parent.dialogue.useDialogue)
+local CinematicController = require(script.Parent.Parent.cinematics.CinematicController)
 local useInventory = require(script.Parent.Parent.inventory.useInventory)
 local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
@@ -14,8 +15,10 @@ local InventorySlot = require(script.Parent.InventorySlot)
 local DropdownMenu = require(script.Parent.DropdownMenu)
 local ConfirmationModal = require(script.Parent.ConfirmationModal)
 local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
+local CinematicLetterbox = require(script.Parent.CinematicLetterbox)
 
 type Props = {
+	cinematicController: CinematicController.Controller,
 	dialogueController: DialogueController.DialogueController,
 }
 
@@ -43,10 +46,25 @@ local function App(props: Props)
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local selectedItemUid: string?, setSelectedItemUid: (string?) -> () = React.useState(nil :: string?)
 	local confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
+	local cinematicPlaying, setCinematicPlaying = React.useState(props.cinematicController:isPlaying())
+	local dungeonGuiHidden, setDungeonGuiHidden = React.useState(cinematicPlaying)
 	local notificationItemId = usePickupNotification()
 	local inventory = useInventory()
 	local objectives = useObjectives()
 	local dialogue = useDialogue(props.dialogueController)
+
+	React.useEffect(function()
+		local connection = props.cinematicController.playingChanged:Connect(function(playing: boolean)
+			setCinematicPlaying(playing)
+			if playing then
+				setDungeonGuiHidden(true)
+			end
+		end)
+
+		return function()
+			connection:Disconnect()
+		end
+	end, { props.cinematicController })
 
 	local selectionEffectDependencies: { unknown } = { inventory, selectedItemUid }
 	React.useEffect(function()
@@ -330,12 +348,14 @@ local function App(props: Props)
 		end
 	end
 
-	return React.createElement("ScreenGui", {
-		Name = "DungeonGui",
-		ResetOnSpawn = false,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	}, {
-		ObjectiveStack = React.createElement("Frame", {
+	return React.createElement(React.Fragment, nil, {
+		DungeonGui = React.createElement("ScreenGui", {
+			Enabled = not dungeonGuiHidden,
+			Name = "DungeonGui",
+			ResetOnSpawn = false,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		}, {
+			ObjectiveStack = React.createElement("Frame", {
 			AnchorPoint = Vector2.new(1, 0),
 			BackgroundTransparency = 1,
 			Position = UDim2.new(1, -24, 0, 24),
@@ -351,9 +371,9 @@ local function App(props: Props)
 			}),
 			Notice = React.createElement(ObjectiveNotification),
 			Panel = objectivePanel,
-		}),
-		InventoryPanel = inventoryPanel,
-		ConfirmationModal = React.createElement(ConfirmationModal, {
+			}),
+			InventoryPanel = inventoryPanel,
+			ConfirmationModal = React.createElement(ConfirmationModal, {
 			visible = confirmationItemUid ~= nil,
 			message = "Deseja descartar o item?",
 			cancelLabel = "não",
@@ -364,8 +384,8 @@ local function App(props: Props)
 			onConfirm = function()
 				setConfirmationItemUid(nil)
 			end,
-		}),
-		Dialogue = if dialogueText ~= nil
+			}),
+			Dialogue = if dialogueText ~= nil
 			then React.createElement("TextLabel", {
 				AnchorPoint = Vector2.new(0.5, 1),
 				AutomaticSize = Enum.AutomaticSize.Y,
@@ -384,8 +404,8 @@ local function App(props: Props)
 				TextYAlignment = Enum.TextYAlignment.Bottom,
 				ZIndex = 20,
 			})
-			else nil,
-		PickupNotification = if notificationName ~= nil
+				else nil,
+			PickupNotification = if notificationName ~= nil
 			then React.createElement("TextLabel", {
 				AnchorPoint = Vector2.new(0, 1),
 				BackgroundColor3 = Color3.fromRGB(20, 22, 30),
@@ -406,7 +426,14 @@ local function App(props: Props)
 					CornerRadius = UDim.new(0, 8),
 				}),
 			})
-			else nil,
+				else nil,
+		}),
+		CinematicLetterbox = React.createElement(CinematicLetterbox, {
+			playing = cinematicPlaying,
+			onExitComplete = function()
+				setDungeonGuiHidden(false)
+			end,
+		}),
 	})
 end
 
