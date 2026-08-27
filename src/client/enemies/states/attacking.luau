@@ -3,13 +3,15 @@ local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 
 local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
-	update = function (context, dt: number)
+	onBegin = function(context)
 		local enemy = context.enemy
-        local state = context.systemState
-        
+		enemy.ellapsedAttackingTime = 0
 		if enemy.movementLockRelease == nil then
 			enemy.movementLockRelease = enemy.movementController:acquireMovementLock()
 		end
+	end,
+	update = function (context, dt: number)
+		local enemy = context.enemy
 
 		enemy.ellapsedAttackingTime += dt
 		local turnProgress = math.clamp(enemy.ellapsedAttackingTime / config.ATTACKING_TURN_TIME, 0, 1)
@@ -27,10 +29,12 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			enemy.movementController:setCFrame(interpolatedCFrame)
 		end
 
-		if enemy.ellapsedAttackingTime < config.ATTACKING_TIME then
-			return
-		end
-
+		if enemy.ellapsedAttackingTime < config.ATTACKING_TIME then return end
+		return 'stunned'
+	end,
+	onEnd = function(context)
+		local enemy = context.enemy
+		local state = context.systemState
 		if enemy.attackTargetHumanoid ~= nil then
 			enemy.attackTargetHumanoid:TakeDamage(config.ATTACKING_DAMAGE)
 		end
@@ -49,7 +53,6 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 		enemy.attackingEnemyTargetCFrame = nil
 		enemy.attackingPlayerStartCFrame = nil
 		enemy.attackingPlayerTargetCFrame = nil
-		return 'stunned'
 	end,
 }
 

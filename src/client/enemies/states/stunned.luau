@@ -6,9 +6,8 @@ local Stunned: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
     onBegin = function (context)
         local enemy = context.enemy
 		
-		if not enemy.realStunTime then
-			enemy.realStunTime = utils.rollStunDuration()
-		end
+		enemy.ellapsedStuntime = 0
+		enemy.realStunTime = utils.rollStunDuration()
 		if enemy.humanoid ~= nil and enemy.humanoid.MoveDirection ~= Vector3.zero then
 			enemy.humanoid:Move(Vector3.zero, false)
 		end
@@ -18,12 +17,15 @@ local Stunned: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
         
 		enemy.ellapsedStuntime += dt
 		if enemy.ellapsedStuntime >= (enemy.realStunTime :: number) then
-			enemy.ellapsedStuntime = 0;
-			enemy.realStunTime = nil
 			return "chasing"
 		end
 		
 		return
+	end,
+	onEnd = function(context)
+		local enemy = context.enemy
+		enemy.ellapsedStuntime = 0
+		enemy.realStunTime = nil
 	end
 }
 

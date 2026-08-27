@@ -19,6 +19,26 @@ local function createDebugHitbox(): BasePart
 	return part
 end
 
+local function resetAttackAttempt(enemy: EnemiesTypes.Enemy): ()
+	local humanoid = enemy.humanoid
+	if humanoid ~= nil and enemy.oldSpeed ~= nil then
+		humanoid.WalkSpeed = enemy.oldSpeed
+	end
+	if humanoid ~= nil then
+		humanoid:Move(Vector3.zero, false)
+	end
+	if enemy.debugHitbox ~= nil then
+		enemy.debugHitbox:Destroy()
+		enemy.debugHitbox = nil
+	end
+
+	enemy.ellapsedAttackTime = 0
+	enemy.realAttackTime = nil
+	enemy.attackDirection = nil
+	enemy.oldSpeed = nil
+	enemy.attackEffectResolved = false
+end
+
 local function canStartPlayerAttack(state: EnemiesTypes.SystemState): boolean
 	return not state.playerAttackInProgress and os.clock() >= state.playerInvulnerableUntil
 end
@@ -50,6 +70,43 @@ local function getAttackOrientations(
 end
 
 local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
+	onBegin = function(context)
+		local enemy = context.enemy
+		local state = context.systemState
+		local playerRoot = CharacterRoot.get()
+		local root = enemy.root
+		local humanoid = enemy.humanoid
+		if playerRoot == nil or root == nil or humanoid == nil then
+			return
+		end
+
+		enemy.ellapsedAttackTime = 0
+		enemy.realAttackTime = utils.rollAttackDuration()
+		enemy.oldSpeed = humanoid.WalkSpeed
+		humanoid.WalkSpeed = config.ATTACK_INITIAL_SPEED
+
+		local attackDirection = (playerRoot.Position - root.Position).Unit
+		local attackAngle = math.rad(math.random(config.ATTACK_DIRECTION_MIN_ANGLE, config.ATTACK_DIRECTION_MAX_ANGLE))
+		local attackDirectionSign = if math.random(0, 1) == 0 then -1 else 1
+		local playerCharacter = playerRoot.Parent
+		local playerHumanoid = if playerCharacter ~= nil then playerCharacter:FindFirstChildOfClass("Humanoid") else nil
+		local movementDirection = if playerHumanoid ~= nil and playerHumanoid.MoveDirection.Magnitude > 0
+			then playerHumanoid.MoveDirection.Unit
+			else playerRoot.CFrame.LookVector
+		local positiveAngleDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
+		local negativeAngleDirection = CFrame.Angles(0, -attackAngle, 0):VectorToWorldSpace(attackDirection)
+		local alignmentDifference = positiveAngleDirection:Dot(movementDirection) - negativeAngleDirection:Dot(movementDirection)
+		if math.abs(alignmentDifference) > 0.001 and math.random() < config.ATTACK_MOVEMENT_DIRECTION_WEIGHT then
+			attackDirectionSign = if alignmentDifference > 0 then 1 else -1
+		end
+		attackAngle *= attackDirectionSign
+		local attackMovementDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
+		enemy.attackDirection = utils.horizontalUnit(attackMovementDirection, root.CFrame.LookVector)
+		enemy.debugHitbox = if state.debugEnabled then createDebugHitbox() else nil
+		if enemy.debugHitbox ~= nil then
+			enemy.debugHitbox.CFrame = root.CFrame * HitBoxSpec.rootOffset
+		end
+	end,
 	update = function (context, dt: number)
 		local enemy = context.enemy
         local state = context.systemState
@@ -65,42 +122,10 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			return 'idle'
 		end
 		
-		if not enemy.attackSetup then
-			enemy.realAttackTime = utils.rollAttackDuration()
-			enemy.oldSpeed = enemy.humanoid.WalkSpeed
-			enemy.humanoid.WalkSpeed = config.ATTACK_INITIAL_SPEED
-			local attackDirection = (playerRoot.Position - root.Position).Unit
-			local attackAngle = math.rad(math.random(config.ATTACK_DIRECTION_MIN_ANGLE, config.ATTACK_DIRECTION_MAX_ANGLE))
-			local attackDirectionSign = if math.random(0, 1) == 0 then -1 else 1
-
-			local playerCharacter = playerRoot.Parent
-			local playerHumanoid = if playerCharacter ~= nil then playerCharacter:FindFirstChildOfClass("Humanoid") else nil
-			-- When the player is stopped, their facing direction is the best available prediction.
-			local movementDirection = if playerHumanoid ~= nil and playerHumanoid.MoveDirection.Magnitude > 0
-				then playerHumanoid.MoveDirection.Unit
-				else playerRoot.CFrame.LookVector
-			local positiveAngleDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
-			local negativeAngleDirection = CFrame.Angles(0, -attackAngle, 0):VectorToWorldSpace(attackDirection)
-			local alignmentDifference = positiveAngleDirection:Dot(movementDirection)
-				- negativeAngleDirection:Dot(movementDirection)
-
-			if math.abs(alignmentDifference) > 0.001 and math.random() < config.ATTACK_MOVEMENT_DIRECTION_WEIGHT then
-				attackDirectionSign = if alignmentDifference > 0 then 1 else -1
-			end
-
-			attackAngle *= attackDirectionSign
-			print('attack angle', attackAngle)
-			local attackMovementDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
-			enemy.attackDirection = utils.horizontalUnit(attackMovementDirection, root.CFrame.LookVector)
-			enemy.debugHitbox = if state.debugEnabled then createDebugHitbox() else nil
-			
-			enemy.attackSetup = true
-		end
-		
 		enemy.ellapsedAttackTime += dt
-		local attackTime = enemy.realAttackTime :: number
+		local attackTime = enemy.realAttackTime
 		local attackDirection = enemy.attackDirection
-		if attackDirection == nil then
+		if attackTime == nil or attackDirection == nil then
 			return 'idle'
 		end
 		local currentDirection = utils.horizontalUnit(root.CFrame.LookVector, attackDirection)
@@ -144,19 +169,7 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			end
 			print('player attacked')
 
-			enemy.ellapsedAttackTime = 0
-			enemy.attackSetup = false
-			enemy.realAttackTime = nil
-			enemy.attackDirection = nil
-			enemy.humanoid.WalkSpeed = enemy.oldSpeed :: number
-			enemy.humanoid:Move(Vector3.zero, false)
-			if enemy.debugHitbox ~= nil then
-				enemy.debugHitbox:Destroy()
-				enemy.debugHitbox = nil
-			end
-			enemy.attackEffectResolved = false
 			enemy.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass('Humanoid')
-			enemy.movementLockRelease = enemy.movementController:acquireMovementLock()
 			enemy.attackingEnemyStartCFrame = root.CFrame
 			enemy.attackingPlayerStartCFrame = playerRoot.CFrame
 			enemy.attackingEnemyTargetCFrame, enemy.attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
@@ -167,22 +180,14 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 		end
 		
 		if enemy.ellapsedAttackTime >= attackTime then
-			enemy.ellapsedAttackTime = 0
-			enemy.attackSetup = false
-			enemy.realAttackTime = nil
-			enemy.attackDirection = nil
-			enemy.humanoid.WalkSpeed = enemy.oldSpeed :: number
-			enemy.humanoid:Move(Vector3.zero, false)
-			if enemy.debugHitbox ~= nil then
-				enemy.debugHitbox:Destroy()
-				enemy.debugHitbox = nil
-			end
-			enemy.attackEffectResolved = false
 			return 'stunned'
 		end
 		
 		return
-	end
+	end,
+	onEnd = function(context)
+		resetAttackAttempt(context.enemy)
+	end,
 }
 
 return tryAttack

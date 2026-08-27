@@ -1,8 +1,6 @@
 local StarterPlayer = game:GetService("StarterPlayer")
 local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 
-export type State = "idle" | "chasing" | "try_attack" | "attacking" | "stunned"
-
 export type StateMachine<C> = {
 	states: { [string]: StateObject<C> }
 }
@@ -26,7 +24,6 @@ export type EnemyContext = {
 
 export type Enemy = {
 	model: Model,
-	state: State,
 	humanoid: Humanoid?,
 	root: BasePart?,
 	path: Path?,
@@ -47,7 +44,6 @@ export type Enemy = {
 	realAttackTime: number?,
 	attackDirection: Vector3?,
 	oldSpeed: number?,
-	attackSetup: boolean,
 	attackEffectResolved: boolean,
 	debugHitbox: BasePart?,
 	ellapsedStuntime: number,

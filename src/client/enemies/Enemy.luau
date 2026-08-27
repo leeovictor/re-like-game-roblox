@@ -45,7 +45,6 @@ function Enemy.new(model: Model, movementController: TankController.MovementCont
 	local self = setmetatable({
 		currentState = states['idle'],
 		model = model,
-		state = "idle",
 		humanoid = humanoid,
 		root = root,
 		path = PathfindingService:CreatePath({ AgentCanJump = false, Costs = { teste = math.huge } }),
@@ -63,7 +62,6 @@ function Enemy.new(model: Model, movementController: TankController.MovementCont
 		realAttackTime = nil,
 		attackDirection = nil,
 		oldSpeed = nil,
-		attackSetup = false,
 		attackEffectResolved = false,
 		debugHitbox = nil,
 		ellapsedStuntime = 0,
