@@ -1,6 +1,9 @@
+--!strict
+
 local CameraController = require(script.Parent.Parent.camera.CameraController)
 local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
 local TankController = require(script.Parent.Parent.player.TankController)
+local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ModelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local Signal = require(ReplicatedStorage.Packages.Signal)
@@ -35,7 +38,10 @@ export type TimelineStep = {
 	effects: { Effect },
 }
 
-export type Timeline = { TimelineStep }
+export type Timeline = {
+	id: string,
+	steps: { TimelineStep },
+}
 
 type SignalConnection = {
 	Disconnect: (self: SignalConnection) -> (),
@@ -64,6 +70,7 @@ export type Controller = {
 	generation: number,
 	nextExecutionId: number,
 	currentExecutionId: number?,
+	currentTimelineId: string?,
 	movementRelease: (() -> ())?,
 	preload: (self: Controller, timeline: any) -> boolean,
 	play: (self: Controller, timeline: any) -> boolean,
@@ -213,55 +220,65 @@ local function validateTimeline(
 	value: any,
 	camera: CameraController.CameraController
 ): (Timeline?, { string }?, string?)
-	local timelineLength, timelineError = contiguousLength(value)
+	if type(value) ~= "table" then
+		return nil, nil, "timeline must be a table"
+	end
+	local rootField = unknownField(value, { id = true, steps = true })
+	if rootField ~= nil then
+		return nil, nil, "timeline has unknown field " .. rootField
+	end
+	if type(value.id) ~= "string" or value.id == "" then
+		return nil, nil, "timeline.id must be a non-empty string"
+	end
+	local timelineLength, timelineError = contiguousLength(value.steps)
 	if timelineLength == nil then
 		return nil, nil, "timeline " .. (timelineError :: string)
 	end
 	if timelineLength == 0 then
-		return nil, nil, "timeline must not be empty"
+		return nil, nil, "timeline.steps must not be empty"
 	end
 
-	local timeline: Timeline = {}
+	local timeline: Timeline = { id = value.id, steps = {} }
 	local soundIds: { string } = {}
 	local seenSoundIds: { [string]: boolean } = {}
 
 	for index = 1, timelineLength do
-		local step = value[index]
+		local step = value.steps[index]
 		if type(step) ~= "table" then
-			return nil, nil, string.format("timeline[%d] must be a table", index)
+			return nil, nil, string.format("timeline.steps[%d] must be a table", index)
 		end
 
 		local field = unknownField(step, { frame = true, duration = true, effects = true })
 		if field ~= nil then
-			return nil, nil, string.format("timeline[%d] has unknown field %s", index, field)
+			return nil, nil, string.format("timeline.steps[%d] has unknown field %s", index, field)
 		end
 
 		local frame = step.frame
 		if type(frame) ~= "number" or not isFinite(frame) or frame ~= math.floor(frame) then
-			return nil, nil, string.format("timeline[%d].frame must be a finite integer", index)
+			return nil, nil, string.format("timeline.steps[%d].frame must be a finite integer", index)
 		end
 		if frame ~= index then
-			return nil, nil, string.format("timeline[%d].frame must equal its sequential index", index)
+			return nil, nil, string.format("timeline.steps[%d].frame must equal its sequential index", index)
 		end
 
 		local duration = step.duration
 		if type(duration) ~= "number" or not isFinite(duration) then
-			return nil, nil, string.format("timeline[%d].duration must be finite", index)
+			return nil, nil, string.format("timeline.steps[%d].duration must be finite", index)
 		end
 		if duration < 0 then
-			return nil, nil, string.format("timeline[%d].duration must not be negative", index)
+			return nil, nil, string.format("timeline.steps[%d].duration must not be negative", index)
 		end
 
 		local effectsLength, effectsError = contiguousLength(step.effects)
 		if effectsLength == nil then
-			return nil, nil, string.format("timeline[%d].effects %s", index, effectsError :: string)
+			return nil, nil, string.format("timeline.steps[%d].effects %s", index, effectsError :: string)
 		end
 
 		local effects: { Effect } = {}
 		for effectIndex = 1, effectsLength do
 			local validatedEffect, effectError = validateEffect(step.effects[effectIndex], effectIndex, camera)
 			if validatedEffect == nil then
-				return nil, nil, string.format("timeline[%d] %s", index, effectError :: string)
+				return nil, nil, string.format("timeline.steps[%d] %s", index, effectError :: string)
 			end
 			table.insert(effects, validatedEffect)
 
@@ -274,7 +291,7 @@ local function validateTimeline(
 			end
 		end
 
-		table.insert(timeline, {
+		table.insert(timeline.steps, {
 			frame = frame,
 			duration = duration,
 			effects = effects,
@@ -332,18 +349,32 @@ local function firePlayingChanged(self: Controller, playing: boolean): ()
 	end
 end
 
+local function emitCinematicEvent(event: GameplayEvents.GameplayEvent): ()
+	local ok, errorMessage = pcall(function()
+		GameplayEvents.emit(event)
+	end)
+	if not ok then
+		warn("CinematicController gameplay event failed: " .. tostring(errorMessage))
+	end
+end
+
 local function finishNormally(self: Controller, executionId: number, release: (() -> ())): ()
 	if self.currentExecutionId ~= executionId then
 		return
 	end
 	local wasPlaying = self.state == "playing"
+	local timelineId = self.currentTimelineId
 	self.state = "idle"
 	self.currentExecutionId = nil
+	self.currentTimelineId = nil
 	if wasPlaying then
 		firePlayingChanged(self, false)
 	end
 	clearCamera(self)
 	releaseMovement(self, release)
+	if wasPlaying and timelineId ~= nil then
+		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
+	end
 end
 
 local function finishInterrupted(self: Controller, executionId: number, release: (() -> ())?): ()
@@ -351,14 +382,19 @@ local function finishInterrupted(self: Controller, executionId: number, release:
 		return
 	end
 	local wasPlaying = self.state == "playing"
+	local timelineId = self.currentTimelineId
 	self.state = "idle"
 	self.currentExecutionId = nil
+	self.currentTimelineId = nil
 	if wasPlaying then
 		firePlayingChanged(self, false)
 	end
 	stopSound(self, executionId)
 	clearCamera(self)
 	releaseMovement(self, release)
+	if wasPlaying and timelineId ~= nil then
+		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
+	end
 end
 
 local function finishWithoutEffects(self: Controller, executionId: number): ()
@@ -368,6 +404,7 @@ local function finishWithoutEffects(self: Controller, executionId: number): ()
 	local wasPlaying = self.state == "playing"
 	self.state = "idle"
 	self.currentExecutionId = nil
+	self.currentTimelineId = nil
 	if wasPlaying then
 		firePlayingChanged(self, false)
 	end
@@ -475,8 +512,9 @@ local function runExecution(
 	self.movementRelease = release
 	self.state = "playing"
 	firePlayingChanged(self, true)
+	emitCinematicEvent({ name = "cinematic_started", timelineId = timeline.id })
 
-	for _, step in timeline do
+	for _, step in timeline.steps do
 		if not ensureCurrentGeneration(self, executionId, generation) then
 			return
 		end
@@ -557,6 +595,7 @@ function CinematicController.play(self: Controller, timeline: any): boolean
 	self.generation += 1
 	local generation = self.generation
 	self.currentExecutionId = executionId
+	self.currentTimelineId = validatedTimeline.id
 	self.state = "preloading"
 	task.spawn(function()
 		runExecution(self, validatedTimeline, soundIds :: { string }, executionId, generation)
@@ -569,9 +608,11 @@ function CinematicController.stop(self: Controller): ()
 	local wasPlaying = self.state == "playing"
 	local executionId = self.currentExecutionId
 	local release = self.movementRelease
+	local timelineId = self.currentTimelineId
 	self.movementRelease = nil
 	self.state = "idle"
 	self.currentExecutionId = nil
+	self.currentTimelineId = nil
 
 	if executionId ~= nil then
 		stopSound(self, executionId)
@@ -585,6 +626,9 @@ function CinematicController.stop(self: Controller): ()
 		if not ok then
 			warn("CinematicController movement release failed")
 		end
+	end
+	if wasPlaying and timelineId ~= nil then
+		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
 	end
 end
 
@@ -600,6 +644,7 @@ function CinematicController.new(dependencies: Dependencies): Controller
 		generation = 0,
 		nextExecutionId = 0,
 		currentExecutionId = nil,
+		currentTimelineId = nil,
 		movementRelease = nil,
 	}, CinematicController)
 	return (self :: any) :: Controller

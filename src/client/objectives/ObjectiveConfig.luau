@@ -38,6 +38,18 @@ local config: { any } = {
 			doorKey = "facility_entrance",
 		},
 	},
+	{
+		id = "restart_generator",
+		text = "Reinicie o gerador",
+		startsWhen = {
+			event = "cinematic_play_ended",
+			timelineId = "generator-power-off"
+		},
+		completesWhen = {
+			event = "door_entered",
+			doorKey = "facility_entrance",
+		},
+	}
 }
 
 return config

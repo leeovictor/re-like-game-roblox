@@ -28,6 +28,8 @@ local TRIGGER_NAME = "MachineRoomCinematicTrigger"
 local ACCESS_CARD_ID = "access_card"
 
 local TIMELINE: CinematicController.Timeline = {
+	id = "generator-power-off",
+	steps = {
 	{
 		frame = 1,
 		duration = 1.5,
@@ -84,6 +86,7 @@ local TIMELINE: CinematicController.Timeline = {
 			},
 		},
 	},
+},
 }
 
 local function hasAccessCard(inventory: InventoryController): boolean

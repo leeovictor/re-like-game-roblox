@@ -12,6 +12,7 @@ export type EventFilter = {
 	doorKey: string?,
 	itemId: string?,
 	areaKey: string?,
+	timelineId: string?,
 }
 
 export type Facts = {
@@ -91,6 +92,9 @@ local function matches(event: GameplayEvents.GameplayEvent, filter: EventFilter)
 	if filter.areaKey ~= nil then
 		return (event :: any).areaKey == filter.areaKey
 	end
+	if filter.timelineId ~= nil then
+		return (event :: any).timelineId == filter.timelineId
+	end
 	return true
 end
 
@@ -130,9 +134,11 @@ local function validateFilter(filter: any, label: string): ()
 		item_collected = true,
 		area_entered = true,
 		switches_changed = true,
+		cinematic_started = true,
+		cinematic_play_ended = true,
 	}
 	assert(type(event) == "string" and knownEvents[event] == true, label .. " has unknown event")
-	local allowed = { event = true, doorKey = true, itemId = true, areaKey = true }
+	local allowed = { event = true, doorKey = true, itemId = true, areaKey = true, timelineId = true }
 	for key, value in filter do
 		assert(allowed[key] == true, label .. " has incompatible field " .. tostring(key))
 		if key ~= "event" then

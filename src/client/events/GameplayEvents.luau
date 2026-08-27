@@ -10,6 +10,8 @@ export type EventName =
     | "item_collected"
     | "area_entered"
     | "switches_changed"
+    | "cinematic_started"
+    | "cinematic_play_ended"
 
 export type GameplayEvent =
     { name: "door_blocked", doorKey: string }
@@ -18,6 +20,8 @@ export type GameplayEvent =
     | { name: "item_collected", itemId: string }
     | { name: "area_entered", areaKey: string }
     | { name: "switches_changed", switchesOn: number }
+    | { name: "cinematic_started", timelineId: string }
+    | { name: "cinematic_play_ended", timelineId: string }
 
 export type SignalConnection = {
     Disconnect: (self: SignalConnection) -> (),
