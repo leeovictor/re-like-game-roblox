@@ -6,16 +6,22 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 
-local FADE_IN_DURATION = 0.2
-local FADE_OUT_DURATION = 0.2
-local TRANSITION_SOUND_ID = ""
+local FADE_IN_DURATION = 0.4
+local FADE_PAUSE_DURATION = 0.2
+local FADE_OUT_DURATION = 0.4
 
 export type TransitionRequest = () -> doorTypes.DoorActionResult
 export type TransitionCallback = (result: doorTypes.DoorActionResult) -> ()
+export type FadeOutCallback = (duration: number, result: doorTypes.DoorActionResult) -> ()
 export type TransitionController = {
 	start: () -> (),
 	stop: () -> (),
-	run: (request: TransitionRequest, callback: TransitionCallback) -> boolean,
+	run: (
+		request: TransitionRequest,
+		callback: TransitionCallback,
+		fadeOutCallback: FadeOutCallback?,
+		minimumFadeOutDuration: number?
+	) -> boolean,
 }
 
 type ControllerState = {
@@ -123,7 +129,12 @@ local function createController(playerGui: PlayerGui): TransitionController
 		end
 	end
 
-	function controller.run(request: TransitionRequest, callback: TransitionCallback): boolean
+	function controller.run(
+		request: TransitionRequest,
+		callback: TransitionCallback,
+		fadeOutCallback: FadeOutCallback?,
+		minimumFadeOutDuration: number?
+	): boolean
 		if not state.started or state.busy then
 			return false
 		end
@@ -133,19 +144,20 @@ local function createController(playerGui: PlayerGui): TransitionController
 		local generation = state.generation
 		task.spawn(function()
 			local result: doorTypes.DoorActionResult = { success = false }
+			local fadeOutDuration = math.max(FADE_OUT_DURATION, minimumFadeOutDuration or 0)
 			if animate(0, FADE_IN_DURATION, generation) then
 				local ok, value = pcall(request)
 				if ok and type(value) == "table" then
 					result = value :: doorTypes.DoorActionResult
 				end
 				if state.generation == generation then
-					if result.success and result.action == "enter" and TRANSITION_SOUND_ID ~= "" then
-						local sound = Instance.new("Sound")
-						sound.SoundId = TRANSITION_SOUND_ID
-						sound.Parent = fade
-						sound:Play()
+					task.wait(FADE_PAUSE_DURATION)
+				end
+				if state.generation == generation then
+					if fadeOutCallback ~= nil then
+						pcall(fadeOutCallback, fadeOutDuration, result)
 					end
-					animate(1, FADE_OUT_DURATION, generation)
+					animate(1, fadeOutDuration, generation)
 				end
 			end
 			if state.generation == generation then

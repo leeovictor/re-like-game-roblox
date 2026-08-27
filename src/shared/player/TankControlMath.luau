@@ -3,6 +3,7 @@
 local TankControlMath = {}
 
 local ROTATION_RADIANS_PER_SECOND = math.rad(200)
+local BACKWARD_SPEED_RATIO = 0.7
 
 export type InputState = {
 	forward: boolean,
@@ -24,6 +25,18 @@ function TankControlMath.horizontalUnit(vector: Vector3, fallback: Vector3): Vec
 		return fallback
 	end
 	return horizontal.Unit
+end
+
+function TankControlMath.resolveSpeed(
+	input: InputState & { running: boolean },
+	walkSpeed: number,
+	runSpeed: number
+): number
+	if input.backward and not input.forward then
+		return walkSpeed * BACKWARD_SPEED_RATIO
+	end
+
+	return if input.running then runSpeed else walkSpeed
 end
 
 function TankControlMath.calculate(lookVector: Vector3, input: InputState, deltaTime: number): Motion

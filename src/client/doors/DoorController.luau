@@ -6,9 +6,12 @@ local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local modelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
+local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
 local DoorManager = require(script.Parent.DoorManager)
 local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
+local TankController = require(script.Parent.Parent.player.TankController)
 local TransitionController = require(script.Parent.TransitionController)
+local DoorSoundPlayer = require(script.Parent.DoorSoundPlayer)
 
 local DoorController = {}
 DoorController.__index = DoorController
@@ -18,11 +21,13 @@ type InteractionHandler = interactionTypes.InteractionHandler
 export type Dependencies = {
 	manager: DoorManager.DoorManager,
 	dialogue: DialogueController.DialogueController,
+	movement: TankController.MovementController,
 	transition: TransitionController.TransitionController,
 }
 
 function DoorController.new(dependencies: Dependencies): InteractionHandler
 	local warnedDoors: { [Model]: boolean } = {}
+	local doorSounds = DoorSoundPlayer.new()
 
 	local function publishDoorEvent(
 		door: Model,
@@ -93,20 +98,61 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		end
 
 		if not locked then
-			dependencies.transition.run(function()
-				return dependencies.manager:enter(door)
+			local releaseMovement: (() -> ())? = dependencies.movement:acquireMovementLock()
+			local stopTransitionOpenSound: DoorSoundPlayer.StopPlayback? = nil
+			local stopTransitionCloseSound: DoorSoundPlayer.StopPlayback? = nil
+			local transitionCloseDuration = doorSounds:getDuration("transitionClose")
+			local function releaseMovementLock(): ()
+				local release = releaseMovement
+				releaseMovement = nil
+				if release ~= nil then
+					release()
+				end
+			end
+			local accepted = dependencies.transition.run(function()
+				local result = dependencies.manager:enter(door)
+				if result.success and result.action == "enter" then
+					local root = CharacterRoot.get()
+					if root ~= nil then
+						dependencies.movement:setCFrame(root.CFrame)
+					end
+				end
+				if stopTransitionOpenSound ~= nil then
+					stopTransitionOpenSound()
+					stopTransitionOpenSound = nil
+				end
+				return result
 			end, function(result)
+				releaseMovementLock()
+				if stopTransitionOpenSound ~= nil then
+					stopTransitionOpenSound()
+					stopTransitionOpenSound = nil
+				end
+				if stopTransitionCloseSound ~= nil then
+					stopTransitionCloseSound()
+					stopTransitionCloseSound = nil
+				end
 				if result.reason == "missing_item" then
 					showLockedDialogue(door)
 				elseif result.success and result.action == "enter" then
 					publishDoorEvent(door, "door_entered")
 				end
-			end)
+			end, function(fadeOutDuration, result)
+				if result.success and result.action == "enter" then
+					stopTransitionCloseSound = doorSounds:startAtEnd("transitionClose", fadeOutDuration)
+				end
+			end, transitionCloseDuration)
+			if accepted then
+				stopTransitionOpenSound = doorSounds:start("transitionOpen")
+			else
+				releaseMovementLock()
+			end
 			return
 		end
 
 		local result = dependencies.manager:unlock(door)
 		if result.success and result.action == "unlock" then
+			doorSounds:playOneShot("unlocked")
 			modelProfiles.setProfile(door, 'unlocked')
 			dependencies.dialogue:show("Porta destrancada.", function (_, dialogueReason)
 				if dialogueReason == "completed" then
@@ -114,6 +160,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 				end
 			end)
 		elseif result.reason == "missing_item" then
+			doorSounds:playOneShot("locked")
 			showLockedDialogue(door)
 		end
 		return

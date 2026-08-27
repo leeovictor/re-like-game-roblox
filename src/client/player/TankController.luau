@@ -15,7 +15,7 @@ local ACTION_LEFT = "DungeonTankLeft"
 local ACTION_RIGHT = "DungeonTankRight"
 local ACTION_RUN = "DungeonTankRun"
 local WALK_SPEED = 5
-local RUN_SPEED = 10
+local RUN_SPEED = 9
 local ACTION_PRIORITY = ActionPriorities.MOVEMENT
 
 export type InputState = TankControlMath.InputState & { running: boolean }
@@ -193,7 +193,7 @@ local function update(self: TankController, deltaTime: number): ()
 	local humanoid = character.humanoid
 	local rootPart = character.rootPart
 
-	humanoid.WalkSpeed = if self.input.running then self.runSpeed else self.walkSpeed
+	humanoid.WalkSpeed = TankControlMath.resolveSpeed(self.input, self.walkSpeed, self.runSpeed)
 
 	local lookVector = self.controlledLookVector
 		or TankControlMath.horizontalUnit(rootPart.CFrame.LookVector, DEFAULT_LOOK_VECTOR)

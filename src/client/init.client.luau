@@ -89,6 +89,7 @@ local doorManager = DoorManager.new({
 local doorController = DoorController.new({
 	manager = doorManager,
 	dialogue = dialogueController,
+	movement = tankController,
 	transition = TransitionController,
 })
 ObjectiveController.start()
