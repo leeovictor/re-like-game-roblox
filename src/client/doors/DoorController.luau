@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
+local modelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
 local DoorManager = require(script.Parent.DoorManager)
 local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
@@ -106,6 +107,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 
 		local result = dependencies.manager:unlock(door)
 		if result.success and result.action == "unlock" then
+			modelProfiles.setProfile(door, 'unlocked')
 			dependencies.dialogue:show("Porta destrancada.", function (_, dialogueReason)
 				if dialogueReason == "completed" then
 					publishDoorEvent(door, "door_unlocked")
