@@ -75,6 +75,16 @@ local function createLockedDialogue(): Folder
 	return folder
 end
 
+local function createSealedDialogue(): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = doorTypes.SEALED_DIALOGUE_NAME
+	local message = Instance.new("StringValue")
+	message.Name = "01_Sealed"
+	message.Value = doorTypes.FALLBACK_SEALED_MESSAGE
+	message.Parent = folder
+	return folder
+end
+
 local function removeChildrenNamed(parent: Instance, name: string): ()
 	for _, child in parent:GetChildren() do
 		if child.Name == name then
@@ -87,15 +97,19 @@ local function initialize(model: Model): ()
 	local doorway = getDoorway(model)
 	local center = createCenter()
 	local lockedDialogue = createLockedDialogue()
+	local sealedDialogue = createSealedDialogue()
 
 	ChangeHistoryService:SetWaypoint("Before initializing door model")
 
 	removeChildrenNamed(doorway, doorTypes.CENTER_NAME)
 	removeChildrenNamed(model, doorTypes.LOCKED_DIALOGUE_NAME)
+	removeChildrenNamed(model, doorTypes.SEALED_DIALOGUE_NAME)
 
 	center.Parent = doorway
 	lockedDialogue.Parent = model
+	sealedDialogue.Parent = model
 	model:SetAttribute(doorTypes.LOCKED_ATTRIBUTE, true)
+	model:SetAttribute(doorTypes.SEALED_ATTRIBUTE, false)
 	model:SetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE, LOCKED_ITEM_ID)
 	local existingDoorKey = model:GetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE)
 	if type(existingDoorKey) ~= "string" or existingDoorKey == "" then

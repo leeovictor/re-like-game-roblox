@@ -20,6 +20,8 @@ export type Dependencies = {
 
 export type DoorManager = {
 	isLocked: (self: DoorManager, door: Model) -> (boolean?, doorTypes.DoorFailureReason?),
+	isSealed: (self: DoorManager, door: Model) -> (boolean?, doorTypes.DoorFailureReason?),
+	setSealed: (self: DoorManager, door: Model, sealed: boolean) -> (boolean, doorTypes.DoorFailureReason?),
 	unlock: (self: DoorManager, door: Model) -> DoorActionResult,
 	enter: (self: DoorManager, door: Model) -> DoorActionResult,
 }
@@ -57,29 +59,34 @@ local function getDoorParts(door: Model): (BasePart?, Attachment?)
 	return doorway, center
 end
 
-local function validateDoor(door: Model): (BasePart?, Attachment?, boolean?, string?, DoorActionResult?)
+local function validateDoor(door: Model): (BasePart?, Attachment?, boolean?, boolean?, string?, DoorActionResult?)
 	if not door:IsA("Model") or not door:IsDescendantOf(Workspace) then
-		return nil, nil, nil, nil, failure("invalid_door")
+		return nil, nil, nil, nil, nil, failure("invalid_door")
 	end
 	if not CollectionService:HasTag(door, interactionTypes.INTERACTABLE_TAG) then
-		return nil, nil, nil, nil, failure("invalid_door")
+		return nil, nil, nil, nil, nil, failure("invalid_door")
 	end
 	if door:GetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE) ~= interactionTypes.DOOR_TYPE then
-		return nil, nil, nil, nil, failure("invalid_door")
+		return nil, nil, nil, nil, nil, failure("invalid_door")
 	end
 	local doorway, center = getDoorParts(door)
 	if doorway == nil or center == nil then
-		return nil, nil, nil, nil, failure("invalid_door")
+		return nil, nil, nil, nil, nil, failure("invalid_door")
 	end
 	local locked = door:GetAttribute(doorTypes.LOCKED_ATTRIBUTE)
+	local sealedAttribute = door:GetAttribute(doorTypes.SEALED_ATTRIBUTE)
 	local requiredItemId = door:GetAttribute(doorTypes.REQUIRED_ITEM_ID_ATTRIBUTE)
 	if type(locked) ~= "boolean" or type(requiredItemId) ~= "string" then
-		return nil, nil, nil, nil, failure("invalid_config")
+		return nil, nil, nil, nil, nil, failure("invalid_config")
 	end
-	if locked and (requiredItemId == "" or catalog[requiredItemId] == nil or not hasUnlockCapability(requiredItemId)) then
-		return nil, nil, nil, nil, failure("invalid_config")
+	local sealed = if sealedAttribute == nil then false else sealedAttribute
+	if type(sealed) ~= "boolean" then
+		return nil, nil, nil, nil, nil, failure("invalid_config")
 	end
-	return doorway, center, locked, requiredItemId, nil
+	if locked and not sealed and (requiredItemId == "" or catalog[requiredItemId] == nil or not hasUnlockCapability(requiredItemId)) then
+		return nil, nil, nil, nil, nil, failure("invalid_config")
+	end
+	return doorway, center, locked, sealed, requiredItemId, nil
 end
 
 local DoorManager = {}
@@ -92,20 +99,48 @@ function DoorManager.new(dependencies: Dependencies): DoorManager
 	local manager = {} :: DoorManager
 
 	function manager:isLocked(door: Model): (boolean?, doorTypes.DoorFailureReason?)
-		local _, _, locked, _, validationFailure = validateDoor(door)
+		local _, _, locked, _, _, validationFailure = validateDoor(door)
 		if validationFailure ~= nil then
 			return nil, validationFailure.reason
 		end
 		return locked, nil
 	end
 
+	function manager:isSealed(door: Model): (boolean?, doorTypes.DoorFailureReason?)
+		local _, _, _, sealed, _, validationFailure = validateDoor(door)
+		if validationFailure ~= nil then
+			return nil, validationFailure.reason
+		end
+		return sealed, nil
+	end
+
+	function manager:setSealed(door: Model, sealed: boolean): (boolean, doorTypes.DoorFailureReason?)
+		if type(sealed) ~= "boolean" then
+			return false, "invalid_config"
+		end
+		local _, _, _, _, _, validationFailure = validateDoor(door)
+		if validationFailure ~= nil then
+			return false, validationFailure.reason
+		end
+		local ok = pcall(function()
+			door:SetAttribute(doorTypes.SEALED_ATTRIBUTE, sealed)
+		end)
+		if not ok then
+			return false, "invalid_door"
+		end
+		return true, nil
+	end
+
 	function manager:unlock(door: Model): DoorActionResult
-		local doorway, center, locked, requiredItemId, validationFailure = validateDoor(door)
+		local doorway, center, locked, sealed, requiredItemId, validationFailure = validateDoor(door)
 		if validationFailure ~= nil then
 			return validationFailure
 		end
-		if doorway == nil or center == nil or locked == nil or requiredItemId == nil then
+		if doorway == nil or center == nil or locked == nil or sealed == nil or requiredItemId == nil then
 			return failure("invalid_door")
+		end
+		if sealed then
+			return failure("sealed")
 		end
 		local root = CharacterRoot.get()
 		if root == nil then
@@ -156,12 +191,15 @@ function DoorManager.new(dependencies: Dependencies): DoorManager
 	end
 
 	function manager:enter(door: Model): DoorActionResult
-		local doorway, center, locked, _, validationFailure = validateDoor(door)
+		local doorway, center, locked, sealed, _, validationFailure = validateDoor(door)
 		if validationFailure ~= nil then
 			return validationFailure
 		end
-		if doorway == nil or center == nil or locked == nil then
+		if doorway == nil or center == nil or locked == nil or sealed == nil then
 			return failure("invalid_door")
+		end
+		if sealed then
+			return failure("sealed")
 		end
 		local root = CharacterRoot.get()
 		if root == nil then

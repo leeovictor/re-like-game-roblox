@@ -50,8 +50,8 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		end
 	end
 
-	local function showLockedDialogue(door: Model): ()
-		local folder = door:FindFirstChild(doorTypes.LOCKED_DIALOGUE_NAME)
+	local function showDoorDialogue(door: Model, folderName: string, fallback: string, onCompleted: () -> ()): ()
+		local folder = door:FindFirstChild(folderName)
 		local messages: { { name: string, text: string } } = {}
 		if folder ~= nil then
 			for _, child in folder:GetChildren() do
@@ -64,7 +64,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			end)
 		end
 		if #messages == 0 then
-			messages = { { name = "", text = doorTypes.FALLBACK_LOCKED_MESSAGE } }
+			messages = { { name = "", text = fallback } }
 		end
 
 		local index = 1
@@ -75,13 +75,25 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			index += 1
 			local message = messages[index]
 			if message ~= nil then
-					dependencies.dialogue:show(message.text, nextMessage)
+				dependencies.dialogue:show(message.text, nextMessage)
 			else
-				publishDoorEvent(door, "door_blocked")
+				onCompleted()
 			end
 		end
 
 		dependencies.dialogue:show(messages[1].text, nextMessage)
+	end
+
+	local function showLockedDialogue(door: Model): ()
+		showDoorDialogue(door, doorTypes.LOCKED_DIALOGUE_NAME, doorTypes.FALLBACK_LOCKED_MESSAGE, function()
+			publishDoorEvent(door, "door_blocked")
+		end)
+	end
+
+	local function showSealedDialogue(door: Model): ()
+		showDoorDialogue(door, doorTypes.SEALED_DIALOGUE_NAME, doorTypes.FALLBACK_SEALED_MESSAGE, function()
+			publishDoorEvent(door, "door_blocked")
+		end)
 	end
 
 	local controller = {} :: InteractionHandler
@@ -91,6 +103,15 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			return
 		end
 		local door = target
+		local sealed, sealedReason = dependencies.manager:isSealed(door)
+		if sealed == nil or sealedReason ~= nil then
+			return
+		end
+		if sealed then
+			doorSounds:playOneShot("locked")
+			showSealedDialogue(door)
+			return
+		end
 
 		local locked, reason = dependencies.manager:isLocked(door)
 		if locked == nil or reason ~= nil then
@@ -134,6 +155,8 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 				end
 				if result.reason == "missing_item" then
 					showLockedDialogue(door)
+				elseif result.reason == "sealed" then
+					showSealedDialogue(door)
 				elseif result.success and result.action == "enter" then
 					publishDoorEvent(door, "door_entered")
 				end
@@ -162,6 +185,9 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		elseif result.reason == "missing_item" then
 			doorSounds:playOneShot("locked")
 			showLockedDialogue(door)
+		elseif result.reason == "sealed" then
+			doorSounds:playOneShot("locked")
+			showSealedDialogue(door)
 		end
 		return
 	end

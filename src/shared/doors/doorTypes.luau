@@ -11,6 +11,7 @@ export type DoorFailureReason =
 	| "missing_item"
 	| "busy"
 	| "invalid_config"
+	| "sealed"
 
 export type DoorRequest = {
 	door: Model,
@@ -28,8 +29,11 @@ return {
 	DOORWAY_NAME = "Doorway",
 	CENTER_NAME = "Center",
 	LOCKED_DIALOGUE_NAME = "LockedDialogue",
+	SEALED_DIALOGUE_NAME = "SealedDialogue",
 	LOCKED_ATTRIBUTE = "Locked",
+	SEALED_ATTRIBUTE = "Sealed",
 	REQUIRED_ITEM_ID_ATTRIBUTE = "RequiredItemId",
 	DOOR_KEY_ATTRIBUTE = "DoorKey",
 	FALLBACK_LOCKED_MESSAGE = "Porta trancada.",
+	FALLBACK_SEALED_MESSAGE = "A porta esta selada.",
 }
