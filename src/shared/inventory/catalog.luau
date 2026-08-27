@@ -20,9 +20,9 @@ local items: { [ItemId]: ItemDefinition } = {
 		stackable = false,
 		capabilities = { "unlock" },
 	},
-	pliers = {
-		id = "pliers",
-		name = "Pliers",
+	bolt_cutter = {
+		id = "bolt_cutter",
+		name = "Alicate",
 		category = "tool",
 		stackable = false,
 		capabilities = { "unlock" },

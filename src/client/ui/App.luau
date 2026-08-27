@@ -36,7 +36,7 @@ local DROPDOWN_WIDTH = 144
 
 local mockActionLabelsByItemId: { [string]: { string } } = {
 	access_card = { "usar", "descartar" },
-	pliers = { "usar", "descartar" },
+	bolt_cutter = { "usar", "descartar" },
 	handgun = { "equipar", "descartar" },
 	handgun_ammo = { "descartar" },
 	medkit = { "usar", "descartar" },

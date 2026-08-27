@@ -224,7 +224,7 @@ local function bindActions(self: DialogueController): ()
 	local callback = function(actionName, inputState, inputObject)
 		return handleAction(self, actionName, inputState, inputObject)
 	end
-	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.F)
+	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.E)
 	ContextActionService:BindActionAtPriority(CANCEL_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.Escape)
 	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.A)
 	ContextActionService:BindActionAtPriority(NEXT_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.D)

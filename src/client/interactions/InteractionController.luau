@@ -148,7 +148,7 @@ local function bind(self: InteractionController): ()
 			end,
 			false,
 			ACTION_PRIORITY,
-			Enum.KeyCode.F
+			Enum.KeyCode.E
 		)
 	end
 end
