@@ -112,7 +112,7 @@ local TIMELINE: CinematicController.Timeline = {
 }
 
 local function hasAccessCard(inventory: InventoryController): boolean
-	local state = inventory.getState()
+	local state = inventory:getState()
 	if state == nil then
 		return false
 	end

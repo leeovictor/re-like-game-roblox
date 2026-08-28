@@ -3,10 +3,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local controller = require(script.Parent.InventoryController)
+local InventoryControllerModule = require(script.Parent.InventoryController)
 
-local function useInventory()
-	local inventory, setInventory = React.useState(controller.getState())
+local function useInventory(controller: InventoryControllerModule.InventoryController)
+	local inventory, setInventory = React.useState(controller:getState())
 
 	React.useEffect(function()
 		local connection = controller.changed:Connect(function(snapshot)
@@ -16,7 +16,7 @@ local function useInventory()
 		return function()
 			connection:Disconnect()
 		end
-	end, {})
+	end, { controller })
 
 	return inventory
 end

@@ -5,7 +5,8 @@
 local ActionPriorities = {
 	MOVEMENT = Enum.ContextActionPriority.High.Value,
 	INTERACTION = Enum.ContextActionPriority.High.Value,
-	DIALOGUE = Enum.ContextActionPriority.High.Value + 1,
+	COMBAT = Enum.ContextActionPriority.High.Value + 1,
+	DIALOGUE = Enum.ContextActionPriority.High.Value + 2,
 }
 
 return ActionPriorities

@@ -14,6 +14,8 @@ export type EnemyController = {
 	heartbeatConnection: RBXScriptConnection?,
 	start: (self: EnemyController) -> (),
 	stop: (self: EnemyController) -> (),
+	getActiveEnemies: (self: EnemyController) -> { types.Enemy },
+	applyDamage: (self: EnemyController, enemy: types.Enemy, amount: number) -> boolean,
 }
 
 type MarkerProperties = {
@@ -32,6 +34,21 @@ export type Dependencies = {
 
 local EnemyController = {}
 EnemyController.__index = EnemyController
+
+local function isActive(enemy: types.Enemy): boolean
+	local humanoid = enemy.humanoid
+	local root = enemy.root
+	return not enemy.destroyed
+		and enemy.model.Parent ~= nil
+		and humanoid ~= nil
+		and root ~= nil
+		and root:IsDescendantOf(enemy.model)
+		and humanoid.Health > 0
+end
+
+local function isFinite(value: number): boolean
+	return value == value and value ~= math.huge and value ~= -math.huge
+end
 
 function EnemyController.new(dependencies: Dependencies): EnemyController
 	local self = setmetatable({
@@ -159,6 +176,40 @@ function EnemyController.stop(self: EnemyController): ()
 		end
 	end
 	table.clear(state.markerProperties)
+end
+
+function EnemyController.getActiveEnemies(self: EnemyController): { types.Enemy }
+	local activeEnemies: { types.Enemy } = {}
+	for _, enemy in self.enemies do
+		if isActive(enemy) then
+			table.insert(activeEnemies, enemy)
+		end
+	end
+	return activeEnemies
+end
+
+function EnemyController.applyDamage(self: EnemyController, enemy: types.Enemy, amount: number): boolean
+	if not isFinite(amount) or amount <= 0 or not isActive(enemy) then
+		return false
+	end
+	local isRegistered = false
+	for _, currentEnemy in self.enemies do
+		if currentEnemy == enemy then
+			isRegistered = true
+			break
+		end
+	end
+	if not isRegistered then
+		return false
+	end
+	local humanoid = enemy.humanoid
+	if humanoid == nil then
+		return false
+	end
+	local ok = pcall(function()
+		humanoid:TakeDamage(amount)
+	end)
+	return ok
 end
 
 return EnemyController

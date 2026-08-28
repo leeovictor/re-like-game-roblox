@@ -15,6 +15,8 @@ local DoorManager = require(script.doors.DoorManager)
 local TransitionController = require(script.doors.TransitionController)
 local EnemyController = require(script.enemies.EnemyController)
 local InventoryController = require(script.inventory.InventoryController)
+local CombatService = require(script.combat.CombatService)
+local CombatController = require(script.combat.CombatController)
 local InteractionController = require(script.interactions.InteractionController)
 local ObjectiveController = require(script.objectives.ObjectiveController)
 local PickupInteraction = require(script.pickups.PickupInteraction)
@@ -66,10 +68,21 @@ local interactionController = InteractionController.new(nil, nil)
 
 FootstepController.start()
 
-InventoryController.start()
+local inventoryController = InventoryController.new()
+inventoryController:start()
+local combatService = CombatService.new({
+	inventory = inventoryController,
+	enemies = enemyController,
+	movement = tankController,
+})
+combatService:start()
+local combatController = CombatController.new({
+	combat = combatService,
+})
+combatController:start()
 local factory = ItemInstanceFactory.new()
 local pickupManager = PickupManager.new({
-	inventory = InventoryController,
+	inventory = inventoryController,
 	factory = factory,
 })
 pickupManager:start()
@@ -81,7 +94,7 @@ PickupNotificationController.start({
 })
 TransitionController.start()
 local doorManager = DoorManager.new({
-	inventory = InventoryController,
+	inventory = inventoryController,
 })
 local doorController = DoorController.new({
 	manager = doorManager,
@@ -100,7 +113,7 @@ local cinematicController = CinematicController.new({
 
 local machineRoomCinematicController = MachineRoomCinematicController.new({
 	cinematic = cinematicController,
-	inventory = InventoryController,
+	inventory = inventoryController,
 })
 machineRoomCinematicController:start()
 
@@ -113,8 +126,11 @@ interactionController:start()
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)
 root:render(React.createElement(App, {
-	dialogueController = dialogueController,
-	cinematicController = cinematicController,
-}))
+		dialogueController = dialogueController,
+		cinematicController = cinematicController,
+		inventoryController = inventoryController,
+		movementController = tankController,
+		combatService = combatService,
+	}))
 
 Locator.register('CinematicController', cinematicController)

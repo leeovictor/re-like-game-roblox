@@ -188,9 +188,13 @@ function InventoryStore.removeQuantity(state: InventoryState, uid: string, quant
 	if instance == nil or instance.quantity == nil or quantity > instance.quantity then return nil end
 	if quantity == instance.quantity then return InventoryStore.removeInstance(state, uid) end
 	local result = InventoryStore.copyState(state)
-	local updated = InventoryStore.findInstance(result, uid) :: ItemInstance
-	local currentQuantity = updated.quantity :: number
-	updated.quantity = currentQuantity - quantity
+	for _, updated in result.items do
+		if updated.uid == uid then
+			local currentQuantity = updated.quantity :: number
+			updated.quantity = currentQuantity - quantity
+			break
+		end
+	end
 	return result
 end
 

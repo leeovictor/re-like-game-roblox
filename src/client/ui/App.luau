@@ -1,6 +1,8 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
+local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
@@ -8,6 +10,9 @@ local items = require(ReplicatedStorage.Shared.inventory.items)
 local useDialogue = require(script.Parent.Parent.dialogue.useDialogue)
 local CinematicController = require(script.Parent.Parent.cinematics.CinematicController)
 local useInventory = require(script.Parent.Parent.inventory.useInventory)
+local InventoryControllerModule = require(script.Parent.Parent.inventory.InventoryController)
+local CombatConfig = require(script.Parent.Parent.combat.CombatConfig)
+local CombatServiceModule = require(script.Parent.Parent.combat.CombatService)
 local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
 local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
 local ObjectiveNotification = require(script.Parent.ObjectiveNotification)
@@ -15,11 +20,15 @@ local InventorySlot = require(script.Parent.InventorySlot)
 local DropdownMenu = require(script.Parent.DropdownMenu)
 local ConfirmationModal = require(script.Parent.ConfirmationModal)
 local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
+local TankController = require(script.Parent.Parent.player.TankController)
 local CinematicLetterbox = require(script.Parent.CinematicLetterbox)
 
 type Props = {
 	cinematicController: CinematicController.Controller,
 	dialogueController: DialogueController.DialogueController,
+	inventoryController: InventoryControllerModule.InventoryController,
+	movementController: TankController.MovementController,
+	combatService: CombatServiceModule.CombatService,
 }
 
 local INVENTORY_SLOT_COUNT = 6
@@ -33,6 +42,8 @@ local INVENTORY_CELL_SIZE = UDim2.new(
 )
 local INVENTORY_CONTENT_ASPECT_RATIO = 280 / 184
 local DROPDOWN_WIDTH = 144
+local INVENTORY_TOGGLE_ACTION = "DungeonInventoryToggle"
+local INVENTORY_TOGGLE_PRIORITY = Enum.ContextActionPriority.High.Value + 3
 
 local mockActionLabelsByItemId: { [string]: { string } } = {
 	access_card = { "descartar" },
@@ -49,9 +60,66 @@ local function App(props: Props)
 	local cinematicPlaying, setCinematicPlaying = React.useState(props.cinematicController:isPlaying())
 	local dungeonGuiHidden, setDungeonGuiHidden = React.useState(cinematicPlaying)
 	local notificationItemId = usePickupNotification()
-	local inventory = useInventory()
+	local inventory: items.InventoryState? = useInventory(props.inventoryController)
 	local objectives = useObjectives()
 	local dialogue = useDialogue(props.dialogueController)
+	local equippedWeapon: items.ItemInstance? = nil
+	local weaponConfig: typeof(CombatConfig.handgun)? = nil
+	local loadedAmmo: number? = nil
+	local reserveAmmo = 0
+	if inventory ~= nil then
+		local equippedWeaponUid = inventory.equipped.weapon
+		if equippedWeaponUid ~= nil then
+			for _, instance in inventory.items do
+				if instance.uid == equippedWeaponUid then
+					equippedWeapon = instance
+					break
+				end
+			end
+		end
+		if equippedWeapon ~= nil then
+			weaponConfig = CombatConfig[equippedWeapon.itemId]
+			if equippedWeapon.attributes ~= nil then
+				local value = equippedWeapon.attributes.loadedAmmo
+				if type(value) == "number" then
+					loadedAmmo = value
+				end
+			end
+			if loadedAmmo == nil and weaponConfig ~= nil
+				and (equippedWeapon.attributes == nil or equippedWeapon.attributes.loadedAmmo == nil)
+			then
+				loadedAmmo = weaponConfig.magazineSize
+			end
+			if weaponConfig ~= nil then
+				for _, instance in inventory.items do
+					if instance.itemId == weaponConfig.ammoItemId and instance.quantity ~= nil then
+						reserveAmmo += instance.quantity
+					end
+				end
+			end
+		end
+	end
+	local equippedWeaponDefinition = if equippedWeapon ~= nil then items[equippedWeapon.itemId] else nil
+	local combatHudWeaponName = if equippedWeaponDefinition ~= nil then equippedWeaponDefinition.name else "SEM ARMA"
+	local combatHudLoadedAmmo = if loadedAmmo ~= nil then tostring(loadedAmmo) else "--"
+	local combatHudReserveAmmo = if weaponConfig ~= nil then tostring(reserveAmmo) else "--"
+
+	local inventoryMovementEffectDependencies: { unknown } = {
+		inventoryVisible,
+		props.movementController,
+		props.combatService,
+	}
+	React.useEffect(function()
+		if not inventoryVisible then
+			return
+		end
+		local releaseMovementLock = props.movementController:acquireMovementLock()
+		local releaseCombatLock = props.combatService:acquireLock()
+		return function()
+			releaseCombatLock()
+			releaseMovementLock()
+		end
+	end, inventoryMovementEffectDependencies)
 
 	React.useEffect(function()
 		local connection = props.cinematicController.playingChanged:Connect(function(playing: boolean)
@@ -68,21 +136,27 @@ local function App(props: Props)
 
 	local selectionEffectDependencies: { unknown } = { inventory, selectedItemUid }
 	React.useEffect(function()
-		local connection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-			if input.KeyCode ~= Enum.KeyCode.T then
-				return
-			end
-			if gameProcessedEvent and UserInputService:GetFocusedTextBox() then
-				return
-			end
-
-			setInventoryVisible(function(previousVisible: boolean): boolean
-				return not previousVisible
-			end)
-		end)
+		local playerListWasEnabled = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.PlayerList)
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+		ContextActionService:BindActionAtPriority(
+			INVENTORY_TOGGLE_ACTION,
+			function(_, inputState)
+				if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() then
+					return Enum.ContextActionResult.Sink
+				end
+				setInventoryVisible(function(previousVisible: boolean): boolean
+					return not previousVisible
+				end)
+				return Enum.ContextActionResult.Sink
+			end,
+			false,
+			INVENTORY_TOGGLE_PRIORITY,
+			Enum.KeyCode.Tab
+		)
 
 		return function()
-			connection:Disconnect()
+			ContextActionService:UnbindAction(INVENTORY_TOGGLE_ACTION)
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, playerListWasEnabled)
 		end
 	end, {})
 
@@ -137,12 +211,32 @@ local function App(props: Props)
 			}
 		end
 
+		local function getDisplayQuantity(instance: items.ItemInstance): number?
+			if instance.quantity ~= nil then
+				return instance.quantity
+			end
+			local definition = items[instance.itemId]
+			if definition == nil or definition.category ~= "weapon" then
+				return nil
+			end
+			local authoredLoadedAmmo = if instance.attributes ~= nil then instance.attributes.loadedAmmo else nil
+			if authoredLoadedAmmo ~= nil then
+				return if type(authoredLoadedAmmo) == "number" then authoredLoadedAmmo else nil
+			end
+			local config = CombatConfig[instance.itemId]
+			return if config ~= nil then config.magazineSize else nil
+		end
+
 		local gridChildren = {}
 		local overlayChildren = {}
 		for index = 1, INVENTORY_SLOT_COUNT do
 			local instance = inventory.items[index]
+			local quantity = if instance ~= nil then getDisplayQuantity(instance) else nil
 			local displayItem = if instance ~= nil
-				then resolveDisplayItem(instance.itemId, instance.quantity)
+				then resolveDisplayItem(
+					instance.itemId,
+					quantity
+				)
 				else nil
 			local isEquipped = if instance ~= nil then isItemEquipped(instance.uid) else false
 			local actionOptions: { { label: string, onActivated: () -> () } } = {}
@@ -155,7 +249,9 @@ local function App(props: Props)
 							label = label,
 							onActivated = function()
 								setSelectedItemUid(nil)
-								if label == "descartar" then
+								if label == "equipar" then
+									props.inventoryController:equip(instance.uid)
+								elseif label == "descartar" then
 									setConfirmationItemUid(instance.uid)
 								end
 							end,
@@ -427,6 +523,52 @@ local function App(props: Props)
 				}),
 			})
 				else nil,
+			CombatStatus = React.createElement("Frame", {
+				AnchorPoint = Vector2.new(1, 1),
+				BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+				BackgroundTransparency = 0.08,
+				Position = UDim2.new(1, -24, 1, -24),
+				Size = UDim2.fromOffset(224, 76),
+			}, {
+				Corner = React.createElement("UICorner", {
+					CornerRadius = UDim.new(0, 10),
+				}),
+				Stroke = React.createElement("UIStroke", {
+					Color = Color3.fromRGB(107, 92, 168),
+					Transparency = 0.25,
+				}),
+				Title = React.createElement("TextLabel", {
+					BackgroundTransparency = 1,
+					Position = UDim2.fromOffset(14, 8),
+					Size = UDim2.new(1, -28, 0, 16),
+					Font = Enum.Font.Gotham,
+					Text = "ARMA EQUIPADA",
+					TextColor3 = Color3.fromRGB(173, 179, 198),
+					TextSize = 10,
+					TextXAlignment = Enum.TextXAlignment.Left,
+				}),
+				Weapon = React.createElement("TextLabel", {
+					BackgroundTransparency = 1,
+					Position = UDim2.fromOffset(14, 24),
+					Size = UDim2.new(1, -28, 0, 22),
+					Font = Enum.Font.GothamBold,
+					Text = combatHudWeaponName,
+					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextSize = 14,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					TextXAlignment = Enum.TextXAlignment.Left,
+				}),
+				Ammo = React.createElement("TextLabel", {
+					BackgroundTransparency = 1,
+					Position = UDim2.fromOffset(14, 49),
+					Size = UDim2.new(1, -28, 0, 18),
+					Font = Enum.Font.GothamBold,
+					Text = string.format("CARREGADA  %s    DISPONÍVEL  %s", combatHudLoadedAmmo, combatHudReserveAmmo),
+					TextColor3 = Color3.fromRGB(191, 223, 161),
+					TextSize = 11,
+					TextXAlignment = Enum.TextXAlignment.Left,
+				}),
+			}),
 		}),
 		CinematicLetterbox = React.createElement(CinematicLetterbox, {
 			playing = cinematicPlaying,

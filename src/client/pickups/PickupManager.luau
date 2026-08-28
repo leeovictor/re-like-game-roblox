@@ -153,7 +153,7 @@ function PickupManager.new(dependencies: Dependencies): PickupManager
 			return { success = false, reason = "too_far" }
 		end
 		local ok, added = pcall(function()
-			return dependencies.inventory.addInstance(registeredPickup.instance)
+			return dependencies.inventory:addInstance(registeredPickup.instance)
 		end)
 		if not ok or added ~= true then
 			return { success = false, reason = "inventory_failed" }

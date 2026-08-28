@@ -162,7 +162,7 @@ function DoorManager.new(dependencies: Dependencies): DoorManager
 			end
 			local snapshot: InventoryState?
 			local snapshotOk = pcall(function()
-				snapshot = dependencies.inventory.getState()
+				snapshot = dependencies.inventory:getState()
 			end)
 			if not snapshotOk then
 				result = failure("invalid_door")
