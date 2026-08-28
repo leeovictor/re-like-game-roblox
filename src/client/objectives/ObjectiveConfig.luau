@@ -1,38 +1,22 @@
 --!strict
-
 local config: { any } = {
 	{
 		id = "find_exit",
-		text = "Encontre uma saida",
+		text = "Encontre uma saída",
 		initial = true,
-		completeIf = function(facts)
-			return facts:hasEvent("door_blocked", { doorKey = "facility_entrance" })
-				or facts:hasEvent("door_unlocked", { doorKey = "facility_entrance" })
-				or facts:hasEvent("door_entered", { doorKey = "facility_entrance" })
-		end,
-	},
-	{
-		id = "find_access_card",
-		text = "Encontre o cartão de acesso",
-		initial = nil,
-		startsWhen = {
-			event = "door_blocked",
-			doorKey = "facility_entrance",
-		},
 		completesWhen = {
-			event = "item_collected",
-			itemId = "access_card",
-		},
+			event = "cinematic_play_ended",
+			timelineId = "generator-power-off"
+		}
 	},
 	{
 		id = "access_facility",
 		text = "Entre na instalação subterrânea",
 		initial = nil,
 		startsWhen = {
-			event = "item_collected",
-			itemId = "access_card",
+			event = "cinematic_play_ended",
+			timelineId = "generator-power-on",
 		},
-		requires = { "find_exit" },
 		completesWhen = {
 			event = "door_entered",
 			doorKey = "facility_entrance",
@@ -40,14 +24,14 @@ local config: { any } = {
 	},
 	{
 		id = "restart_generator",
-		text = "Reinicie o gerador",
+		text = "Religue o gerador",
 		startsWhen = {
 			event = "cinematic_play_ended",
 			timelineId = "generator-power-off"
 		},
 		completesWhen = {
-			event = "door_entered",
-			doorKey = "facility_entrance",
+			event = "cinematic_play_ended",
+			doorKey = "generator-power-on",
 		},
 	}
 }

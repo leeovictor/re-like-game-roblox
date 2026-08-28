@@ -25,6 +25,8 @@ local FootstepController = require(script.player.FootstepController)
 local TankController = require(script.player.TankController)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
+local createSwitchInteraction = require(script.interactions.SwitchInteraction)
+local Locator = require(ReplicatedStorage.Shared.locator.locator)
 
 local Players = game:GetService("Players")
 local App = require(script.ui.App)
@@ -53,12 +55,6 @@ local dialogueController = DialogueController.new({
 })
 dialogueController:start()
 
-local cinematicController = CinematicController.new({
-	camera = cameraController,
-	movement = tankController,
-	sound = cinematicSoundPlayer,
-})
-
 local function showDialogue(text: string, callback: ((nil, string) -> ())?): ()
 	dialogueController:show(text, callback)
 end
@@ -71,11 +67,6 @@ local interactionController = InteractionController.new(nil, nil)
 FootstepController.start()
 
 InventoryController.start()
-local machineRoomCinematicController = MachineRoomCinematicController.new({
-	cinematic = cinematicController,
-	inventory = InventoryController,
-})
-machineRoomCinematicController:start()
 local factory = ItemInstanceFactory.new()
 local pickupManager = PickupManager.new({
 	inventory = InventoryController,
@@ -100,9 +91,23 @@ local doorController = DoorController.new({
 })
 ObjectiveController.start()
 
+local cinematicController = CinematicController.new({
+	camera = cameraController,
+	movement = tankController,
+	sound = cinematicSoundPlayer,
+	doorManager = doorManager
+})
+
+local machineRoomCinematicController = MachineRoomCinematicController.new({
+	cinematic = cinematicController,
+	inventory = InventoryController,
+})
+machineRoomCinematicController:start()
+
 interactionController:register("Door", doorController)
 interactionController:register("Pickup", pickupInteraction)
 interactionController:register("Dialogue", dialogueInteractionController)
+interactionController:register("Switch", createSwitchInteraction({ dialogueController = dialogueController }))
 interactionController:start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -111,3 +116,5 @@ root:render(React.createElement(App, {
 	dialogueController = dialogueController,
 	cinematicController = cinematicController,
 }))
+
+Locator.register('CinematicController', cinematicController)

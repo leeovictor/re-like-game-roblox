@@ -35,9 +35,9 @@ local INVENTORY_CONTENT_ASPECT_RATIO = 280 / 184
 local DROPDOWN_WIDTH = 144
 
 local mockActionLabelsByItemId: { [string]: { string } } = {
-	access_card = { "usar", "descartar" },
-	bolt_cutter = { "usar", "descartar" },
-	handgun = { "equipar", "descartar" },
+	access_card = { "descartar" },
+	bolt_cutter = { "descartar" },
+	handgun = { "equipar" },
 	handgun_ammo = { "descartar" },
 	medkit = { "usar", "descartar" },
 }

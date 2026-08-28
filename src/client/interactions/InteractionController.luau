@@ -51,6 +51,9 @@ local function parseInteractionType(value: any): string?
 	elseif value == interactionTypes.DIALOGUE_TYPE then
 		return "Dialogue"
 	end
+	if value == interactionTypes.SWITCH_TYPE then
+		return "Switch"
+	end
 	return nil
 end
 

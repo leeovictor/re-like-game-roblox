@@ -5,6 +5,8 @@ local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
 local TankController = require(script.Parent.Parent.player.TankController)
 local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
+local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
 local ModelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
@@ -30,7 +32,24 @@ export type SetModelProfileEffect = {
 	},
 }
 
-export type Effect = SetCameraShotEffect | PlaySoundEffect | SetModelProfileEffect
+export type SetSealDoorEffect = {
+	name: "set-seal-door",
+	attributes: {
+		door: string,
+		value: boolean
+	},
+}
+
+export type SetAttribute = {
+	name: "set-attribute",
+	attributes: {
+		instance: string,
+		name: string,
+		value: any
+	}	
+}
+
+export type Effect = SetCameraShotEffect | PlaySoundEffect | SetModelProfileEffect | SetSealDoorEffect | SetAttribute
 
 export type TimelineStep = {
 	frame: number,
@@ -59,6 +78,7 @@ export type Dependencies = {
 	camera: CameraController.CameraController,
 	movement: TankController.MovementController,
 	sound: CinematicSoundPlayer.CinematicSoundPlayer,
+	doorManager: DoorManager.DoorManager,
 }
 
 type State = "idle" | "preloading" | "playing"
@@ -94,7 +114,7 @@ local function unknownField(value: any, allowed: { [string]: boolean }): string?
 	return nil
 end
 
-local function resolveWorkspaceModel(path: string): Model?
+local function resolveWorkspaceInstance(path: string): Instance?
 	if string.match(path, "^%.") ~= nil
 		or string.match(path, "%.$") ~= nil
 		or string.match(path, "%.%.") ~= nil
@@ -110,7 +130,13 @@ local function resolveWorkspaceModel(path: string): Model?
 		end
 		current = child
 	end
-	return if current:IsA("Model") then current else nil
+	
+	return current
+end
+
+local function resolveWorkspaceModel(path: string): Model?
+	local instance = resolveWorkspaceInstance(path)
+	return if instance ~= nil and instance:IsA("Model") then instance else nil
 end
 
 local function contiguousLength(value: any): (number?, string?)
@@ -209,6 +235,33 @@ local function validateEffect(
 			attributes = {
 				model = value.attributes.model,
 				profile = value.attributes.profile,
+			},
+		}, nil
+	elseif value.name == "set-seal-door" then
+		field = unknownField(value.attributes, { door = true, value = true })
+		if field ~= nil then
+			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
+		end
+		
+		return {
+			name = "set-seal-door",
+			attributes = {
+				door = value.attributes.door,
+				value = value.attributes.value,
+			},
+		}, nil
+	elseif value.name == "set-attribute" then
+		field = unknownField(value.attributes, { instance = true, name = true, value = true })
+		if field ~= nil then
+			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
+		end
+		
+		return {
+			name = "set-attribute",
+			attributes = {
+				instance = value.attributes.instance,
+				name = value.attributes.name,
+				value = value.attributes.value,
 			},
 		}, nil
 	end
@@ -447,10 +500,46 @@ local function handleSetModelProfile(_self: Controller, effect: Effect, _executi
 	return true
 end
 
+local function handleSetSealDoor(self: Controller, effect: Effect, _executionId: number): boolean
+	if effect.name ~= "set-seal-door" then
+		return false
+	end
+
+	local model = resolveWorkspaceModel(effect.attributes.door)
+	if model == nil then
+		warn("CinematicController model path did not resolve to a Model: " .. effect.attributes.door)
+		return false
+	end
+
+	local result, reason = self.dependencies.doorManager:setSealed(model, effect.attributes.value)
+	if not result and reason then
+		warn('CinematicController error at set seal door effect beacause ' .. reason)
+		return false
+	end
+	return true
+end
+
+local function handleSetAttribute(self: Controller, effect: Effect, _executionId: number): boolean
+	if effect.name ~= "set-attribute" then
+		return false
+	end
+
+	local instance = resolveWorkspaceInstance(effect.attributes.instance)
+	if instance == nil then
+		warn("CinematicController model path did not resolve to a Model: " .. effect.attributes.instance)
+		return false
+	end
+
+	instance:SetAttribute(effect.attributes.name, effect.attributes.value)
+	return true
+end
+
 local effectHandlers: { [string]: (self: Controller, effect: Effect, executionId: number) -> boolean } = {
 	["set-camera-shot"] = handleSetCameraShot,
 	["play-sound"] = handlePlaySound,
 	["set-model-profile"] = handleSetModelProfile,
+	["set-seal-door"] = handleSetSealDoor,
+	["set-attribute"] = handleSetAttribute,
 }
 
 local function executeEffect(self: Controller, effect: Effect, executionId: number): boolean

@@ -51,7 +51,7 @@ local TIMELINE: CinematicController.Timeline = {
 		effects = {
 			{
 				name = "play-sound",
-				attributes = { soundId = 'rbxassetid://91232411976994' },
+				attributes = { soundId = 'rbxassetid://97288059041494' },
 			},
 			{
 				name = "set-model-profile",
@@ -84,6 +84,28 @@ local TIMELINE: CinematicController.Timeline = {
 					profile = "power_off",
 				},
 			},
+			{
+				name = "set-model-profile",
+				attributes = {
+					model = "SimpleLamp_1",
+					profile = "disabled"
+				}
+			},
+			{
+				name = "set-seal-door",
+				attributes = {
+					door = "FacilityEntrance.DoorTest",
+					value = true
+				}
+			},
+			{
+				name = "set-attribute",
+				attributes = {
+					instance = 'Machine.LeverInteraction',
+					name = 'enabled',
+					value = true
+				}
+			}
 		},
 	},
 },
