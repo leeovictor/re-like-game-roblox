@@ -519,7 +519,7 @@ local function handleSetSealDoor(self: Controller, effect: Effect, _executionId:
 	return true
 end
 
-local function handleSetAttribute(self: Controller, effect: Effect, _executionId: number): boolean
+local function handleSetAttribute(_self: Controller, effect: Effect, _executionId: number): boolean
 	if effect.name ~= "set-attribute" then
 		return false
 	end
