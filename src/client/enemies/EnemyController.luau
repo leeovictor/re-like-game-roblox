@@ -4,9 +4,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Enemy = require(script.Parent.Enemy)
-local TankController = require(script.Parent.Parent.player.TankController)
-local types = require(script.Parent.types)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local Enemy = require(StarterPlayer.StarterPlayerScripts.Client.enemies.Enemy)
+local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
+local types = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 
 export type EnemyController = {
 	started: boolean,

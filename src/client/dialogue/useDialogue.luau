@@ -3,7 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local DialogueController = require(script.Parent.DialogueController)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 
 local function useDialogue(controller: DialogueController.DialogueController)
 	local dialogue, setDialogue = React.useState(controller:getState())

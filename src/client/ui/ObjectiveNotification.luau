@@ -4,9 +4,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local React = require(ReplicatedStorage.Packages.React)
-local ObjectiveController = require(script.Parent.Parent.objectives.ObjectiveController)
-local useObjectiveNotification = require(script.Parent.Parent.objectives.useObjectiveNotification)
-local timing = require(script.Parent.Parent.objectives.ObjectiveNotificationTiming)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local ObjectiveController = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
+local useObjectiveNotification = require(StarterPlayer.StarterPlayerScripts.Client.objectives.useObjectiveNotification)
+local timing = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveNotificationTiming)
 
 local function ObjectiveNotification()
 	local objectiveNotification = useObjectiveNotification()

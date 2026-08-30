@@ -1,4 +1,5 @@
 local StarterPlayer = game:GetService("StarterPlayer")
+
 local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 

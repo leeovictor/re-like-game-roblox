@@ -4,13 +4,15 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 type ItemInstance = items.ItemInstance
-local InventoryControllerModule = require(script.Parent.Parent.inventory.InventoryController)
+local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
 local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 
 type InventoryController = InventoryControllerModule.InventoryController

@@ -1,17 +1,19 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local modelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
-local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
-local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
-local DoorManager = require(script.Parent.DoorManager)
-local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
-local TankController = require(script.Parent.Parent.player.TankController)
-local TransitionController = require(script.Parent.TransitionController)
-local DoorSoundPlayer = require(script.Parent.DoorSoundPlayer)
+local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
+local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
+local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
+local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
+local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
+local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.doors.TransitionController)
+local DoorSoundPlayer = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorSoundPlayer)
 
 local DoorController = {}
 DoorController.__index = DoorController
@@ -67,6 +69,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			messages = { { name = "", text = fallback } }
 		end
 
+		InputManager.switchContext('DialogueContext')
 		local index = 1
 		local function nextMessage(_: nil, reason: string): ()
 			if reason ~= "completed" then
@@ -78,6 +81,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 				dependencies.dialogue:show(message.text, nextMessage)
 			else
 				onCompleted()
+				InputManager.switchContext('PlayContext')
 			end
 		end
 
@@ -119,17 +123,10 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		end
 
 		if not locked then
-			local releaseMovement: (() -> ())? = dependencies.movement:acquireMovementLock()
 			local stopTransitionOpenSound: DoorSoundPlayer.StopPlayback? = nil
 			local stopTransitionCloseSound: DoorSoundPlayer.StopPlayback? = nil
 			local transitionCloseDuration = doorSounds:getDuration("transitionClose")
-			local function releaseMovementLock(): ()
-				local release = releaseMovement
-				releaseMovement = nil
-				if release ~= nil then
-					release()
-				end
-			end
+			InputManager.disable()
 			local accepted = dependencies.transition.run(function()
 				local result = dependencies.manager:enter(door)
 				if result.success and result.action == "enter" then
@@ -144,13 +141,13 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 				end
 				return result
 			end, function(result)
-				releaseMovementLock()
 				if stopTransitionOpenSound ~= nil then
 					stopTransitionOpenSound()
 					stopTransitionOpenSound = nil
 				end
 				if stopTransitionCloseSound ~= nil then
 					stopTransitionCloseSound()
+					InputManager.enable()
 					stopTransitionCloseSound = nil
 				end
 				if result.reason == "missing_item" then
@@ -167,8 +164,6 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			end, transitionCloseDuration)
 			if accepted then
 				stopTransitionOpenSound = doorSounds:start("transitionOpen")
-			else
-				releaseMovementLock()
 			end
 			return
 		end
@@ -177,9 +172,11 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		if result.success and result.action == "unlock" then
 			doorSounds:playOneShot("unlocked")
 			modelProfiles.setProfile(door, 'unlocked')
+			InputManager.switchContext("DialogueContext")
 			dependencies.dialogue:show("Porta destrancada.", function (_, dialogueReason)
 				if dialogueReason == "completed" then
 					publishDoorEvent(door, "door_unlocked")
+					InputManager.switchContext("PlayContext")
 				end
 			end)
 		elseif result.reason == "missing_item" then

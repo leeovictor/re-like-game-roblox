@@ -1,4 +1,5 @@
 local StarterPlayer = game:GetService("StarterPlayer")
+
 local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 local utils = require(StarterPlayer.StarterPlayerScripts.Client.enemies.utils)

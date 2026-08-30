@@ -1,11 +1,11 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
-local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
-
-local PickupManager = require(script.Parent.PickupManager)
+local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
+local PickupManager = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupManager)
 
 export type Dependencies = {
 	manager: PickupManager.PickupManager,

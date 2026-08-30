@@ -3,9 +3,11 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
-local CinematicController = require(script.Parent.CinematicController)
-local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
-local InventoryControllerModule = require(script.Parent.Parent.inventory.InventoryController)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
+local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
+local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
 
 type InventoryController = InventoryControllerModule.InventoryController
 

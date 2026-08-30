@@ -1,7 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
 type InteractionHandler = interactionTypes.InteractionHandler
@@ -69,6 +71,7 @@ local function createController(dependencies: Dependencies): InteractionHandler
 		local index = 1
 		local function nextMessage(_: nil, reason: string): ()
 			if reason ~= "completed" then
+				InputManager.switchContext("PlayContext")
 				return
 			end
 
@@ -76,9 +79,12 @@ local function createController(dependencies: Dependencies): InteractionHandler
 			local message = messages[index]
 			if message ~= nil then
 				dependencies.show(message.text, nextMessage)
+			else
+				InputManager.switchContext("PlayContext")
 			end
 		end
 
+		InputManager.switchContext("DialogueContext")
 		dependencies.show(messages[1].text, nextMessage)
 	end
 

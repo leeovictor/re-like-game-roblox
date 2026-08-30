@@ -3,7 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local InventoryControllerModule = require(script.Parent.InventoryController)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
 
 local function useInventory(controller: InventoryControllerModule.InventoryController)
 	local inventory, setInventory = React.useState(controller:getState())

@@ -3,8 +3,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local controller = require(script.Parent.ObjectiveController)
-local timing = require(script.Parent.ObjectiveNotificationTiming)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local controller = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
+local timing = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveNotificationTiming)
 
 type ObjectiveView = {
 	id: string,

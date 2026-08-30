@@ -1,4 +1,5 @@
 local StarterPlayer = game:GetService("StarterPlayer")
+
 local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 
@@ -6,9 +7,6 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 	onBegin = function(context)
 		local enemy = context.enemy
 		enemy.ellapsedAttackingTime = 0
-		if enemy.movementLockRelease == nil then
-			enemy.movementLockRelease = enemy.movementController:acquireMovementLock()
-		end
 	end,
 	update = function (context, dt: number)
 		local enemy = context.enemy
@@ -42,10 +40,6 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 		enemy.playerAttackOwner = false
 		state.playerAttackInProgress = false
 		state.playerInvulnerableUntil = os.clock() + config.PLAYER_INVULNERABILITY_TIME
-		if enemy.movementLockRelease ~= nil then
-			enemy.movementLockRelease()
-			enemy.movementLockRelease = nil
-		end
         
 		enemy.ellapsedAttackingTime = 0
 		enemy.attackTargetHumanoid = nil

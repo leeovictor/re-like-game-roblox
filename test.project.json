@@ -49,6 +49,9 @@
           "camera": {
             "$path": "src/client/camera"
           },
+          "combat": {
+            "$path": "src/client/combat"
+          },
           "cinematics": {
             "$path": "src/client/cinematics"
           },
@@ -66,6 +69,9 @@
           },
           "interactions": {
             "$path": "src/client/interactions"
+          },
+          "InputManager": {
+            "$path": "src/client/InputManager.luau"
           },
           "inventory": {
             "$path": "src/client/inventory"

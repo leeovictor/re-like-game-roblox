@@ -1,12 +1,12 @@
 --!strict
-
-local CameraController = require(script.Parent.Parent.camera.CameraController)
-local CinematicSoundPlayer = require(script.Parent.CinematicSoundPlayer)
-local TankController = require(script.Parent.Parent.player.TankController)
-local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
+
+local CameraController = require(StarterPlayer.StarterPlayerScripts.Client.camera.CameraController)
+local CinematicSoundPlayer = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicSoundPlayer)
 local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
+local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
+
 local ModelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
@@ -76,7 +76,6 @@ export type PlayingChangedSignal = {
 
 export type Dependencies = {
 	camera: CameraController.CameraController,
-	movement: TankController.MovementController,
 	sound: CinematicSoundPlayer.CinematicSoundPlayer,
 	doorManager: DoorManager.DoorManager,
 }
@@ -91,7 +90,6 @@ export type Controller = {
 	nextExecutionId: number,
 	currentExecutionId: number?,
 	currentTimelineId: string?,
-	movementRelease: (() -> ())?,
 	preload: (self: Controller, timeline: any) -> boolean,
 	play: (self: Controller, timeline: any) -> boolean,
 	stop: (self: Controller) -> (),
@@ -364,17 +362,6 @@ local function ensureCurrentGeneration(self: Controller, executionId: number, ge
 		and self.state ~= "idle"
 end
 
-local function releaseMovement(self: Controller, release: (() -> ())?): ()
-	if release == nil or self.movementRelease ~= release then
-		return
-	end
-	self.movementRelease = nil
-	local ok = pcall(release)
-	if not ok then
-		warn("CinematicController movement release failed")
-	end
-end
-
 local function clearCamera(self: Controller): ()
 	local ok = pcall(function()
 		self.dependencies.camera:clearCinematicShot()
@@ -411,7 +398,7 @@ local function emitCinematicEvent(event: GameplayEvents.GameplayEvent): ()
 	end
 end
 
-local function finishNormally(self: Controller, executionId: number, release: (() -> ())): ()
+local function finishNormally(self: Controller, executionId: number): ()
 	if self.currentExecutionId ~= executionId then
 		return
 	end
@@ -424,13 +411,12 @@ local function finishNormally(self: Controller, executionId: number, release: ((
 		firePlayingChanged(self, false)
 	end
 	clearCamera(self)
-	releaseMovement(self, release)
 	if wasPlaying and timelineId ~= nil then
 		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
 	end
 end
 
-local function finishInterrupted(self: Controller, executionId: number, release: (() -> ())?): ()
+local function finishInterrupted(self: Controller, executionId: number): ()
 	if self.currentExecutionId ~= executionId then
 		return
 	end
@@ -444,7 +430,6 @@ local function finishInterrupted(self: Controller, executionId: number, release:
 	end
 	stopSound(self, executionId)
 	clearCamera(self)
-	releaseMovement(self, release)
 	if wasPlaying and timelineId ~= nil then
 		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
 	end
@@ -587,18 +572,6 @@ local function runExecution(
 		return
 	end
 
-	local acquired, release = pcall(function(): () -> ()
-		return self.dependencies.movement:acquireMovementLock()
-	end)
-	if not acquired then
-		warn("CinematicController movement lock failed: " .. tostring(release))
-		if ensureCurrentGeneration(self, executionId, generation) then
-			finishWithoutEffects(self, executionId)
-		end
-		return
-	end
-
-	self.movementRelease = release
 	self.state = "playing"
 	firePlayingChanged(self, true)
 	emitCinematicEvent({ name = "cinematic_started", timelineId = timeline.id })
@@ -614,7 +587,7 @@ local function runExecution(
 			end
 			if not executeEffect(self, effect, executionId) then
 				if ensureCurrentGeneration(self, executionId, generation) then
-					finishInterrupted(self, executionId, release)
+					finishInterrupted(self, executionId)
 				end
 				return
 			end
@@ -629,14 +602,14 @@ local function runExecution(
 		if not waited then
 			warn("CinematicController wait failed: " .. tostring(waitError))
 			if ensureCurrentGeneration(self, executionId, generation) then
-				finishInterrupted(self, executionId, release)
+				finishInterrupted(self, executionId)
 			end
 			return
 		end
 	end
 
 	if ensureCurrentGeneration(self, executionId, generation) then
-		finishNormally(self, executionId, release)
+		finishNormally(self, executionId)
 	end
 end
 
@@ -696,9 +669,7 @@ function CinematicController.stop(self: Controller): ()
 	self.generation += 1
 	local wasPlaying = self.state == "playing"
 	local executionId = self.currentExecutionId
-	local release = self.movementRelease
 	local timelineId = self.currentTimelineId
-	self.movementRelease = nil
 	self.state = "idle"
 	self.currentExecutionId = nil
 	self.currentTimelineId = nil
@@ -710,12 +681,6 @@ function CinematicController.stop(self: Controller): ()
 		firePlayingChanged(self, false)
 	end
 	clearCamera(self)
-	if release ~= nil then
-		local ok = pcall(release)
-		if not ok then
-			warn("CinematicController movement release failed")
-		end
-	end
 	if wasPlaying and timelineId ~= nil then
 		emitCinematicEvent({ name = "cinematic_play_ended", timelineId = timelineId })
 	end
@@ -734,7 +699,6 @@ function CinematicController.new(dependencies: Dependencies): Controller
 		nextExecutionId = 0,
 		currentExecutionId = nil,
 		currentTimelineId = nil,
-		movementRelease = nil,
 	}, CinematicController)
 	return (self :: any) :: Controller
 end

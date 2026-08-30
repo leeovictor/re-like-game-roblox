@@ -3,7 +3,9 @@
 local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
 
-local DoorSoundConfig = require(script.Parent.DoorSoundConfig)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local DoorSoundConfig = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorSoundConfig)
 
 export type StopPlayback = () -> ()
 export type SoundName = "locked" | "unlocked" | "transitionOpen" | "transitionClose"

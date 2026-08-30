@@ -3,7 +3,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Config = require(script.Parent.FootstepConfig)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local Config = require(StarterPlayer.StarterPlayerScripts.Client.player.FootstepConfig)
 
 local player = Players.LocalPlayer
 local started = false

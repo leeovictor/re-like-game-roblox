@@ -3,7 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local controller = require(script.Parent.PickupNotificationController)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local controller = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupNotificationController)
 
 local function usePickupNotification(): string?
 	local itemId, rawSetItemId = React.useState(nil :: string?)

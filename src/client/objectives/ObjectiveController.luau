@@ -3,9 +3,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
-local GameplayEvents = require(script.Parent.Parent.events.GameplayEvents)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
 local Signal = require(ReplicatedStorage.Packages.Signal)
-local defaultDefinitions = require(script.Parent.ObjectiveConfig)
+local defaultDefinitions = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveConfig)
 
 export type EventFilter = {
 	event: GameplayEvents.EventName,

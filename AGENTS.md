@@ -3,6 +3,7 @@
 ## Execucao e Imports
 
 - O projeto e Luau para Roblox montado pelo Rojo: `src/shared` -> `ReplicatedStorage.Shared`, `src/server` -> `ServerScriptService.Server` e `src/client` -> `StarterPlayer.StarterPlayerScripts.Client`. Confirme `default.project.json` antes de alterar um `require`.
+- Nos modulos de `src/client`, requires de outros modulos client-side devem usar `StarterPlayer.StarterPlayerScripts.Client`; declare `local StarterPlayer = game:GetService("StarterPlayer")` e use caminhos absolutos. Mantenha imports de `ReplicatedStorage` para modulos shared e pacotes.
 - `src/` roda no Roblox Studio. `tests/` e uma arvore TestEZ dentro de `test.project.json`, com roots separados em `ReplicatedStorage.TestEZTests.Shared`, `ServerScriptService.TestEZTests.Server` e `StarterPlayer.StarterPlayerScripts.TestEZTests.Client`. `CameraVisibility` pertence ao root client.
 - `test.project.json` mapeia apenas os subdiretorios de producao necessarios e omite `src/server/init.server.luau` e `src/client/init.client.luau`; os entrypoints normais continuam exclusivos de `default.project.json`.
 - Specs sao ModuleScripts `--!strict` que retornam uma funcao TestEZ e registram `describe`, `it`, `expect`, `beforeEach` e `afterEach`. Imports usam o DataModel real, sem indirection virtual ou filesystem. O escopo nao inclui specs de UI.
@@ -76,4 +77,4 @@ rojo build -o /tmp/dungeon-game-canve-test.rbxlx test.project.json
 
 - Mantenha `--!strict` nos modulos Luau e nao use `--!nocheck`, ignores amplos ou `typeErrors: false` para esconder diagnosticos.
 - Nao misture plataformas nas analises: `src` e `tests` usam globais Roblox, `script`, `Instance`, `Vector3` e `CFrame` fornecidos pelo DataModel e pelas definicoes Roblox versionadas.
-- Preserve imports baseados em `script` e os contratos dos modulos de producao; qualquer incompatibilidade deve ser corrigida no mapeamento do projeto de teste ou nas declaracoes TestEZ, nao com `--!nocheck` ou tipos globais amplos.
+- Preserve os contratos dos modulos de producao e siga o padrao de imports client-side definido acima; qualquer incompatibilidade deve ser corrigida no mapeamento do projeto de teste ou nas declaracoes TestEZ, nao com `--!nocheck` ou tipos globais amplos.

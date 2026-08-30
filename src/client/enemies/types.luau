@@ -1,4 +1,5 @@
 local StarterPlayer = game:GetService("StarterPlayer")
+
 local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 
 export type StateMachine<C> = {
@@ -51,7 +52,6 @@ export type Enemy = {
 	ellapsedAttackingTime: number,
 	attackTargetHumanoid: Humanoid?,
 	movementController: TankController.MovementController,
-	movementLockRelease: (() -> ())?,
 	attackingEnemyStartCFrame: CFrame?,
 	attackingEnemyTargetCFrame: CFrame?,
 	attackingPlayerStartCFrame: CFrame?,

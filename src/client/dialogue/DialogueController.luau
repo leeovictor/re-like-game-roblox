@@ -2,10 +2,10 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
-local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local Signal = require(ReplicatedStorage.Packages.Signal)
-local TankController = require(script.Parent.Parent.player.TankController)
 
 export type DialogReason = "completed" | "cancelled" | "replaced"
 
@@ -41,18 +41,11 @@ local CANCEL_ACTION = "DungeonDialogueCancel"
 local PREVIOUS_ACTION = "DungeonDialoguePrevious"
 local NEXT_ACTION = "DungeonDialogueNext"
 local ACTIONS = { CONFIRM_ACTION, CANCEL_ACTION, PREVIOUS_ACTION, NEXT_ACTION }
-local ACTION_PRIORITY = ActionPriorities.DIALOGUE
-
-export type Dependencies = {
-	movement: TankController.MovementController,
-}
 
 export type DialogueController = {
-	dependencies: Dependencies,
 	changed: ChangedSignal,
 	state: DialogState?,
 	activeCallback: ActiveCallback?,
-	movementRelease: (() -> ())?,
 	started: boolean,
 	generation: number,
 	start: (self: DialogueController) -> (),
@@ -106,12 +99,6 @@ local function unbindActions(): ()
 end
 
 local function closeCurrent(self: DialogueController, optionId: string?, reason: DialogReason): ()
-	local release = self.movementRelease
-	self.movementRelease = nil
-	if release ~= nil then
-		release()
-	end
-
 	if self.state == nil then
 		return
 	end
@@ -172,71 +159,94 @@ local function startTyping(self: DialogueController, text: string, dialogGenerat
 	end)
 end
 
-local function handleAction(self: DialogueController, actionName: string, inputState: Enum.UserInputState, _inputObject: InputObject): Enum.ContextActionResult
-	if inputState ~= Enum.UserInputState.Begin then
-		return Enum.ContextActionResult.Sink
-	end
-
+local function handleInteract(self: DialogueController)
 	local current = self.state
 	if current == nil then
-		return Enum.ContextActionResult.Sink
+		return
+	end
+	
+	if current.isTyping then
+		reveal(self)
+	elseif current.kind == "message" then
+		closeCurrent(self, nil, "completed")
+	else
+		local selected = current.options[current.selectedIndex :: number]
+		closeCurrent(self, selected.id, "completed")
+	end
+end
+
+local function handlePrevOption(self: DialogueController)
+	
+	local current = self.state
+	if current == nil then
+		return
+	end
+	
+	if current.kind ~= "question" or current.isTyping then
+		return
+	end
+	
+	local selectedIndex = math.max(1, (current.selectedIndex :: number) - 1)
+	local nextState: DialogState = {
+		kind = current.kind,
+		text = current.text,
+		visibleText = current.visibleText,
+		isTyping = current.isTyping,
+		options = current.options,
+		selectedIndex = selectedIndex,
+	}
+	publish(self, nextState)
+end
+
+local function handleNextOption(self: DialogueController)
+	local current = self.state
+	if current == nil then
+		return
 	end
 
-	if actionName == CONFIRM_ACTION then
-		if current.isTyping then
-			reveal(self)
-		elseif current.kind == "message" then
-			closeCurrent(self, nil, "completed")
-		else
-			local selected = current.options[current.selectedIndex :: number]
-			closeCurrent(self, selected.id, "completed")
-		end
-	elseif actionName == CANCEL_ACTION then
-		closeCurrent(self, nil, "cancelled")
-	elseif actionName == PREVIOUS_ACTION and current.kind == "question" and not current.isTyping then
-		local selectedIndex = math.max(1, (current.selectedIndex :: number) - 1)
-		local nextState: DialogState = {
-			kind = current.kind,
-			text = current.text,
-			visibleText = current.visibleText,
-			isTyping = current.isTyping,
-			options = current.options,
-			selectedIndex = selectedIndex,
-		}
-		publish(self, nextState)
-	elseif actionName == NEXT_ACTION and current.kind == "question" and not current.isTyping then
-		local selectedIndex = math.min(#current.options, (current.selectedIndex :: number) + 1)
-		local nextState: DialogState = {
-			kind = current.kind,
-			text = current.text,
-			visibleText = current.visibleText,
-			isTyping = current.isTyping,
-			options = current.options,
-			selectedIndex = selectedIndex,
-		}
-		publish(self, nextState)
+	if current.kind ~= "question" or current.isTyping then
+		return
 	end
 
-	return Enum.ContextActionResult.Sink
+	local selectedIndex = math.min(#current.options, (current.selectedIndex :: number) + 1)
+	local nextState: DialogState = {
+		kind = current.kind,
+		text = current.text,
+		visibleText = current.visibleText,
+		isTyping = current.isTyping,
+		options = current.options,
+		selectedIndex = selectedIndex,
+	}
+	publish(self, nextState)
 end
 
 local function bindActions(self: DialogueController): ()
-	local callback = function(actionName, inputState, inputObject)
-		return handleAction(self, actionName, inputState, inputObject)
-	end
-	ContextActionService:BindActionAtPriority(CONFIRM_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.E)
-	ContextActionService:BindActionAtPriority(CANCEL_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.Escape)
-	ContextActionService:BindActionAtPriority(PREVIOUS_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.A)
-	ContextActionService:BindActionAtPriority(NEXT_ACTION, callback, false, ACTION_PRIORITY, Enum.KeyCode.D)
+	local context = InputManager.Contexts.DialogueContext :: InputManager.Context
+	context.BindActionStateChanged('Interact', function (state: boolean)
+		if not state then
+			return
+		end
+		handleInteract(self)
+	end)
+	context.BindActionStateChanged('OptionRight', function (state)
+		if not state then
+			return
+		end
+		handleNextOption(self)
+	end)
+	context.BindActionStateChanged('OptionLeft', function (state)
+		if not state then
+			return
+		end
+		handlePrevOption(self)
+	end)
 end
 
-function DialogueController.new(dependencies: Dependencies): DialogueController
+function DialogueController.new(): DialogueController
 	local self = setmetatable({
-		dependencies = dependencies,
 		changed = (Signal.new() :: any) :: ChangedSignal,
 		state = nil,
 		activeCallback = nil,
-		movementRelease = nil,
 		started = false,
 		generation = 0,
 	}, DialogueController)
@@ -247,6 +257,7 @@ function DialogueController.start(self: DialogueController): ()
 	if self.started then
 		return
 	end
+	bindActions(self)
 	self.started = true
 end
 
@@ -283,7 +294,6 @@ function DialogueController.show(self: DialogueController, text: string, callbac
 
 	self.activeCallback = callback :: any
 	local dialogGeneration = self.generation
-	self.movementRelease = self.dependencies.movement:acquireMovementLock()
 	publish(self, {
 		kind = "message",
 		text = validatedText,
@@ -292,7 +302,6 @@ function DialogueController.show(self: DialogueController, text: string, callbac
 		options = {},
 		selectedIndex = nil,
 	})
-	bindActions(self)
 	startTyping(self, validatedText, dialogGeneration)
 end
 
@@ -312,7 +321,6 @@ function DialogueController.ask(self: DialogueController, text: string, options:
 
 	self.activeCallback = callback :: any
 	local dialogGeneration = self.generation
-	self.movementRelease = self.dependencies.movement:acquireMovementLock()
 	publish(self, {
 		kind = "question",
 		text = validatedText,
@@ -321,7 +329,6 @@ function DialogueController.ask(self: DialogueController, text: string, options:
 		options = validatedOptions,
 		selectedIndex = 1,
 	})
-	bindActions(self)
 	startTyping(self, validatedText, dialogGeneration)
 end
 

@@ -8,8 +8,10 @@ local catalog = require(ReplicatedStorage.Shared.inventory.catalog)
 local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local items = require(ReplicatedStorage.Shared.inventory.items)
-local InventoryController = require(script.Parent.Parent.inventory.InventoryController)
-local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local InventoryController = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
+local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 
 type DoorActionResult = doorTypes.DoorActionResult
 type InventoryState = items.InventoryState

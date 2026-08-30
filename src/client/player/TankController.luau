@@ -1,22 +1,15 @@
 --!strict
 
-local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
+local StarterPlayer = game:GetService("StarterPlayer")
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local TankControlMath = require(ReplicatedStorage.Shared.player.TankControlMath)
 
-local ACTION_FORWARD = "DungeonTankForward"
-local ACTION_BACKWARD = "DungeonTankBackward"
-local ACTION_LEFT = "DungeonTankLeft"
-local ACTION_RIGHT = "DungeonTankRight"
-local ACTION_RUN = "DungeonTankRun"
 local WALK_SPEED = 5
 local RUN_SPEED = 9
-local ACTION_PRIORITY = ActionPriorities.MOVEMENT
 
 export type InputState = TankControlMath.InputState & { running: boolean }
 
@@ -25,52 +18,24 @@ export type TankControllerConfig = {
 	runSpeed: number?,
 }
 
-type InputField = "forward" | "backward" | "left" | "right" | "running"
-
-type KeyBinding = {
-	actionName: string,
-	keyCode: Enum.KeyCode,
-	field: InputField,
-}
-
-type BoundActionCallback = (
-	actionName: string,
-	inputState: Enum.UserInputState,
-	inputObject: InputObject?
-) -> Enum.ContextActionResult
-
--- Fonte unica do mapeamento tecla -> acao -> campo de InputState; binding,
--- unbinding e sincronizacao de entrada derivam daqui.
-local KEY_BINDINGS: { KeyBinding } = {
-	{ actionName = ACTION_FORWARD, keyCode = Enum.KeyCode.W, field = "forward" },
-	{ actionName = ACTION_BACKWARD, keyCode = Enum.KeyCode.S, field = "backward" },
-	{ actionName = ACTION_LEFT, keyCode = Enum.KeyCode.A, field = "left" },
-	{ actionName = ACTION_RIGHT, keyCode = Enum.KeyCode.D, field = "right" },
-	{ actionName = ACTION_RUN, keyCode = Enum.KeyCode.LeftShift, field = "running" },
-}
-
 export type TankController = {
 	input: InputState,
 	walkSpeed: number,
 	runSpeed: number,
 	started: boolean,
-	movementLockCount: number,
-	movementLockGeneration: number,
 	renderConnection: RBXScriptConnection?,
-	inputEndedConnection: RBXScriptConnection?,
+	inputConnections: { RBXScriptConnection },
 	activeHumanoid: Humanoid?,
 	originalAutoRotate: boolean?,
 	originalWalkSpeed: number?,
 	controlledLookVector: Vector3?,
 	start: (self: TankController) -> (),
 	stop: (self: TankController) -> (),
-	acquireMovementLock: (self: TankController) -> (() -> ()),
 	setLookVector: (self: TankController, lookVector: Vector3) -> (),
 	setCFrame: (self: TankController, cframe: CFrame) -> (),
 }
 
 export type MovementController = {
-	acquireMovementLock: (self: MovementController) -> (() -> ()),
 	setLookVector: (self: MovementController, lookVector: Vector3) -> (),
 	setCFrame: (self: MovementController, cframe: CFrame) -> (),
 }
@@ -80,24 +45,6 @@ TankController.__index = TankController
 
 -- CFrame.lookAt exige uma direcao valida; o fallback e o olhar padrao do Roblox.
 local DEFAULT_LOOK_VECTOR = Vector3.new(0, 0, -1)
-
-local function resetInput(self: TankController): ()
-	self.input.forward = false
-	self.input.backward = false
-	self.input.left = false
-	self.input.right = false
-	self.input.running = false
-end
-
-local function canMove(self: TankController): boolean
-	return self.movementLockCount == 0
-end
-
-local function syncInput(self: TankController): ()
-	for _, binding in KEY_BINDINGS do
-		self.input[binding.field] = UserInputService:IsKeyDown(binding.keyCode)
-	end
-end
 
 local function releaseHumanoid(self: TankController): ()
 	local humanoid = self.activeHumanoid
@@ -126,30 +73,20 @@ local function acquireHumanoid(self: TankController, humanoid: Humanoid): ()
 	humanoid.AutoRotate = false
 end
 
-local function updateInput(self: TankController, actionName: string, inputState: Enum.UserInputState): Enum.ContextActionResult
-	local isPressed = if inputState == Enum.UserInputState.Begin then true elseif inputState == Enum.UserInputState.End
-		or inputState == Enum.UserInputState.Cancel then false
-		else nil
-
-	if isPressed == nil then
-		return Enum.ContextActionResult.Sink
-	end
-
-	for _, binding in KEY_BINDINGS do
-		if binding.actionName == actionName then
-			self.input[binding.field] = isPressed
-		end
-	end
-
-	return Enum.ContextActionResult.Sink
+local function updateMoveInput(self: TankController, state: any): ()
+	local value = state :: number
+	self.input.forward = value < 0
+	self.input.backward = value > 0
 end
 
-local function handleInputEnded(self: TankController, inputObject: InputObject): ()
-	for _, binding in KEY_BINDINGS do
-		if inputObject.KeyCode == binding.keyCode then
-			self.input[binding.field] = false
-		end
-	end
+local function updateRotateInput(self: TankController, state: any): ()
+	local value = state :: number
+	self.input.left = value < 0
+	self.input.right = value > 0
+end
+
+local function updateSprintInput(self: TankController, state: any): ()
+	self.input.running = state :: boolean
 end
 
 type ResolvedCharacter = {
@@ -190,6 +127,12 @@ local function update(self: TankController, deltaTime: number): ()
 		return
 	end
 
+	local playContext = InputManager.Contexts.PlayContext :: InputManager.Context
+	
+	updateMoveInput(self, playContext.GetActionState('Move'))
+	updateRotateInput(self, playContext.GetActionState('Rotate'))
+	updateSprintInput(self, playContext.GetActionState('Sprint'))
+
 	local humanoid = character.humanoid
 	local rootPart = character.rootPart
 
@@ -197,14 +140,6 @@ local function update(self: TankController, deltaTime: number): ()
 
 	local lookVector = self.controlledLookVector
 		or TankControlMath.horizontalUnit(rootPart.CFrame.LookVector, DEFAULT_LOOK_VECTOR)
-	if not canMove(self) then
-		-- O look vector fica congelado enquanto o movimento esta bloqueado;
-		-- ao liberar o lock, o personagem retorna a orientacao anterior.
-		self.controlledLookVector = lookVector
-		rootPart.AssemblyAngularVelocity = Vector3.zero
-		humanoid:Move(Vector3.zero, false)
-		return
-	end
 
 	local motion = TankControlMath.calculate(lookVector, self.input, deltaTime)
 	if motion.rotationRadians ~= 0 then
@@ -217,28 +152,6 @@ local function update(self: TankController, deltaTime: number): ()
 	rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector)
 	rootPart.AssemblyAngularVelocity = Vector3.zero
 	humanoid:Move(motion.moveDirection, false)
-end
-
-local function bindActions(self: TankController): ()
-	for _, binding in KEY_BINDINGS do
-		local callback: BoundActionCallback = function(actionName, inputState, _inputObject)
-			return updateInput(self, actionName, inputState)
-		end
-		((self :: any)._testBoundActionCallbacks :: { [string]: BoundActionCallback })[binding.actionName] = callback
-		ContextActionService:BindActionAtPriority(
-			binding.actionName,
-			callback,
-			false,
-			ACTION_PRIORITY,
-			binding.keyCode
-		)
-	end
-end
-
-local function unbindActions(): ()
-	for _, binding in KEY_BINDINGS do
-		ContextActionService:UnbindAction(binding.actionName)
-	end
 end
 
 function TankController.new(config: TankControllerConfig?): TankController
@@ -261,14 +174,11 @@ function TankController.new(config: TankControllerConfig?): TankController
 			right = false,
 			running = false,
 		},
-		_testBoundActionCallbacks = {},
 		walkSpeed = walkSpeed,
 		runSpeed = runSpeed,
 		started = false,
-		movementLockCount = 0,
-		movementLockGeneration = 0,
 		renderConnection = nil,
-		inputEndedConnection = nil,
+		inputConnections = {},
 		activeHumanoid = nil,
 		originalAutoRotate = nil,
 		originalWalkSpeed = nil,
@@ -277,25 +187,12 @@ function TankController.new(config: TankControllerConfig?): TankController
 	return (self :: any) :: TankController
 end
 
-function TankController._testGetBoundActionCallback(
-	self: TankController,
-	actionName: string
-): BoundActionCallback?
-	return ((self :: any)._testBoundActionCallbacks :: { [string]: BoundActionCallback })[actionName]
-end
-
 function TankController.start(self: TankController): ()
 	if self.started then
 		return
 	end
 
 	self.started = true
-	resetInput(self)
-	syncInput(self)
-	self.inputEndedConnection = UserInputService.InputEnded:Connect(function(inputObject)
-		handleInputEnded(self, inputObject)
-	end)
-	bindActions(self)
 	self.renderConnection = RunService.PreRender:Connect(function(deltaTime)
 		update(self, deltaTime)
 	end)
@@ -304,11 +201,6 @@ end
 
 function TankController.stop(self: TankController): ()
 	if not self.started then
-		local internalSelf = self :: any
-		internalSelf._testBoundActionCallbacks = {}
-		self.movementLockCount = 0
-		self.movementLockGeneration += 1
-		resetInput(self)
 		return
 	end
 
@@ -317,41 +209,7 @@ function TankController.stop(self: TankController): ()
 		self.renderConnection:Disconnect()
 		self.renderConnection = nil
 	end
-	if self.inputEndedConnection ~= nil then
-		self.inputEndedConnection:Disconnect()
-		self.inputEndedConnection = nil
-	end
-	unbindActions()
-	local internalSelf = self :: any
-	internalSelf._testBoundActionCallbacks = {}
-	resetInput(self)
 	releaseHumanoid(self)
-	self.movementLockCount = 0
-	self.movementLockGeneration += 1
-end
-
-function TankController.acquireMovementLock(self: TankController): () -> ()
-	if self.movementLockCount == 0 then
-		self.movementLockGeneration += 1
-	end
-
-	local acquiredGeneration = self.movementLockGeneration
-	self.movementLockCount += 1
-
-	local released = false
-	return function(): ()
-		if released then
-			return
-		end
-		released = true
-
-		if acquiredGeneration ~= self.movementLockGeneration then
-			return
-		end
-
-		self.movementLockCount -= 1
-		syncInput(self)
-	end
 end
 
 function TankController.setLookVector(self: TankController, lookVector: Vector3): ()

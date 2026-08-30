@@ -1,5 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
+
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
@@ -57,27 +59,35 @@ return function (deps: Deps)
     
     function SwitchInteration.interact(target: Instance)
         local data = readSwitchDataFromTarget(target)
+        InputManager.switchContext("DialogueContext")
 
         if not data.enabled then
-            deps.dialogueController:show(data.preAskText)
+            deps.dialogueController:show(data.preAskText, function (_, reason)
+                InputManager.switchContext("PlayContext")
+            end)
             return
         end
         
         local ok, responseHandler = pcall(function ()
-            return require(script.Parent.switchHandlers[data.handlerName])
+            return require(StarterPlayer.StarterPlayerScripts.Client.interactions.switchHandlers[data.handlerName])
         end)
         
         if not ok then
             error('SwitchInteraction: the response handler for the switch do not exists in the folder switchHandlers')
         end
 
+        local function handler(...)
+            responseHandler(...)
+            InputManager.switchContext("PlayContext")
+        end
+
         if not data.preAskText then
-            deps.dialogueController:ask(data.askText, data.options, responseHandler)
+            deps.dialogueController:ask(data.askText, data.options, handler)
             return
         end
         
         deps.dialogueController:show(data.preAskText, function (_, reason)
-            deps.dialogueController:ask(data.askText, data.options, responseHandler)
+            deps.dialogueController:ask(data.askText, data.options, handler)
         end)
     end
     

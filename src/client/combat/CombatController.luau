@@ -4,7 +4,10 @@ local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
 
 local ActionPriorities = require(game:GetService("ReplicatedStorage").Shared.input.ActionPriorities)
-local CombatServiceModule = require(script.Parent.CombatService)
+local StarterPlayer = game:GetService("StarterPlayer")
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
+
+local CombatServiceModule = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
 
 export type Dependencies = {
 	combat: CombatServiceModule.CombatService,
@@ -59,79 +62,51 @@ function CombatController.start(self: CombatController): ()
 	self.leftDown = false
 	self.rightDown = false
 
-	ContextActionService:BindActionAtPriority(
-		ACTION_MOUSE_RIGHT,
-		function(_, inputState)
-			if not self.started then
-				return Enum.ContextActionResult.Sink
-			end
-			if inputState == Enum.UserInputState.Begin then
-				self.dependencies.combat:beginAim()
-			elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
-				self.dependencies.combat:endAim()
-			end
-			return Enum.ContextActionResult.Sink
-		end,
-		false,
-		ACTION_PRIORITY,
-		Enum.UserInputType.MouseButton2
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_MOUSE_LEFT,
-		function(_, inputState)
-			if inputState == Enum.UserInputState.Begin then
-				self.dependencies.combat:shoot()
-			end
-			return Enum.ContextActionResult.Sink
-		end,
-		false,
-		ACTION_PRIORITY,
-		Enum.UserInputType.MouseButton1
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_RELOAD,
-		function(_, inputState)
-			if inputState == Enum.UserInputState.Begin then
-				self.dependencies.combat:requestReload()
-			end
-			return Enum.ContextActionResult.Sink
-		end,
-		false,
-		ACTION_PRIORITY,
-		Enum.KeyCode.R
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_TURN_LEFT,
-		function(_, inputState)
-			if not isTransition(inputState) then
-				return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
-			end
-			self.leftDown = inputState == Enum.UserInputState.Begin
-			if inputState == Enum.UserInputState.Cancel or inputState == Enum.UserInputState.End then
-				self.leftDown = false
-			end
-			return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
-		end,
-		false,
-		ACTION_PRIORITY,
-		Enum.KeyCode.A
-	)
-	ContextActionService:BindActionAtPriority(
-		ACTION_TURN_RIGHT,
-		function(_, inputState)
-			if not isTransition(inputState) then
-				return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
-			end
-			self.rightDown = inputState == Enum.UserInputState.Begin
-			if inputState == Enum.UserInputState.Cancel or inputState == Enum.UserInputState.End then
-				self.rightDown = false
-			end
-			return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
-		end,
-		false,
-		ACTION_PRIORITY,
-		Enum.KeyCode.D
-	)
+	local context = InputManager.Contexts.PlayContext :: InputManager.Context
+
+	context.BindActionStateChanged('Aim', function (state: boolean)
+		if state then return self.dependencies.combat:beginAim() end
+		return self.dependencies.combat:endAim()
+	end)
+	context.BindActionStateChanged('Shoot', function (state: boolean)
+		if state then self.dependencies.combat:shoot() end
+	end)
+	context.BindActionStateChanged('Reload', function (state: boolean)
+		if state then self.dependencies.combat:requestReload() end
+	end)
+	
+	-- ContextActionService:BindActionAtPriority(
+	-- 	ACTION_TURN_LEFT,
+	-- 	function(_, inputState)
+	-- 		if not isTransition(inputState) then
+	-- 			return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
+	-- 		end
+	-- 		self.leftDown = inputState == Enum.UserInputState.Begin
+	-- 		if inputState == Enum.UserInputState.Cancel or inputState == Enum.UserInputState.End then
+	-- 			self.leftDown = false
+	-- 		end
+	-- 		return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
+	-- 	end,
+	-- 	false,
+	-- 	ACTION_PRIORITY,
+	-- 	Enum.KeyCode.A
+	-- )
+	-- ContextActionService:BindActionAtPriority(
+	-- 	ACTION_TURN_RIGHT,
+	-- 	function(_, inputState)
+	-- 		if not isTransition(inputState) then
+	-- 			return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
+	-- 		end
+	-- 		self.rightDown = inputState == Enum.UserInputState.Begin
+	-- 		if inputState == Enum.UserInputState.Cancel or inputState == Enum.UserInputState.End then
+	-- 			self.rightDown = false
+	-- 		end
+	-- 		return resultForCapture(self.dependencies.combat:setTurnInput(self.leftDown, self.rightDown))
+	-- 	end,
+	-- 	false,
+	-- 	ACTION_PRIORITY,
+	-- 	Enum.KeyCode.D
+	-- )
 
 	self.renderConnection = RunService.PreRender:Connect(function(deltaTime)
 		self.dependencies.combat:update(deltaTime)

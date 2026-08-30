@@ -2,15 +2,19 @@
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local StarterPlayer = game:GetService("StarterPlayer")
 
-local CombatConfig = require(script.Parent.CombatConfig)
-local EnemyControllerModule = require(script.Parent.Parent.enemies.EnemyController)
-local CharacterRoot = require(script.Parent.Parent.player.CharacterRoot)
-local InventoryControllerModule = require(script.Parent.Parent.inventory.InventoryController)
-local TankController = require(script.Parent.Parent.player.TankController)
-local enemyTypes = require(script.Parent.Parent.enemies.types)
+local CombatConfig = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatConfig)
+local EnemyControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.enemies.EnemyController)
+local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
+local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
+local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
+local enemyTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 
 local items = require(game:GetService("ReplicatedStorage").Shared.inventory.items)
+local AudioService = require(game:GetService("ReplicatedStorage").Shared.audio.AudioService)
+
+local AIM_ANIMATION_ID = "rbxassetid://134928308607860"
 
 type Enemy = enemyTypes.Enemy
 type SignalConnection = {
@@ -48,10 +52,11 @@ export type CombatService = {
 	externalLockCount: number,
 	externalLockGeneration: number,
 	aimWeaponUid: string?,
-	aimMovementRelease: (() -> ())?,
-	reloadMovementRelease: (() -> ())?,
 	inventoryConnection: SignalConnection?,
 	mutatingInventory: boolean,
+	aimAnimation: Animation?,
+	aimAnimationTrack: AnimationTrack?,
+	aimAnimationCharacter: Model?,
 }
 
 local CombatService = {}
@@ -65,29 +70,68 @@ local function copyAttributes(attributes: items.ItemAttributes?): items.ItemAttr
 	return if attributes == nil then {} else table.clone(attributes)
 end
 
-local function releaseAimMovementLock(self: CombatService): ()
-	local release = self.aimMovementRelease
-	self.aimMovementRelease = nil
-	if release ~= nil then
-		release()
+local function stopAimAnimation(self: CombatService): ()
+	local track = self.aimAnimationTrack
+	if track ~= nil and track.IsPlaying then
+		track:Stop(0.1)
 	end
 end
 
-local function releaseReloadMovementLock(self: CombatService): ()
-	local release = self.reloadMovementRelease
-	self.reloadMovementRelease = nil
-	if release ~= nil then
-		release()
+local function clearAimAnimation(self: CombatService): ()
+	stopAimAnimation(self)
+	if self.aimAnimationTrack ~= nil then
+		self.aimAnimationTrack:Destroy()
+		self.aimAnimationTrack = nil
+	end
+	if self.aimAnimation ~= nil then
+		self.aimAnimation:Destroy()
+		self.aimAnimation = nil
+	end
+	self.aimAnimationCharacter = nil
+end
+
+local function playAimAnimation(self: CombatService): ()
+	local character = Players.LocalPlayer.Character
+	if character == nil then
+		return
+	end
+	if self.aimAnimationCharacter ~= character then
+		clearAimAnimation(self)
+		self.aimAnimationCharacter = character
+	end
+
+	local track = self.aimAnimationTrack
+	if track == nil then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local animator = if humanoid ~= nil then humanoid:FindFirstChildOfClass("Animator") else nil
+		if animator == nil then
+			return
+		end
+		local animation = Instance.new("Animation")
+		animation.AnimationId = AIM_ANIMATION_ID
+		local loadedTrack = animator:LoadAnimation(animation)
+		loadedTrack.Looped = true
+		loadedTrack.Priority = Enum.AnimationPriority.Action
+		self.aimAnimation = animation
+		self.aimAnimationTrack = loadedTrack
+		track = loadedTrack
+	end
+
+	if track == nil then
+		return
+	end
+
+	if not track.IsPlaying then
+		track:Play(0.1)
 	end
 end
 
 local function abortActiveAction(self: CombatService): ()
+	stopAimAnimation(self)
 	self.aimWeaponUid = nil
 	self.reloadWeaponUid = nil
 	self.reloadElapsed = 0
 	self.reloadGeneration += 1
-	releaseAimMovementLock(self)
-	releaseReloadMovementLock(self)
 	self.state = "neutral"
 end
 
@@ -138,11 +182,11 @@ local function beginReload(self: CombatService, config: typeof(CombatConfig.hand
 	if loadedAmmo == nil or loadedAmmo >= config.magazineSize or reserveQuantity <= 0 then
 		return false
 	end
-	releaseAimMovementLock(self)
+	AudioService.play(config.reloadSound, 0.2)
+	stopAimAnimation(self)
 	self.reloadGeneration += 1
 	self.reloadElapsed = 0
 	self.reloadWeaponUid = weapon.uid
-	self.reloadMovementRelease = self.dependencies.movement:acquireMovementLock()
 	self.state = "reloading"
 	return true
 end
@@ -200,7 +244,6 @@ local function finishReload(self: CombatService): ()
 	self.reloadWeaponUid = nil
 	self.reloadElapsed = 0
 	self.reloadGeneration += 1
-	releaseReloadMovementLock(self)
 	self.state = "neutral"
 	if self.aimHeld and self.externalLockCount == 0 then
 		self:beginAim()
@@ -222,10 +265,11 @@ function CombatService.new(dependencies: Dependencies): CombatService
 		externalLockCount = 0,
 		externalLockGeneration = 0,
 		aimWeaponUid = nil,
-		aimMovementRelease = nil,
-		reloadMovementRelease = nil,
 		inventoryConnection = nil,
 		mutatingInventory = false,
+		aimAnimation = nil,
+		aimAnimationTrack = nil,
+		aimAnimationCharacter = nil,
 	}, CombatService)
 	return (self :: any) :: CombatService
 end
@@ -269,6 +313,7 @@ function CombatService.stop(self: CombatService): ()
 		self.inventoryConnection = nil
 	end
 	abortActiveAction(self)
+	clearAimAnimation(self)
 	self.aimHeld = false
 	self.turnLeft = false
 	self.turnRight = false
@@ -312,9 +357,9 @@ function CombatService.beginAim(self: CombatService): ()
 	if weapon == nil or config == nil or getLoadedAmmo(weapon, config) == nil then
 		return
 	end
-	self.aimMovementRelease = self.dependencies.movement:acquireMovementLock()
 	self.state = "aiming"
 		self.aimWeaponUid = weapon.uid
+	playAimAnimation(self)
 	acquireInitialTarget(self, config)
 end
 
@@ -331,13 +376,25 @@ function CombatService.shoot(self: CombatService): boolean
 		return false
 	end
 	local weapon, config = getWeapon(self)
-	if weapon == nil or config == nil or getLoadedAmmo(weapon, config) == nil or os.clock() < self.nextShotAt then
+	if weapon == nil or config == nil then
+		return false
+	end
+	local loadedAmmo = getLoadedAmmo(weapon, config)
+	if loadedAmmo == nil then
+		return false
+	end
+	if loadedAmmo == 0 then
+		beginReload(self, config, weapon)
+		return false
+	end
+	if os.clock() < self.nextShotAt then
 		return false
 	end
 	if not self.dependencies.inventory:consumeLoadedAmmo(weapon.uid) then
 		return false
 	end
 	self.nextShotAt = os.clock() + config.shotCooldown
+	AudioService.play(config.shotSound, 0.2)
 	local root = CharacterRoot.get()
 	local character = Players.LocalPlayer.Character
 	if root ~= nil and character ~= nil then
@@ -353,10 +410,6 @@ function CombatService.shoot(self: CombatService): boolean
 				end
 			end
 		end
-	end
-	local updatedWeapon = self.dependencies.inventory:getEquipped("weapon")
-	if updatedWeapon ~= nil and getLoadedAmmo(updatedWeapon, config) == 0 then
-		beginReload(self, config, updatedWeapon)
 	end
 	return true
 end

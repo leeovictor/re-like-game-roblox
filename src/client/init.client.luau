@@ -1,41 +1,48 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
+InputManager.init()
 
 local CameraMapReader = require(ReplicatedStorage.Shared.camera.CameraMapReader)
-local CameraController = require(script.camera.CameraController)
-local CameraVisibility = require(script.camera.CameraVisibility)
-local CinematicController = require(script.cinematics.CinematicController)
-local MachineRoomCinematicController = require(script.cinematics.MachineRoomCinematicController)
-local CinematicSoundPlayer = require(script.cinematics.CinematicSoundPlayer)
-local DialogueController = require(script.dialogue.DialogueController)
-local DialogueInteractionController = require(script.dialogue.DialogueInteractionController)
-local DoorController = require(script.doors.DoorController)
-local DoorManager = require(script.doors.DoorManager)
-local TransitionController = require(script.doors.TransitionController)
-local EnemyController = require(script.enemies.EnemyController)
-local InventoryController = require(script.inventory.InventoryController)
-local CombatService = require(script.combat.CombatService)
-local CombatController = require(script.combat.CombatController)
-local InteractionController = require(script.interactions.InteractionController)
-local ObjectiveController = require(script.objectives.ObjectiveController)
-local PickupInteraction = require(script.pickups.PickupInteraction)
-local PickupManager = require(script.pickups.PickupManager)
-local PickupNotificationController = require(script.pickups.PickupNotificationController)
+local AudioService = require(ReplicatedStorage.Shared.audio.AudioService)
+local CameraController = require(StarterPlayer.StarterPlayerScripts.Client.camera.CameraController)
+local CameraVisibility = require(StarterPlayer.StarterPlayerScripts.Client.camera.CameraVisibility)
+local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
+local MachineRoomCinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.MachineRoomCinematicController)
+local CinematicSoundPlayer = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicSoundPlayer)
+local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
+local DialogueInteractionController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueInteractionController)
+local DoorController = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorController)
+local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
+local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.doors.TransitionController)
+local EnemyController = require(StarterPlayer.StarterPlayerScripts.Client.enemies.EnemyController)
+local InventoryController = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
+local CombatService = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
+local CombatController = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatController)
+local InteractionController = require(StarterPlayer.StarterPlayerScripts.Client.interactions.InteractionController)
+local ObjectiveController = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
+local PickupInteraction = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupInteraction)
+local PickupManager = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupManager)
+local PickupNotificationController = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupNotificationController)
 local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
-local FootstepController = require(script.player.FootstepController)
-local TankController = require(script.player.TankController)
+local FootstepController = require(StarterPlayer.StarterPlayerScripts.Client.player.FootstepController)
+local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
-local createSwitchInteraction = require(script.interactions.SwitchInteraction)
+local createSwitchInteraction = require(StarterPlayer.StarterPlayerScripts.Client.interactions.SwitchInteraction)
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 
 local Players = game:GetService("Players")
-local App = require(script.ui.App)
+
+local App = require(StarterPlayer.StarterPlayerScripts.Client.ui.App)
 
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
+AudioService.preload()
 
 local cameraSystem = workspace:WaitForChild("CameraSystem")
 local cameraController = CameraController.new({
@@ -52,9 +59,7 @@ enemyController:start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()
 
-local dialogueController = DialogueController.new({
-	movement = tankController,
-})
+local dialogueController = DialogueController.new()
 dialogueController:start()
 
 local function showDialogue(text: string, callback: ((nil, string) -> ())?): ()
@@ -106,7 +111,6 @@ ObjectiveController.start()
 
 local cinematicController = CinematicController.new({
 	camera = cameraController,
-	movement = tankController,
 	sound = cinematicSoundPlayer,
 	doorManager = doorManager
 })
@@ -129,7 +133,6 @@ root:render(React.createElement(App, {
 		dialogueController = dialogueController,
 		cinematicController = cinematicController,
 		inventoryController = inventoryController,
-		movementController = tankController,
 		combatService = combatService,
 	}))
 

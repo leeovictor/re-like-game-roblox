@@ -7,27 +7,27 @@ local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local items = require(ReplicatedStorage.Shared.inventory.items)
-local useDialogue = require(script.Parent.Parent.dialogue.useDialogue)
-local CinematicController = require(script.Parent.Parent.cinematics.CinematicController)
-local useInventory = require(script.Parent.Parent.inventory.useInventory)
-local InventoryControllerModule = require(script.Parent.Parent.inventory.InventoryController)
-local CombatConfig = require(script.Parent.Parent.combat.CombatConfig)
-local CombatServiceModule = require(script.Parent.Parent.combat.CombatService)
-local useObjectives = require(script.Parent.Parent.objectives.useObjectives)
-local usePickupNotification = require(script.Parent.Parent.pickups.usePickupNotification)
-local ObjectiveNotification = require(script.Parent.ObjectiveNotification)
-local InventorySlot = require(script.Parent.InventorySlot)
-local DropdownMenu = require(script.Parent.DropdownMenu)
-local ConfirmationModal = require(script.Parent.ConfirmationModal)
-local DialogueController = require(script.Parent.Parent.dialogue.DialogueController)
-local TankController = require(script.Parent.Parent.player.TankController)
-local CinematicLetterbox = require(script.Parent.CinematicLetterbox)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local useDialogue = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.useDialogue)
+local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
+local useInventory = require(StarterPlayer.StarterPlayerScripts.Client.inventory.useInventory)
+local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
+local CombatConfig = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatConfig)
+local CombatServiceModule = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
+local useObjectives = require(StarterPlayer.StarterPlayerScripts.Client.objectives.useObjectives)
+local usePickupNotification = require(StarterPlayer.StarterPlayerScripts.Client.pickups.usePickupNotification)
+local ObjectiveNotification = require(StarterPlayer.StarterPlayerScripts.Client.ui.ObjectiveNotification)
+local InventorySlot = require(StarterPlayer.StarterPlayerScripts.Client.ui.InventorySlot)
+local DropdownMenu = require(StarterPlayer.StarterPlayerScripts.Client.ui.DropdownMenu)
+local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
+local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
+local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
 
 type Props = {
 	cinematicController: CinematicController.Controller,
 	dialogueController: DialogueController.DialogueController,
 	inventoryController: InventoryControllerModule.InventoryController,
-	movementController: TankController.MovementController,
 	combatService: CombatServiceModule.CombatService,
 }
 
@@ -104,22 +104,19 @@ local function App(props: Props)
 	local combatHudLoadedAmmo = if loadedAmmo ~= nil then tostring(loadedAmmo) else "--"
 	local combatHudReserveAmmo = if weaponConfig ~= nil then tostring(reserveAmmo) else "--"
 
-	local inventoryMovementEffectDependencies: { unknown } = {
+	local inventoryEffectDependencies: { unknown } = {
 		inventoryVisible,
-		props.movementController,
 		props.combatService,
 	}
 	React.useEffect(function()
 		if not inventoryVisible then
 			return
 		end
-		local releaseMovementLock = props.movementController:acquireMovementLock()
 		local releaseCombatLock = props.combatService:acquireLock()
 		return function()
 			releaseCombatLock()
-			releaseMovementLock()
 		end
-	end, inventoryMovementEffectDependencies)
+	end, inventoryEffectDependencies)
 
 	React.useEffect(function()
 		local connection = props.cinematicController.playingChanged:Connect(function(playing: boolean)

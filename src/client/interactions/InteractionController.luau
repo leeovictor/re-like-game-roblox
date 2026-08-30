@@ -1,17 +1,15 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
-local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
+local StarterPlayer = game:GetService("StarterPlayer")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ActionPriorities = require(ReplicatedStorage.Shared.input.ActionPriorities)
+
+local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
-local ACTION_NAME = "DungeonInteraction"
-local ACTION_PRIORITY = ActionPriorities.INTERACTION
 local DEBUG_ENABLED = false
 local DEFAULT_CONFIG: interactionTypes.ProbeConfig = {
 	size = Vector3.new(3, 7, 2),
@@ -34,10 +32,9 @@ export type InteractionController = {
 	start: (self: InteractionController) -> (),
 	stop: (self: InteractionController) -> (),
 	register: (self: InteractionController, interactionType: InteractionType, handler: interactionTypes.InteractionHandler) -> (),
-	setEnabled: (self: InteractionController, enabled: boolean) -> (),
 	isEnabled: (self: InteractionController) -> boolean,
 	getTarget: (self: InteractionController) -> Instance?,
-	handleAction: (self: InteractionController, actionName: string, inputState: Enum.UserInputState, inputObject: InputObject?) -> Enum.ContextActionResult,
+	handleAction: (self: InteractionController) -> (),
 }
 
 local InteractionController = {}
@@ -144,15 +141,11 @@ end
 
 local function bind(self: InteractionController): ()
 	if self.started and self.enabled then
-		ContextActionService:BindActionAtPriority(
-			ACTION_NAME,
-			function(actionName, inputState, inputObject)
-				return self:handleAction(actionName, inputState, inputObject)
-			end,
-			false,
-			ACTION_PRIORITY,
-			Enum.KeyCode.E
-		)
+		InputManager.Contexts.PlayContext.BindActionStateChanged('Interact', function (state)
+			if state then
+				self:handleAction()
+			end
+		end)
 	end
 end
 
@@ -178,20 +171,12 @@ function InteractionController.new(
 	return (self :: any) :: InteractionController
 end
 
-function InteractionController.handleAction(
-	self: InteractionController,
-	_actionName: string,
-	inputState: Enum.UserInputState,
-	_inputObject: InputObject?
-): Enum.ContextActionResult
-	if inputState ~= Enum.UserInputState.Begin or not self.enabled then
-		return Enum.ContextActionResult.Sink
-	end
-
+function InteractionController.handleAction(self: InteractionController)
 	local selected, interactionType = probe(self)
 	self.target = selected
+	
 	if selected == nil or interactionType == nil then
-		return Enum.ContextActionResult.Sink
+		return
 	end
 
 	local handler = self.handlers[interactionType]
@@ -200,7 +185,6 @@ function InteractionController.handleAction(
 	else
 		handler.interact(selected)
 	end
-	return Enum.ContextActionResult.Sink
 end
 
 function InteractionController.start(self: InteractionController): ()
@@ -230,7 +214,6 @@ end
 
 function InteractionController.stop(self: InteractionController): ()
 	self.started = false
-	ContextActionService:UnbindAction(ACTION_NAME)
 	self.target = nil
 	self.warned = {}
 	if self.debugConnection ~= nil then
@@ -249,16 +232,6 @@ function InteractionController.register(
 	handler: interactionTypes.InteractionHandler
 ): ()
 	self.handlers[interactionType] = handler
-end
-
-function InteractionController.setEnabled(self: InteractionController, nextEnabled: boolean): ()
-	self.enabled = nextEnabled
-	if not self.enabled then
-		ContextActionService:UnbindAction(ACTION_NAME)
-		self.target = nil
-	elseif self.started then
-		bind(self)
-	end
 end
 
 function InteractionController.isEnabled(self: InteractionController): boolean

@@ -1,8 +1,12 @@
 --!strict
 
+local SoundEnum = require(game:GetService("ReplicatedStorage").Shared.audio.SoundEnum)
+
 export type WeaponConfig = {
 	itemId: string,
 	ammoItemId: string,
+	shotSound: SoundEnum.Sound,
+	reloadSound: SoundEnum.Sound,
 	magazineSize: number,
 	damage: number,
 	shotCooldown: number,
@@ -16,6 +20,8 @@ local CombatConfig: { [string]: WeaponConfig } = {
 	handgun = {
 		itemId = "handgun",
 		ammoItemId = "handgun_ammo",
+		shotSound = SoundEnum.HandgunShot,
+		reloadSound = SoundEnum.HandgunReload,
 		magazineSize = 6,
 		damage = 25,
 		shotCooldown = 0.8,

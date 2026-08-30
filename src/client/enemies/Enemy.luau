@@ -1,9 +1,10 @@
 --!strict
 
 local PathfindingService = game:GetService("PathfindingService")
-local StarterPlayer = game:GetService("StarterPlayer")
 
 -- states
+local StarterPlayer = game:GetService("StarterPlayer")
+
 local attacking = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.attacking)
 local chasingState = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.chasingState)
 local idleState = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.idleState)
@@ -11,9 +12,9 @@ local stunned = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states
 local tryAttack = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.tryAttack)
 local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 
-local config = require(script.Parent.config)
-local EnemiesTypes = require(script.Parent.types)
-local utils = require(script.Parent.utils)
+local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
+local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
+local utils = require(StarterPlayer.StarterPlayerScripts.Client.enemies.utils)
 
 local state: EnemiesTypes.SystemState = {
 	playerAttackInProgress = false,
@@ -69,7 +70,6 @@ function Enemy.new(model: Model, movementController: TankController.MovementCont
 		ellapsedAttackingTime = 0,
 		attackTargetHumanoid = nil,
 		movementController = movementController,
-		movementLockRelease = nil,
 		attackingEnemyStartCFrame = nil,
 		attackingEnemyTargetCFrame = nil,
 		attackingPlayerStartCFrame = nil,
@@ -129,10 +129,6 @@ function Enemy.destroy(self: EnemiesTypes.Enemy): ()
 	if self.playerAttackOwner then
 		self.playerAttackOwner = false
 		state.playerAttackInProgress = false
-	end
-	if self.movementLockRelease ~= nil then
-		self.movementLockRelease()
-		self.movementLockRelease = nil
 	end
 	if self.debugHitbox ~= nil then
 		self.debugHitbox:Destroy()

@@ -1,4 +1,6 @@
-local config = require(script.Parent.config)
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesUtils = {}
 
 function EnemiesUtils.rollChance(chance: number): boolean
