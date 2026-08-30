@@ -31,7 +31,7 @@ local config: { any } = {
 		},
 		completesWhen = {
 			event = "cinematic_play_ended",
-			doorKey = "generator-power-on",
+			timelineId = "generator-power-on",
 		},
 	}
 }
