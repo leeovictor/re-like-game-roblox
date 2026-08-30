@@ -10,7 +10,6 @@ local chasingState = require(StarterPlayer.StarterPlayerScripts.Client.enemies.s
 local idleState = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.idleState)
 local stunned = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.stunned)
 local tryAttack = require(StarterPlayer.StarterPlayerScripts.Client.enemies.states.tryAttack)
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 
 local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
@@ -35,7 +34,7 @@ local states = {
 local Enemy = {}
 Enemy.__index = Enemy
 
-function Enemy.new(model: Model, movementController: TankController.MovementController): EnemiesTypes.Enemy
+function Enemy.new(model: Model, signals: EnemiesTypes.PlayerAttackSignals): EnemiesTypes.Enemy
 	assert(model:IsA("Model"), "Enemy requires a Model")
 	local root = model:FindFirstChild("HumanoidRootPart")
 	assert(root ~= nil and root:IsA("BasePart"), "Enemy requires a BasePart HumanoidRootPart")
@@ -69,12 +68,13 @@ function Enemy.new(model: Model, movementController: TankController.MovementCont
 		realStunTime = nil,
 		ellapsedAttackingTime = 0,
 		attackTargetHumanoid = nil,
-		movementController = movementController,
 		attackingEnemyStartCFrame = nil,
 		attackingEnemyTargetCFrame = nil,
-		attackingPlayerStartCFrame = nil,
-		attackingPlayerTargetCFrame = nil,
 		playerAttackOwner = false,
+		playerAttackGeneration = 0,
+		activePlayerAttackId = nil,
+		playerAttackStarted = signals.playerAttackStarted,
+		playerAttackEnded = signals.playerAttackEnded,
 	}, Enemy)
 	return (self :: any) :: EnemiesTypes.Enemy
 end
@@ -129,6 +129,15 @@ function Enemy.destroy(self: EnemiesTypes.Enemy): ()
 	if self.playerAttackOwner then
 		self.playerAttackOwner = false
 		state.playerAttackInProgress = false
+	end
+	local attackId = self.activePlayerAttackId
+	if attackId ~= nil then
+		self.activePlayerAttackId = nil
+		self.playerAttackEnded:Fire({
+			enemy = self,
+			attackId = attackId,
+			cancelled = true,
+		})
 	end
 	if self.debugHitbox ~= nil then
 		self.debugHitbox:Destroy()

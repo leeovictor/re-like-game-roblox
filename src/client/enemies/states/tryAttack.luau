@@ -172,11 +172,21 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 
 			enemy.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass('Humanoid')
 			enemy.attackingEnemyStartCFrame = root.CFrame
-			enemy.attackingPlayerStartCFrame = playerRoot.CFrame
-			enemy.attackingEnemyTargetCFrame, enemy.attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
-			enemy.movementController:setLookVector(playerRoot.CFrame.LookVector)
+		local attackingPlayerStartCFrame = playerRoot.CFrame
+		local attackingEnemyTargetCFrame, attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
+		enemy.attackingEnemyTargetCFrame = attackingEnemyTargetCFrame
+		enemy.playerAttackGeneration += 1
+		enemy.activePlayerAttackId = enemy.playerAttackGeneration
 			enemy.playerAttackOwner = true
 			state.playerAttackInProgress = true
+			enemy.playerAttackStarted:Fire({
+				enemy = enemy,
+				attackId = enemy.playerAttackGeneration,
+				startCFrame = attackingPlayerStartCFrame,
+				targetCFrame = attackingPlayerTargetCFrame,
+				turnDuration = config.ATTACKING_TURN_TIME,
+				duration = config.ATTACKING_TIME,
+			})
 			return 'attacking'
 		end
 		

@@ -141,7 +141,7 @@ end
 
 local function bind(self: InteractionController): ()
 	if self.started and self.enabled then
-		InputManager.Contexts.PlayContext.BindActionStateChanged('Interact', function (state)
+		InputManager.Contexts.PlayContext:BindActionStateChanged('Interact', function (state)
 			if state then
 				self:handleAction()
 			end

@@ -8,7 +8,6 @@ local CombatConfig = require(StarterPlayer.StarterPlayerScripts.Client.combat.Co
 local EnemyControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.enemies.EnemyController)
 local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 local enemyTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
 
 local items = require(game:GetService("ReplicatedStorage").Shared.inventory.items)
@@ -24,7 +23,6 @@ type SignalConnection = {
 export type Dependencies = {
 	inventory: InventoryControllerModule.InventoryController,
 	enemies: EnemyControllerModule.EnemyController,
-	movement: TankController.MovementController,
 }
 
 export type CombatState = "neutral" | "aiming" | "reloading"
@@ -35,22 +33,16 @@ export type CombatService = {
 	start: (self: CombatService) -> (),
 	stop: (self: CombatService) -> (),
 	update: (self: CombatService, deltaTime: number) -> (),
-	beginAim: (self: CombatService) -> (),
+	getAimTurnSpeed: (self: CombatService) -> number?,
+	beginAim: (self: CombatService) -> (boolean, Vector3?),
 	endAim: (self: CombatService) -> (),
 	shoot: (self: CombatService) -> boolean,
 	requestReload: (self: CombatService) -> boolean,
-	setTurnInput: (self: CombatService, left: boolean, right: boolean) -> boolean,
-	acquireLock: (self: CombatService) -> (() -> ()),
 	dependencies: Dependencies,
-	aimHeld: boolean,
-	turnLeft: boolean,
-	turnRight: boolean,
 	nextShotAt: number,
 	reloadElapsed: number,
 	reloadWeaponUid: string?,
 	reloadGeneration: number,
-	externalLockCount: number,
-	externalLockGeneration: number,
 	aimWeaponUid: string?,
 	inventoryConnection: SignalConnection?,
 	mutatingInventory: boolean,
@@ -191,11 +183,11 @@ local function beginReload(self: CombatService, config: typeof(CombatConfig.hand
 	return true
 end
 
-local function acquireInitialTarget(self: CombatService, config: typeof(CombatConfig.handgun)): ()
+local function acquireInitialTarget(self: CombatService, config: typeof(CombatConfig.handgun)): Vector3?
 	local playerRoot = CharacterRoot.get()
 	local character = Players.LocalPlayer.Character
 	if playerRoot == nil or character == nil then
-		return
+		return nil
 	end
 
 	local candidates = self.dependencies.enemies:getActiveEnemies()
@@ -215,12 +207,12 @@ local function acquireInitialTarget(self: CombatService, config: typeof(CombatCo
 			if offset.Magnitude <= config.acquisitionRadius then
 				local result = Workspace:Raycast(playerRoot.Position, offset, params)
 				if result ~= nil and result.Instance:IsDescendantOf(enemy.model) then
-					self.dependencies.movement:setLookVector(offset)
-					return
+					return offset
 				end
 			end
 		end
 	end
+	return nil
 end
 
 local function finishReload(self: CombatService): ()
@@ -245,9 +237,6 @@ local function finishReload(self: CombatService): ()
 	self.reloadElapsed = 0
 	self.reloadGeneration += 1
 	self.state = "neutral"
-	if self.aimHeld and self.externalLockCount == 0 then
-		self:beginAim()
-	end
 end
 
 function CombatService.new(dependencies: Dependencies): CombatService
@@ -255,15 +244,10 @@ function CombatService.new(dependencies: Dependencies): CombatService
 		state = "neutral",
 		started = false,
 		dependencies = dependencies,
-		aimHeld = false,
-		turnLeft = false,
-		turnRight = false,
 		nextShotAt = 0,
 		reloadElapsed = 0,
 		reloadWeaponUid = nil,
 		reloadGeneration = 0,
-		externalLockCount = 0,
-		externalLockGeneration = 0,
 		aimWeaponUid = nil,
 		inventoryConnection = nil,
 		mutatingInventory = false,
@@ -306,17 +290,12 @@ function CombatService.stop(self: CombatService): ()
 		return
 	end
 	self.started = false
-	self.externalLockGeneration += 1
-	self.externalLockCount = 0
 	if self.inventoryConnection ~= nil then
 		self.inventoryConnection:Disconnect()
 		self.inventoryConnection = nil
 	end
 	abortActiveAction(self)
 	clearAimAnimation(self)
-	self.aimHeld = false
-	self.turnLeft = false
-	self.turnRight = false
 end
 
 function CombatService.update(self: CombatService, deltaTime: number): ()
@@ -331,40 +310,32 @@ function CombatService.update(self: CombatService, deltaTime: number): ()
 		end
 		return
 	end
-	if self.state ~= "aiming" or self.externalLockCount > 0 then
-		return
-	end
-	local _, config = getWeapon(self)
-	if config == nil then
-		return
-	end
-	local sign = if self.turnRight then -1 elseif self.turnLeft then 1 else 0
-	if sign ~= 0 then
-		local root = CharacterRoot.get()
-		if root ~= nil then
-			local direction = CFrame.Angles(0, sign * config.aimTurnSpeed * deltaTime, 0):VectorToWorldSpace(root.CFrame.LookVector)
-			self.dependencies.movement:setLookVector(direction)
-		end
-	end
 end
 
-function CombatService.beginAim(self: CombatService): ()
-	self.aimHeld = true
-	if not self.started or self.externalLockCount > 0 or self.state ~= "neutral" then
-		return
+function CombatService.getAimTurnSpeed(self: CombatService): number?
+	if self.state ~= "aiming" then
+		return nil
+	end
+	local _, config = getWeapon(self)
+	return if config ~= nil then config.aimTurnSpeed else nil
+end
+
+function CombatService.beginAim(self: CombatService): (boolean, Vector3?)
+	if not self.started or self.state ~= "neutral" then
+		return false, nil
 	end
 	local weapon, config = getWeapon(self)
 	if weapon == nil or config == nil or getLoadedAmmo(weapon, config) == nil then
-		return
+		return false, nil
 	end
 	self.state = "aiming"
-		self.aimWeaponUid = weapon.uid
+	self.aimWeaponUid = weapon.uid
 	playAimAnimation(self)
-	acquireInitialTarget(self, config)
+	local targetDirection = acquireInitialTarget(self, config)
+	return true, targetDirection
 end
 
 function CombatService.endAim(self: CombatService): ()
-	self.aimHeld = false
 	if self.state ~= "aiming" then
 		return
 	end
@@ -372,7 +343,7 @@ function CombatService.endAim(self: CombatService): ()
 end
 
 function CombatService.shoot(self: CombatService): boolean
-	if not self.started or self.externalLockCount > 0 or self.state ~= "aiming" then
+	if not self.started or self.state ~= "aiming" then
 		return false
 	end
 	local weapon, config = getWeapon(self)
@@ -415,7 +386,7 @@ function CombatService.shoot(self: CombatService): boolean
 end
 
 function CombatService.requestReload(self: CombatService): boolean
-	if not self.started or self.state ~= "aiming" or not self.aimHeld or self.externalLockCount > 0 then
+	if not self.started or self.state ~= "aiming" then
 		return false
 	end
 	local weapon, config = getWeapon(self)
@@ -423,29 +394,6 @@ function CombatService.requestReload(self: CombatService): boolean
 		return false
 	end
 	return beginReload(self, config, weapon)
-end
-
-function CombatService.setTurnInput(self: CombatService, left: boolean, right: boolean): boolean
-	self.turnLeft = left
-	self.turnRight = right
-	return self.state == "aiming" or self.state == "reloading" or self.externalLockCount > 0
-end
-
-function CombatService.acquireLock(self: CombatService): () -> ()
-	self.externalLockCount += 1
-	abortActiveAction(self)
-	local acquiredGeneration = self.externalLockGeneration
-	local released = false
-	return function()
-		if released then
-			return
-		end
-		released = true
-		if acquiredGeneration ~= self.externalLockGeneration then
-			return
-		end
-		self.externalLockCount -= 1
-	end
 end
 
 return CombatService

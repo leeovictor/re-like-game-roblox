@@ -8,10 +8,9 @@ local doorTypes = require(ReplicatedStorage.Shared.doors.doorTypes)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 local modelProfiles = require(ReplicatedStorage.Shared.modelProfiles)
 local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
-local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
+local PlayerController = require(StarterPlayer.StarterPlayerScripts.Client.player.PlayerController)
 local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.doors.TransitionController)
 local DoorSoundPlayer = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorSoundPlayer)
 
@@ -23,7 +22,7 @@ type InteractionHandler = interactionTypes.InteractionHandler
 export type Dependencies = {
 	manager: DoorManager.DoorManager,
 	dialogue: DialogueController.DialogueController,
-	movement: TankController.MovementController,
+	movement: PlayerController.MovementController,
 	transition: TransitionController.TransitionController,
 }
 
@@ -129,11 +128,8 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			InputManager.disable()
 			local accepted = dependencies.transition.run(function()
 				local result = dependencies.manager:enter(door)
-				if result.success and result.action == "enter" then
-					local root = CharacterRoot.get()
-					if root ~= nil then
-						dependencies.movement:setCFrame(root.CFrame)
-					end
+				if result.success and result.action == "enter" and result.destinationCFrame ~= nil then
+					dependencies.movement:setCFrame(result.destinationCFrame)
 				end
 				if stopTransitionOpenSound ~= nil then
 					stopTransitionOpenSound()

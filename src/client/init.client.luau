@@ -21,7 +21,8 @@ local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.d
 local EnemyController = require(StarterPlayer.StarterPlayerScripts.Client.enemies.EnemyController)
 local InventoryController = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
 local CombatService = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
-local CombatController = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatController)
+local PlayerController = require(StarterPlayer.StarterPlayerScripts.Client.player.PlayerController)
+local PlayerAttackController = require(StarterPlayer.StarterPlayerScripts.Client.player.PlayerAttackController)
 local InteractionController = require(StarterPlayer.StarterPlayerScripts.Client.interactions.InteractionController)
 local ObjectiveController = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
 local PickupInteraction = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupInteraction)
@@ -29,7 +30,6 @@ local PickupManager = require(StarterPlayer.StarterPlayerScripts.Client.pickups.
 local PickupNotificationController = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupNotificationController)
 local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 local FootstepController = require(StarterPlayer.StarterPlayerScripts.Client.player.FootstepController)
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local createSwitchInteraction = require(StarterPlayer.StarterPlayerScripts.Client.interactions.SwitchInteraction)
@@ -50,12 +50,6 @@ local cameraController = CameraController.new({
 })
 CameraVisibility.hide(cameraSystem)
 cameraController:start()
-local tankController = TankController.new()
-tankController:start()
-local enemyController = EnemyController.new({
-	movement = tankController,
-})
-enemyController:start()
 
 local cinematicSoundPlayer = CinematicSoundPlayer.new()
 
@@ -75,16 +69,22 @@ FootstepController.start()
 
 local inventoryController = InventoryController.new()
 inventoryController:start()
+local enemyController = EnemyController.new()
 local combatService = CombatService.new({
 	inventory = inventoryController,
 	enemies = enemyController,
-	movement = tankController,
 })
-combatService:start()
-local combatController = CombatController.new({
+local playerController = PlayerController.new({
 	combat = combatService,
 })
-combatController:start()
+local playerAttackController = PlayerAttackController.new({
+	player = playerController,
+	attackStarted = enemyController.playerAttackStarted,
+	attackEnded = enemyController.playerAttackEnded,
+})
+playerAttackController:start()
+playerController:start()
+enemyController:start()
 local factory = ItemInstanceFactory.new()
 local pickupManager = PickupManager.new({
 	inventory = inventoryController,
@@ -104,7 +104,7 @@ local doorManager = DoorManager.new({
 local doorController = DoorController.new({
 	manager = doorManager,
 	dialogue = dialogueController,
-	movement = tankController,
+	movement = playerController,
 	transition = TransitionController,
 })
 ObjectiveController.start()

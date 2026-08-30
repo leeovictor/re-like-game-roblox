@@ -104,20 +104,6 @@ local function App(props: Props)
 	local combatHudLoadedAmmo = if loadedAmmo ~= nil then tostring(loadedAmmo) else "--"
 	local combatHudReserveAmmo = if weaponConfig ~= nil then tostring(reserveAmmo) else "--"
 
-	local inventoryEffectDependencies: { unknown } = {
-		inventoryVisible,
-		props.combatService,
-	}
-	React.useEffect(function()
-		if not inventoryVisible then
-			return
-		end
-		local releaseCombatLock = props.combatService:acquireLock()
-		return function()
-			releaseCombatLock()
-		end
-	end, inventoryEffectDependencies)
-
 	React.useEffect(function()
 		local connection = props.cinematicController.playingChanged:Connect(function(playing: boolean)
 			setCinematicPlaying(playing)

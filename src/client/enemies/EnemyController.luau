@@ -7,8 +7,8 @@ local Workspace = game:GetService("Workspace")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Enemy = require(StarterPlayer.StarterPlayerScripts.Client.enemies.Enemy)
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
 local types = require(StarterPlayer.StarterPlayerScripts.Client.enemies.types)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 export type EnemyController = {
 	started: boolean,
@@ -18,6 +18,8 @@ export type EnemyController = {
 	stop: (self: EnemyController) -> (),
 	getActiveEnemies: (self: EnemyController) -> { types.Enemy },
 	applyDamage: (self: EnemyController, enemy: types.Enemy, amount: number) -> boolean,
+	playerAttackStarted: types.PlayerAttackStartedSignal,
+	playerAttackEnded: types.PlayerAttackEndedSignal,
 }
 
 type MarkerProperties = {
@@ -27,12 +29,11 @@ type MarkerProperties = {
 
 type ControllerState = EnemyController & {
 	markerProperties: { [BasePart]: MarkerProperties },
-	movement: TankController.MovementController,
+	playerAttackStarted: types.PlayerAttackStartedSignal,
+	playerAttackEnded: types.PlayerAttackEndedSignal,
 }
 
-export type Dependencies = {
-	movement: TankController.MovementController,
-}
+export type Dependencies = {}
 
 local EnemyController = {}
 EnemyController.__index = EnemyController
@@ -52,13 +53,14 @@ local function isFinite(value: number): boolean
 	return value == value and value ~= math.huge and value ~= -math.huge
 end
 
-function EnemyController.new(dependencies: Dependencies): EnemyController
+function EnemyController.new(): EnemyController
 	local self = setmetatable({
 		started = false,
 		enemies = {},
 		heartbeatConnection = nil,
 		markerProperties = {},
-		movement = dependencies.movement,
+		playerAttackStarted = Signal.new(),
+		playerAttackEnded = Signal.new(),
 	}, EnemyController)
 	return (self :: any) :: EnemyController
 end
@@ -138,7 +140,10 @@ function EnemyController.start(self: EnemyController): ()
 					clone.Name = "Enemy_" .. child.Name
 					clone.Parent = enemiesFolder
 
-					local enemy = Enemy.new(clone, state.movement)
+					local enemy = Enemy.new(clone, {
+						playerAttackStarted = state.playerAttackStarted,
+						playerAttackEnded = state.playerAttackEnded,
+					})
 					table.insert(state.enemies, enemy)
 				end
 			end

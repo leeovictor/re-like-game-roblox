@@ -225,8 +225,11 @@ function DoorManager.new(dependencies: Dependencies): DoorManager
 			local direction = -center.WorldCFrame.XVector * side
 			local destination = center.WorldPosition + direction * (doorway.Size.X / 2 + EXIT_MARGIN)
 			destination = Vector3.new(destination.X, root.Position.Y, destination.Z)
-			root.CFrame = CFrame.lookAt(destination, destination + direction)
-			result = { success = true, action = "enter" }
+			result = {
+				success = true,
+				action = "enter",
+				destinationCFrame = CFrame.lookAt(destination, destination + direction),
+			}
 		end)
 		if not ok then
 			return failure("invalid_door")

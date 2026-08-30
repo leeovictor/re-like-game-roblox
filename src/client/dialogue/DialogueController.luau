@@ -222,19 +222,19 @@ end
 
 local function bindActions(self: DialogueController): ()
 	local context = InputManager.Contexts.DialogueContext :: InputManager.Context
-	context.BindActionStateChanged('Interact', function (state: boolean)
+	context:BindActionStateChanged('Interact', function (state: boolean)
 		if not state then
 			return
 		end
 		handleInteract(self)
 	end)
-	context.BindActionStateChanged('OptionRight', function (state)
+	context:BindActionStateChanged('OptionRight', function (state)
 		if not state then
 			return
 		end
 		handleNextOption(self)
 	end)
-	context.BindActionStateChanged('OptionLeft', function (state)
+	context:BindActionStateChanged('OptionLeft', function (state)
 		if not state then
 			return
 		end

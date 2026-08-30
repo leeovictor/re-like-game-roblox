@@ -22,6 +22,7 @@ export type DoorActionResult = {
 	success: boolean,
 	reason: DoorFailureReason?,
 	action: DoorAction?,
+	destinationCFrame: CFrame?,
 }
 
 return {

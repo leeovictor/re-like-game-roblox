@@ -1,7 +1,3 @@
-local StarterPlayer = game:GetService("StarterPlayer")
-
-local TankController = require(StarterPlayer.StarterPlayerScripts.Client.player.TankController)
-
 export type StateMachine<C> = {
 	states: { [string]: StateObject<C> }
 }
@@ -16,6 +12,46 @@ export type SystemState = {
 	playerAttackInProgress: boolean,
 	playerInvulnerableUntil: number,
 	debugEnabled: boolean
+}
+
+export type SignalConnection = {
+	Disconnect: (self: SignalConnection) -> (),
+}
+
+export type PlayerAttackStartedEvent = {
+	enemy: Enemy,
+	attackId: number,
+	startCFrame: CFrame,
+	targetCFrame: CFrame,
+	turnDuration: number,
+	duration: number,
+}
+
+export type PlayerAttackEndedEvent = {
+	enemy: Enemy,
+	attackId: number,
+	cancelled: boolean,
+}
+
+export type PlayerAttackStartedSignal = {
+	Fire: (self: PlayerAttackStartedSignal, event: PlayerAttackStartedEvent) -> (),
+	Connect: (
+		self: PlayerAttackStartedSignal,
+		callback: (event: PlayerAttackStartedEvent) -> ()
+	) -> SignalConnection,
+}
+
+export type PlayerAttackEndedSignal = {
+	Fire: (self: PlayerAttackEndedSignal, event: PlayerAttackEndedEvent) -> (),
+	Connect: (
+		self: PlayerAttackEndedSignal,
+		callback: (event: PlayerAttackEndedEvent) -> ()
+	) -> SignalConnection,
+}
+
+export type PlayerAttackSignals = {
+	playerAttackStarted: PlayerAttackStartedSignal,
+	playerAttackEnded: PlayerAttackEndedSignal,
 }
 
 export type EnemyContext = {
@@ -51,12 +87,13 @@ export type Enemy = {
 	realStunTime: number?,
 	ellapsedAttackingTime: number,
 	attackTargetHumanoid: Humanoid?,
-	movementController: TankController.MovementController,
 	attackingEnemyStartCFrame: CFrame?,
 	attackingEnemyTargetCFrame: CFrame?,
-	attackingPlayerStartCFrame: CFrame?,
-	attackingPlayerTargetCFrame: CFrame?,
 	playerAttackOwner: boolean,
+	playerAttackGeneration: number,
+	activePlayerAttackId: number?,
+	playerAttackStarted: PlayerAttackStartedSignal,
+	playerAttackEnded: PlayerAttackEndedSignal,
 }
 
 return {}
