@@ -10,6 +10,7 @@ type SoundName = SoundEnum.Sound
 local audioAssetIds: { [SoundName]: string } = {
 	[SoundEnum.HandgunShot] = "rbxassetid://115357684629977",
 	[SoundEnum.HandgunReload] = "rbxassetid://125937654152770",
+	[SoundEnum.LeverSwitch] = "rbxassetid://91232411976994",
 }
 
 local audioInstances: { [string]: Sound } = {}

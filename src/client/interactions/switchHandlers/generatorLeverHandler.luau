@@ -1,7 +1,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundService = game:GetService("SoundService")
 local StarterPlayer = game:GetService("StarterPlayer")
 
+local AudioService = require(ReplicatedStorage.Shared.audio.AudioService)
+local SoundEnum = require(ReplicatedStorage.Shared.audio.SoundEnum)
 local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 
@@ -93,9 +94,7 @@ return function (optionId, reason)
     local cinematicController: CinematicController.Controller = Locator.get('CinematicController')
     
     if optionId == 'yes' then
-        local sound = Instance.new('Sound')
-        sound.SoundId = 'rbxassetid://91232411976994'
-        SoundService:PlayLocalSound(sound)
+        AudioService.play(SoundEnum.LeverSwitch)
 
         local res = cinematicController:play(TIMELINE_GENERATOR_POWER_ON) 
         if not res then
