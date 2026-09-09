@@ -50,6 +50,8 @@ local function parseInteractionType(value: any): string?
 	end
 	if value == interactionTypes.SWITCH_TYPE then
 		return "Switch"
+	elseif value == interactionTypes.DOCUMENT_TYPE then
+		return "Document"
 	end
 	return nil
 end

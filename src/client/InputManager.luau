@@ -7,7 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 local GameplayEvents = require(StarterPlayer.StarterPlayerScripts.Client.events.GameplayEvents)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-export type ContextNames = 'PlayContext' | 'DialogueContext'
+export type ContextNames = 'PlayContext' | 'DialogueContext' | 'DocumentContext'
 
 export type InputActionType = "Boolean" | "Direction1d" | "Direction2d" | "ViewportPosition"
 local InputActionTypes: {
@@ -117,6 +117,27 @@ local dialogueContextSpec: ContextSpec = {
             name = 'OptionLeft',
             type = InputActionTypes.Boolean,
             bindings = { Enum.KeyCode.A }
+        },
+    }
+}
+
+local documentContextSpec: ContextSpec = {
+    name = 'DocumentContext',
+    actions = {
+        {
+            name = 'PreviousPage',
+            type = InputActionTypes.Boolean,
+            bindings = { Enum.KeyCode.A }
+        },
+        {
+            name = 'NextPage',
+            type = InputActionTypes.Boolean,
+            bindings = { Enum.KeyCode.D }
+        },
+        {
+            name = 'Close',
+            type = InputActionTypes.Boolean,
+            bindings = { Enum.KeyCode.MouseRightButton }
         },
     }
 }
@@ -266,23 +287,28 @@ end
 
 local InputManager = {}
 
-local contextNames: { PlayContext: ContextNames, DialogueContext: ContextNames } = {
-    PlayContext = 'PlayContext',
-    DialogueContext = 'DialogueContext'
+local contextNames: { PlayContext: ContextNames, DialogueContext: ContextNames, DocumentContext: ContextNames } = {
+	PlayContext = 'PlayContext',
+	DialogueContext = 'DialogueContext',
+	DocumentContext = 'DocumentContext',
 }
 InputManager.ContextNames = contextNames
-InputManager.Contexts = {} :: { PlayContext: Context, DialogueContext: Context }
+InputManager.Contexts = {} :: { PlayContext: Context, DialogueContext: Context, DocumentContext: Context }
 local currentContextName = InputManager.ContextNames.PlayContext
 local controlsEnabled = true
 
 function InputManager.init()
-    InputManager.Contexts['PlayContext'] = Context.new(playContextSpec)
-    InputManager.Contexts['DialogueContext'] = Context.new(dialogueContextSpec)
+	InputManager.Contexts['PlayContext'] = Context.new(playContextSpec)
+	InputManager.Contexts['DialogueContext'] = Context.new(dialogueContextSpec)
+	InputManager.Contexts['DocumentContext'] = Context.new(documentContextSpec)
     InputManager.Contexts['PlayContext']:SetEnabled(controlsEnabled)
 end
 
 function InputManager.switchContext(contextName: ContextNames)
-    InputManager.Contexts[currentContextName]:SetEnabled(false)
+	if currentContextName == contextName then
+		return
+	end
+	InputManager.Contexts[currentContextName]:SetEnabled(false)
     currentContextName = contextName
     InputManager.Contexts[currentContextName]:SetEnabled(controlsEnabled)
 end

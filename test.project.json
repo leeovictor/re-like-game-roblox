@@ -61,6 +61,9 @@
           "dialogue": {
             "$path": "src/client/dialogue"
           },
+          "documents": {
+            "$path": "src/client/documents"
+          },
           "enemies": {
             "$path": "src/client/enemies"
           },

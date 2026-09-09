@@ -20,6 +20,9 @@ local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.Door
 local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.doors.TransitionController)
 local EnemyController = require(StarterPlayer.StarterPlayerScripts.Client.enemies.EnemyController)
 local InventoryController = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
+local DocumentsController = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
+local DocumentReaderController = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local DocumentInteraction = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentInteraction)
 local CombatService = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
 local PlayerController = require(StarterPlayer.StarterPlayerScripts.Client.player.PlayerController)
 local PlayerAttackController = require(StarterPlayer.StarterPlayerScripts.Client.player.PlayerAttackController)
@@ -69,6 +72,14 @@ FootstepController.start()
 
 local inventoryController = InventoryController.new()
 inventoryController:start()
+local documentsController = DocumentsController.new()
+documentsController:start()
+local documentReaderController = DocumentReaderController.new({
+	documents = documentsController,
+})
+documentReaderController:start()
+Locator.register('DocumentsController', documentsController)
+Locator.register('DocumentReaderController', documentReaderController)
 local enemyController = EnemyController.new()
 local combatService = CombatService.new({
 	inventory = inventoryController,
@@ -93,6 +104,10 @@ local pickupManager = PickupManager.new({
 pickupManager:start()
 local pickupInteraction = PickupInteraction.new({
 	manager = pickupManager,
+})
+local documentInteraction = DocumentInteraction.new({
+	documents = documentsController,
+	reader = documentReaderController,
 })
 PickupNotificationController.start({
 	source = pickupManager.collected,
@@ -125,6 +140,7 @@ interactionController:register("Door", doorController)
 interactionController:register("Pickup", pickupInteraction)
 interactionController:register("Dialogue", dialogueInteractionController)
 interactionController:register("Switch", createSwitchInteraction({ dialogueController = dialogueController }))
+interactionController:register("Document", documentInteraction)
 interactionController:start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -133,6 +149,8 @@ root:render(React.createElement(App, {
 		dialogueController = dialogueController,
 		cinematicController = cinematicController,
 		inventoryController = inventoryController,
+		documentsController = documentsController,
+		documentReaderController = documentReaderController,
 		combatService = combatService,
 	}))
 

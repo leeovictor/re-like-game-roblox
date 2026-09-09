@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
@@ -23,11 +24,18 @@ local DropdownMenu = require(StarterPlayer.StarterPlayerScripts.Client.ui.Dropdo
 local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
+local DocumentReaderOverlayComponent = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentReaderOverlay)
+local useDocuments = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocuments)
+local useDocumentReader = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocumentReader)
+local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
+local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 
 type Props = {
 	cinematicController: CinematicController.Controller,
 	dialogueController: DialogueController.DialogueController,
 	inventoryController: InventoryControllerModule.InventoryController,
+	documentsController: DocumentsControllerModule.DocumentsController,
+	documentReaderController: DocumentReaderControllerModule.DocumentReaderController,
 	combatService: CombatServiceModule.CombatService,
 }
 
@@ -55,12 +63,19 @@ local mockActionLabelsByItemId: { [string]: { string } } = {
 
 local function App(props: Props)
 	local inventoryVisible, setInventoryVisible = React.useState(false)
+	local inventoryTab, setInventoryTab = React.useState("items")
 	local selectedItemUid: string?, setSelectedItemUid: (string?) -> () = React.useState(nil :: string?)
 	local confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
 	local cinematicPlaying, setCinematicPlaying = React.useState(props.cinematicController:isPlaying())
 	local dungeonGuiHidden, setDungeonGuiHidden = React.useState(cinematicPlaying)
 	local notificationItemId = usePickupNotification()
 	local inventory: items.InventoryState? = useInventory(props.inventoryController)
+	local documents = useDocuments(props.documentsController)
+	local documentReader = useDocumentReader(props.documentReaderController)
+	local documentReaderActive = documentReader ~= nil
+	local documentReaderPresentation, setDocumentReaderPresentation = React.useState(documentReader)
+	local documentReaderVisible, setDocumentReaderVisible = React.useState(documentReader ~= nil)
+	local documentReaderMounted = documentReaderPresentation ~= nil
 	local objectives = useObjectives()
 	local dialogue = useDialogue(props.dialogueController)
 	local equippedWeapon: items.ItemInstance? = nil
@@ -127,6 +142,9 @@ local function App(props: Props)
 				if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() then
 					return Enum.ContextActionResult.Sink
 				end
+				if documentReaderActive or documentReaderMounted then
+					return Enum.ContextActionResult.Sink
+				end
 				setInventoryVisible(function(previousVisible: boolean): boolean
 					return not previousVisible
 				end)
@@ -141,13 +159,28 @@ local function App(props: Props)
 			ContextActionService:UnbindAction(INVENTORY_TOGGLE_ACTION)
 			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, playerListWasEnabled)
 		end
-	end, {})
+	end, { documentReaderActive, documentReaderMounted })
+
+	React.useEffect(function()
+		if documentReader ~= nil then
+			setDocumentReaderPresentation(documentReader)
+			setDocumentReaderVisible(true)
+		elseif documentReaderPresentation ~= nil then
+			setDocumentReaderVisible(false)
+		end
+	end, { documentReader })
 
 	React.useEffect(function()
 		if not inventoryVisible then
 			setSelectedItemUid(nil)
 		end
 	end, { inventoryVisible })
+
+	React.useEffect(function()
+		if documentReaderActive or documentReaderMounted then
+			setInventoryVisible(false)
+		end
+	end, { documentReaderActive, documentReaderMounted })
 
 	React.useEffect(function()
 		if inventory == nil or selectedItemUid == nil then
@@ -165,10 +198,62 @@ local function App(props: Props)
 	end, selectionEffectDependencies)
 
 	local inventoryContent
-	if inventory == nil then
+	if inventoryTab == "documents" then
+		local documentRows = {}
+		local visibleDocumentCount = 0
+		for index, documentId in documents.collectedIds do
+			local document = props.documentsController:getDocument(documentId)
+			if document ~= nil then
+				visibleDocumentCount += 1
+				documentRows[tostring(index)] = React.createElement("TextButton", {
+					AutoButtonColor = false,
+					BackgroundColor3 = Color3.fromRGB(39, 42, 56),
+					Font = Enum.Font.RobotoMono,
+					LayoutOrder = index,
+					Selectable = true,
+					Size = UDim2.new(1, 0, 0, 36),
+					Text = document.displayName,
+					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextSize = 13,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					[React.Event.Activated] = function()
+						setInventoryVisible(false)
+						props.documentReaderController:open(documentId)
+					end,
+				}, {
+					Corner = React.createElement("UICorner", {
+						CornerRadius = UDim.new(0, 6),
+					}),
+				})
+			end
+		end
+
+		if visibleDocumentCount == 0 then
+			documentRows.Empty = React.createElement("TextLabel", {
+				BackgroundTransparency = 1,
+				Font = Enum.Font.RobotoMono,
+				Size = UDim2.new(1, 0, 0, 36),
+				Text = "Nenhum documento coletado.",
+				TextColor3 = Color3.fromRGB(173, 179, 198),
+				TextSize = 13,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			})
+		end
+		documentRows.Layout = React.createElement("UIListLayout", {
+			Padding = UDim.new(0, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		})
+		inventoryContent = React.createElement("Frame", {
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			Position = UDim2.fromOffset(16, 80),
+			Size = UDim2.new(1, -32, 0, 184),
+		}, documentRows)
+	elseif inventory == nil then
 		inventoryContent = React.createElement("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -8, 0, 28),
+			Position = UDim2.fromOffset(16, 80),
+			Size = UDim2.new(1, -32, 0, 28),
 			Font = Enum.Font.Gotham,
 			Text = "Carregando inventário...",
 			TextColor3 = Color3.fromRGB(173, 179, 198),
@@ -299,7 +384,7 @@ local function App(props: Props)
 		inventoryContent = React.createElement("Frame", {
 			BackgroundTransparency = 1,
 			ClipsDescendants = false,
-			Position = UDim2.fromOffset(16, 44),
+			Position = UDim2.fromOffset(16, 80),
 			Size = UDim2.new(1, -32, 0, 184),
 		}, {
 			SizeConstraint = React.createElement("UISizeConstraint", {
@@ -323,7 +408,7 @@ local function App(props: Props)
 		})
 	end
 
-	local inventoryPanel = if inventoryVisible then React.createElement("Frame", {
+	local inventoryPanel = if inventoryVisible and not documentReaderActive and not documentReaderMounted then React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0, 0),
 			AutomaticSize = Enum.AutomaticSize.XY,
 			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
@@ -335,7 +420,7 @@ local function App(props: Props)
 				CornerRadius = UDim.new(0, 10),
 			}),
 			SizeConstraint = React.createElement("UISizeConstraint", {
-				MaxSize = Vector2.new(360, 244),
+				MaxSize = Vector2.new(360, 300),
 			}),
 			Title = React.createElement("TextLabel", {
 				BackgroundTransparency = 1,
@@ -347,6 +432,49 @@ local function App(props: Props)
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextSize = 16,
 				TextXAlignment = Enum.TextXAlignment.Left,
+			}),
+			Tabs = React.createElement("Frame", {
+				BackgroundTransparency = 1,
+				Position = UDim2.fromOffset(16, 40),
+				Size = UDim2.new(1, -32, 0, 28),
+			}, {
+				Items = React.createElement("TextButton", {
+					AutoButtonColor = false,
+					BackgroundColor3 = if inventoryTab == "items"
+						then Color3.fromRGB(78, 65, 111)
+						else Color3.fromRGB(39, 42, 56),
+					Font = Enum.Font.GothamBold,
+					Size = UDim2.new(0.48, -3, 1, 0),
+					Text = "ITENS",
+					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextSize = 11,
+					[React.Event.Activated] = function()
+						setInventoryTab("items")
+					end,
+				}, {
+					Corner = React.createElement("UICorner", {
+						CornerRadius = UDim.new(0, 5),
+					}),
+				}),
+				Documents = React.createElement("TextButton", {
+					AutoButtonColor = false,
+					BackgroundColor3 = if inventoryTab == "documents"
+						then Color3.fromRGB(78, 65, 111)
+						else Color3.fromRGB(39, 42, 56),
+					Font = Enum.Font.GothamBold,
+					Position = UDim2.new(0.52, 3, 0, 0),
+					Size = UDim2.new(0.48, -3, 1, 0),
+					Text = "DOCUMENTOS",
+					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextSize = 11,
+					[React.Event.Activated] = function()
+						setInventoryTab("documents")
+					end,
+				}, {
+					Corner = React.createElement("UICorner", {
+						CornerRadius = UDim.new(0, 5),
+					}),
+				}),
 			}),
 			Content = inventoryContent,
 		})
@@ -426,6 +554,38 @@ local function App(props: Props)
 			dialogueText = visibleText .. "\n" .. table.concat(renderedOptions, "    ")
 		end
 	end
+
+	React.useEffect(function()
+		if not documentReaderMounted then
+			return
+		end
+
+		local blur = Instance.new("BlurEffect")
+		blur.Name = "DocumentReaderBlur"
+		blur.Size = 18
+		blur.Parent = Lighting
+
+		return function()
+			blur:Destroy()
+		end
+	end, { documentReaderMounted })
+
+	local documentReaderOverlay = if documentReaderPresentation ~= nil
+		then React.createElement(DocumentReaderOverlayComponent, {
+			enabled = not dungeonGuiHidden,
+			onNextPage = function()
+				props.documentReaderController:nextPage()
+			end,
+			onExitComplete = function()
+				setDocumentReaderPresentation(nil)
+			end,
+			onPreviousPage = function()
+				props.documentReaderController:previousPage()
+			end,
+			state = documentReaderPresentation,
+			visible = documentReaderVisible,
+		})
+		else nil
 
 	return React.createElement(React.Fragment, nil, {
 		DungeonGui = React.createElement("ScreenGui", {
@@ -559,6 +719,7 @@ local function App(props: Props)
 				setDungeonGuiHidden(false)
 			end,
 		}),
+		DocumentReader = documentReaderOverlay,
 	})
 end
 
