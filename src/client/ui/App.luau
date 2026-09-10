@@ -14,8 +14,9 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local useDialogue = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.useDialogue)
 local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
 local useInventory = require(StarterPlayer.StarterPlayerScripts.Client.inventory.useInventory)
+local inventoryPresentation = require(StarterPlayer.StarterPlayerScripts.Client.inventory.inventoryPresentation)
+local inventoryActions = require(StarterPlayer.StarterPlayerScripts.Client.inventory.inventoryActions)
 local InventoryControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.inventory.InventoryController)
-local CombatConfig = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatConfig)
 local CombatServiceModule = require(StarterPlayer.StarterPlayerScripts.Client.combat.CombatService)
 local useObjectives = require(StarterPlayer.StarterPlayerScripts.Client.objectives.useObjectives)
 local usePickupNotification = require(StarterPlayer.StarterPlayerScripts.Client.pickups.usePickupNotification)
@@ -24,9 +25,11 @@ local InventorySlot = require(StarterPlayer.StarterPlayerScripts.Client.ui.Inven
 local DocumentList = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentList)
 local DropdownMenu = require(StarterPlayer.StarterPlayerScripts.Client.ui.DropdownMenu)
 local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
+local combatHudState = require(StarterPlayer.StarterPlayerScripts.Client.ui.combatHudState)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
 local DocumentReaderOverlayComponent = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentReaderOverlay)
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 local useDocumentReader = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocumentReader)
 local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 local documentReaderController: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
@@ -52,14 +55,6 @@ local DROPDOWN_WIDTH = 144
 local INVENTORY_TOGGLE_ACTION = "DungeonInventoryToggle"
 local INVENTORY_TOGGLE_PRIORITY = Enum.ContextActionPriority.High.Value + 3
 
-local mockActionLabelsByItemId: { [string]: { string } } = {
-	access_card = { "descartar" },
-	bolt_cutter = { "descartar" },
-	handgun = { "equipar" },
-	handgun_ammo = { "descartar" },
-	medkit = { "usar", "descartar" },
-}
-
 local function App(props: Props)
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local inventoryTab, setInventoryTab = React.useState("items")
@@ -76,46 +71,7 @@ local function App(props: Props)
 	local documentReaderMounted = documentReaderPresentation ~= nil
 	local objectives = useObjectives()
 	local dialogue = useDialogue(props.dialogueController)
-	local equippedWeapon: items.ItemInstance? = nil
-	local weaponConfig: typeof(CombatConfig.handgun)? = nil
-	local loadedAmmo: number? = nil
-	local reserveAmmo = 0
-	if inventory ~= nil then
-		local equippedWeaponUid = inventory.equipped.weapon
-		if equippedWeaponUid ~= nil then
-			for _, instance in inventory.items do
-				if instance.uid == equippedWeaponUid then
-					equippedWeapon = instance
-					break
-				end
-			end
-		end
-		if equippedWeapon ~= nil then
-			weaponConfig = CombatConfig[equippedWeapon.itemId]
-			if equippedWeapon.attributes ~= nil then
-				local value = equippedWeapon.attributes.loadedAmmo
-				if type(value) == "number" then
-					loadedAmmo = value
-				end
-			end
-			if loadedAmmo == nil and weaponConfig ~= nil
-				and (equippedWeapon.attributes == nil or equippedWeapon.attributes.loadedAmmo == nil)
-			then
-				loadedAmmo = weaponConfig.magazineSize
-			end
-			if weaponConfig ~= nil then
-				for _, instance in inventory.items do
-					if instance.itemId == weaponConfig.ammoItemId and instance.quantity ~= nil then
-						reserveAmmo += instance.quantity
-					end
-				end
-			end
-		end
-	end
-	local equippedWeaponDefinition = if equippedWeapon ~= nil then items[equippedWeapon.itemId] else nil
-	local combatHudWeaponName = if equippedWeaponDefinition ~= nil then equippedWeaponDefinition.name else "SEM ARMA"
-	local combatHudLoadedAmmo = if loadedAmmo ~= nil then tostring(loadedAmmo) else "--"
-	local combatHudReserveAmmo = if weaponConfig ~= nil then tostring(reserveAmmo) else "--"
+	local combatHud = combatHudState.getEquippedWeaponStats(inventory)
 
 	React.useEffect(function()
 		local connection = props.cinematicController.playingChanged:Connect(function(playing: boolean)
@@ -209,77 +165,37 @@ local function App(props: Props)
 			Size = UDim2.new(1, -32, 0, 28),
 			Font = Enum.Font.Gotham,
 			Text = "Carregando inventário...",
-			TextColor3 = Color3.fromRGB(173, 179, 198),
+			TextColor3 = theme.textMuted,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextSize = 14,
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
 	else
-		local function isItemEquipped(uid: string): boolean
-			for _, equippedUid in inventory.equipped do
-				if equippedUid == uid then
-					return true
-				end
-			end
-			return false
-		end
-
-		local function resolveDisplayItem(itemId: items.ItemId, quantity: number?)
-			local item = items[itemId]
-			return {
-				name = if item ~= nil then item.name else itemId,
-				quantity = quantity,
-			}
-		end
-
-		local function getDisplayQuantity(instance: items.ItemInstance): number?
-			if instance.quantity ~= nil then
-				return instance.quantity
-			end
-			local definition = items[instance.itemId]
-			if definition == nil or definition.category ~= "weapon" then
-				return nil
-			end
-			local authoredLoadedAmmo = if instance.attributes ~= nil then instance.attributes.loadedAmmo else nil
-			if authoredLoadedAmmo ~= nil then
-				return if type(authoredLoadedAmmo) == "number" then authoredLoadedAmmo else nil
-			end
-			local config = CombatConfig[instance.itemId]
-			return if config ~= nil then config.magazineSize else nil
-		end
-
 		local gridChildren = {}
 		local overlayChildren = {}
 		for index = 1, INVENTORY_SLOT_COUNT do
 			local instance = inventory.items[index]
-			local quantity = if instance ~= nil then getDisplayQuantity(instance) else nil
+			local quantity = if instance ~= nil then inventoryPresentation.getDisplayQuantity(instance) else nil
 			local displayItem = if instance ~= nil
-				then resolveDisplayItem(
+				then inventoryPresentation.resolveDisplayItem(
 					instance.itemId,
 					quantity
 				)
 				else nil
-			local isEquipped = if instance ~= nil then isItemEquipped(instance.uid) else false
-			local actionOptions: { { label: string, onActivated: () -> () } } = {}
-
-			if instance ~= nil then
-				local actionLabels = mockActionLabelsByItemId[instance.itemId]
-				if actionLabels ~= nil then
-					for _, label in actionLabels do
-						table.insert(actionOptions, {
-							label = label,
-							onActivated = function()
-								setSelectedItemUid(nil)
-								if label == "equipar" then
-									props.inventoryController:equip(instance.uid)
-								elseif label == "descartar" then
-									setConfirmationItemUid(instance.uid)
-								end
-							end,
-						})
-					end
-				end
-			end
+			local isEquipped = if instance ~= nil then inventoryPresentation.isItemEquipped(inventory.equipped, instance.uid) else false
+			local actionOptions: { inventoryActions.ActionOption } = if instance ~= nil
+				then inventoryActions.buildActionOptions(instance.uid, instance.itemId, {
+					dismiss = function()
+						setSelectedItemUid(nil)
+					end,
+					equip = function(uid: string)
+						props.inventoryController:equip(uid)
+					end,
+					requestDiscard = function(uid: string)
+						setConfirmationItemUid(uid)
+					end,
+				})
+				else {}
 
 			gridChildren[tostring(index)] = React.createElement("Frame", {
 				BackgroundTransparency = 1,
@@ -364,7 +280,7 @@ local function App(props: Props)
 	local inventoryPanel = if inventoryVisible and not documentReaderActive and not documentReaderMounted then React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0, 0),
 			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+			BackgroundColor3 = theme.panel,
 			BackgroundTransparency = 0.08,
 			Position = UDim2.fromOffset(24, 154),
 			Size = UDim2.new(0, 0, 0, 0),
@@ -381,7 +297,7 @@ local function App(props: Props)
 				Size = UDim2.new(1, -32, 0, 24),
 				Font = Enum.Font.GothamBold,
 				Text = "INVENTÁRIO",
-				TextColor3 = Color3.fromRGB(241, 237, 255),
+				TextColor3 = theme.text,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextSize = 16,
 				TextXAlignment = Enum.TextXAlignment.Left,
@@ -394,12 +310,12 @@ local function App(props: Props)
 				Items = React.createElement("TextButton", {
 					AutoButtonColor = false,
 					BackgroundColor3 = if inventoryTab == "items"
-						then Color3.fromRGB(78, 65, 111)
-						else Color3.fromRGB(39, 42, 56),
+						then theme.surfaceActive
+						else theme.surface,
 					Font = Enum.Font.GothamBold,
 					Size = UDim2.new(0.48, -3, 1, 0),
 					Text = "ITENS",
-					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextColor3 = theme.text,
 					TextSize = 11,
 					[React.Event.Activated] = function()
 						setInventoryTab("items")
@@ -412,13 +328,13 @@ local function App(props: Props)
 				Documents = React.createElement("TextButton", {
 					AutoButtonColor = false,
 					BackgroundColor3 = if inventoryTab == "documents"
-						then Color3.fromRGB(78, 65, 111)
-						else Color3.fromRGB(39, 42, 56),
+						then theme.surfaceActive
+						else theme.surface,
 					Font = Enum.Font.GothamBold,
 					Position = UDim2.new(0.52, 3, 0, 0),
 					Size = UDim2.new(0.48, -3, 1, 0),
 					Text = "DOCUMENTOS",
-					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextColor3 = theme.text,
 					TextSize = 11,
 					[React.Event.Activated] = function()
 						setInventoryTab("documents")
@@ -445,8 +361,8 @@ local function App(props: Props)
 				Font = Enum.Font.Gotham,
 				Text = marker .. objective.text,
 				TextColor3 = if objective.completed
-					then Color3.fromRGB(173, 196, 162)
-					else Color3.fromRGB(225, 222, 239),
+					then theme.successMuted
+					else theme.objectiveText,
 				TextSize = 14,
 				TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
@@ -460,7 +376,7 @@ local function App(props: Props)
 	})
 
 	local objectivePanel = if inventoryVisible and objectives ~= nil then React.createElement("Frame", {
-		BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+		BackgroundColor3 = theme.panel,
 		BackgroundTransparency = 0.08,
 		LayoutOrder = 2,
 		Size = UDim2.new(1, 0, 0, 0),
@@ -478,7 +394,7 @@ local function App(props: Props)
 			Size = UDim2.new(1, -32, 0, 24),
 			Font = Enum.Font.GothamBold,
 			Text = "OBJETIVOS",
-			TextColor3 = Color3.fromRGB(241, 237, 255),
+			TextColor3 = theme.text,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextSize = 16,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -587,9 +503,9 @@ local function App(props: Props)
 				Font = Enum.Font.RobotoMono,
 				RichText = true,
 				Text = '<b>' .. dialogueText .. "</b>",
-				TextColor3 = Color3.fromRGB(191, 223, 161),
+				TextColor3 = theme.success,
 				TextSize = 20,
-				TextStrokeColor3 = Color3.fromRGB(20, 22, 30),
+				TextStrokeColor3 = theme.panel,
 				TextStrokeTransparency = 0.05,
 				TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Center,
@@ -600,13 +516,13 @@ local function App(props: Props)
 			PickupNotification = if notificationName ~= nil
 			then React.createElement("TextLabel", {
 				AnchorPoint = Vector2.new(0, 1),
-				BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+				BackgroundColor3 = theme.panel,
 				BackgroundTransparency = 0.08,
 				Position = UDim2.new(0, 24, 1, -24),
 				Size = UDim2.fromOffset(240, 42),
 				Font = Enum.Font.GothamBold,
 				Text = "Pegou " .. notificationName,
-				TextColor3 = Color3.fromRGB(241, 237, 255),
+				TextColor3 = theme.text,
 				TextSize = 14,
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}, {
@@ -621,7 +537,7 @@ local function App(props: Props)
 				else nil,
 			CombatStatus = React.createElement("Frame", {
 				AnchorPoint = Vector2.new(1, 1),
-				BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+				BackgroundColor3 = theme.panel,
 				BackgroundTransparency = 0.08,
 				Position = UDim2.new(1, -24, 1, -24),
 				Size = UDim2.fromOffset(224, 76),
@@ -630,7 +546,7 @@ local function App(props: Props)
 					CornerRadius = UDim.new(0, 10),
 				}),
 				Stroke = React.createElement("UIStroke", {
-					Color = Color3.fromRGB(107, 92, 168),
+					Color = theme.accent,
 					Transparency = 0.25,
 				}),
 				Title = React.createElement("TextLabel", {
@@ -639,7 +555,7 @@ local function App(props: Props)
 					Size = UDim2.new(1, -28, 0, 16),
 					Font = Enum.Font.Gotham,
 					Text = "ARMA EQUIPADA",
-					TextColor3 = Color3.fromRGB(173, 179, 198),
+					TextColor3 = theme.textMuted,
 					TextSize = 10,
 					TextXAlignment = Enum.TextXAlignment.Left,
 				}),
@@ -648,8 +564,8 @@ local function App(props: Props)
 					Position = UDim2.fromOffset(14, 24),
 					Size = UDim2.new(1, -28, 0, 22),
 					Font = Enum.Font.GothamBold,
-					Text = combatHudWeaponName,
-					TextColor3 = Color3.fromRGB(241, 237, 255),
+					Text = combatHud.weaponName,
+					TextColor3 = theme.text,
 					TextSize = 14,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					TextXAlignment = Enum.TextXAlignment.Left,
@@ -659,8 +575,8 @@ local function App(props: Props)
 					Position = UDim2.fromOffset(14, 49),
 					Size = UDim2.new(1, -28, 0, 18),
 					Font = Enum.Font.GothamBold,
-					Text = string.format("CARREGADA  %s    DISPONÍVEL  %s", combatHudLoadedAmmo, combatHudReserveAmmo),
-					TextColor3 = Color3.fromRGB(191, 223, 161),
+					Text = string.format("CARREGADA  %s    DISPONÍVEL  %s", combatHud.loadedAmmo, combatHud.reserveAmmo),
+					TextColor3 = theme.success,
 					TextSize = 11,
 					TextXAlignment = Enum.TextXAlignment.Left,
 				}),
