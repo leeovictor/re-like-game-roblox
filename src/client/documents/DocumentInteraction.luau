@@ -3,24 +3,20 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
+local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
 local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
-export type Dependencies = {
-	documents: DocumentsControllerModule.DocumentsController,
-	reader: DocumentReaderControllerModule.DocumentReaderController,
-}
+export type DocumentInteraction = interactionTypes.InteractionHandler
 
-export type DocumentInteraction = interactionTypes.InteractionHandler & {
-	documents: DocumentsControllerModule.DocumentsController,
-	reader: DocumentReaderControllerModule.DocumentReaderController,
-}
-
-local function createInteraction(dependencies: Dependencies): DocumentInteraction
-	assert(type(dependencies) == "table", "DocumentInteraction dependencies are required")
-	assert(type(dependencies.documents.collect) == "function", "DocumentInteraction documents.collect is required")
-	assert(type(dependencies.reader.open) == "function", "DocumentInteraction reader.open is required")
+local function createInteraction(): DocumentInteraction
+	local documents: DocumentsControllerModule.DocumentsController = Locator.get("DocumentsController")
+	local reader: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
+	assert(documents ~= nil, "DocumentInteraction requires DocumentsController")
+	assert(reader ~= nil, "DocumentInteraction requires DocumentReaderController")
+	assert(type(documents.collect) == "function", "DocumentInteraction DocumentsController is required")
+	assert(type(reader.open) == "function", "DocumentInteraction DocumentReaderController is required")
 
 	local warned: { [Instance]: { [string]: boolean } } = {}
 
@@ -37,10 +33,7 @@ local function createInteraction(dependencies: Dependencies): DocumentInteractio
 		warn(string.format("Document target %s: %s", target:GetFullName(), reason))
 	end
 
-	local interaction = {
-		documents = dependencies.documents,
-		reader = dependencies.reader,
-	} :: DocumentInteraction
+	local interaction = {} :: DocumentInteraction
 
 	function interaction.interact(target: Instance): ()
 		if not target:IsA("BasePart") and not target:IsA("Model") then
@@ -54,25 +47,25 @@ local function createInteraction(dependencies: Dependencies): DocumentInteractio
 			return
 		end
 
-		local document = dependencies.documents:getDocument(documentId)
+		local document = documents.getDocument(documentId)
 		if document == nil then
 			warnInvalid(target, "unknown-id", string.format("unknown or invalid DocumentId %q", documentId))
 			return
 		end
 
-		if dependencies.documents:has(documentId) then
+		if documents.has(documentId) then
 			warnInvalid(target, "duplicate-id", string.format("DocumentId %q was already collected", documentId))
 			return
 		end
 
-		local collected = dependencies.documents:collect(documentId)
+		local collected = documents.collect(documentId)
 		if collected == nil then
 			warnInvalid(target, "collect-failed", string.format("could not collect DocumentId %q", documentId))
 			return
 		end
 
 		target:Destroy()
-		dependencies.reader:open(document.id)
+		reader.open(document.id)
 	end
 
 	return interaction

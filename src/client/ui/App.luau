@@ -7,6 +7,7 @@ local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
+local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local StarterPlayer = game:GetService("StarterPlayer")
 
@@ -20,22 +21,20 @@ local useObjectives = require(StarterPlayer.StarterPlayerScripts.Client.objectiv
 local usePickupNotification = require(StarterPlayer.StarterPlayerScripts.Client.pickups.usePickupNotification)
 local ObjectiveNotification = require(StarterPlayer.StarterPlayerScripts.Client.ui.ObjectiveNotification)
 local InventorySlot = require(StarterPlayer.StarterPlayerScripts.Client.ui.InventorySlot)
+local DocumentList = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentList)
 local DropdownMenu = require(StarterPlayer.StarterPlayerScripts.Client.ui.DropdownMenu)
 local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
 local DocumentReaderOverlayComponent = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentReaderOverlay)
-local useDocuments = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocuments)
 local useDocumentReader = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocumentReader)
-local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
 local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local documentReaderController: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
 
 type Props = {
 	cinematicController: CinematicController.Controller,
 	dialogueController: DialogueController.DialogueController,
 	inventoryController: InventoryControllerModule.InventoryController,
-	documentsController: DocumentsControllerModule.DocumentsController,
-	documentReaderController: DocumentReaderControllerModule.DocumentReaderController,
 	combatService: CombatServiceModule.CombatService,
 }
 
@@ -70,8 +69,7 @@ local function App(props: Props)
 	local dungeonGuiHidden, setDungeonGuiHidden = React.useState(cinematicPlaying)
 	local notificationItemId = usePickupNotification()
 	local inventory: items.InventoryState? = useInventory(props.inventoryController)
-	local documents = useDocuments(props.documentsController)
-	local documentReader = useDocumentReader(props.documentReaderController)
+	local documentReader = useDocumentReader()
 	local documentReaderActive = documentReader ~= nil
 	local documentReaderPresentation, setDocumentReaderPresentation = React.useState(documentReader)
 	local documentReaderVisible, setDocumentReaderVisible = React.useState(documentReader ~= nil)
@@ -199,56 +197,11 @@ local function App(props: Props)
 
 	local inventoryContent
 	if inventoryTab == "documents" then
-		local documentRows = {}
-		local visibleDocumentCount = 0
-		for index, documentId in documents.collectedIds do
-			local document = props.documentsController:getDocument(documentId)
-			if document ~= nil then
-				visibleDocumentCount += 1
-				documentRows[tostring(index)] = React.createElement("TextButton", {
-					AutoButtonColor = false,
-					BackgroundColor3 = Color3.fromRGB(39, 42, 56),
-					Font = Enum.Font.RobotoMono,
-					LayoutOrder = index,
-					Selectable = true,
-					Size = UDim2.new(1, 0, 0, 36),
-					Text = document.displayName,
-					TextColor3 = Color3.fromRGB(241, 237, 255),
-					TextSize = 13,
-					TextTruncate = Enum.TextTruncate.AtEnd,
-					[React.Event.Activated] = function()
-						setInventoryVisible(false)
-						props.documentReaderController:open(documentId)
-					end,
-				}, {
-					Corner = React.createElement("UICorner", {
-						CornerRadius = UDim.new(0, 6),
-					}),
-				})
-			end
-		end
-
-		if visibleDocumentCount == 0 then
-			documentRows.Empty = React.createElement("TextLabel", {
-				BackgroundTransparency = 1,
-				Font = Enum.Font.RobotoMono,
-				Size = UDim2.new(1, 0, 0, 36),
-				Text = "Nenhum documento coletado.",
-				TextColor3 = Color3.fromRGB(173, 179, 198),
-				TextSize = 13,
-				TextXAlignment = Enum.TextXAlignment.Left,
-			})
-		end
-		documentRows.Layout = React.createElement("UIListLayout", {
-			Padding = UDim.new(0, 6),
-			SortOrder = Enum.SortOrder.LayoutOrder,
+		inventoryContent = React.createElement(DocumentList, {
+			onDocumentActivated = function()
+				setInventoryVisible(false)
+			end,
 		})
-		inventoryContent = React.createElement("Frame", {
-			BackgroundTransparency = 1,
-			ClipsDescendants = true,
-			Position = UDim2.fromOffset(16, 80),
-			Size = UDim2.new(1, -32, 0, 184),
-		}, documentRows)
 	elseif inventory == nil then
 		inventoryContent = React.createElement("TextLabel", {
 			BackgroundTransparency = 1,
@@ -574,13 +527,13 @@ local function App(props: Props)
 		then React.createElement(DocumentReaderOverlayComponent, {
 			enabled = not dungeonGuiHidden,
 			onNextPage = function()
-				props.documentReaderController:nextPage()
+				documentReaderController.nextPage()
 			end,
 			onExitComplete = function()
 				setDocumentReaderPresentation(nil)
 			end,
 			onPreviousPage = function()
-				props.documentReaderController:previousPage()
+				documentReaderController.previousPage()
 			end,
 			state = documentReaderPresentation,
 			visible = documentReaderVisible,

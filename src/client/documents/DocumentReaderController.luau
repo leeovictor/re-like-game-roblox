@@ -3,10 +3,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
+local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
-local DocumentData = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentData)
 local InputManager = require(StarterPlayer.StarterPlayerScripts.Client.InputManager)
 local Signal = require(ReplicatedStorage.Packages.Signal)
+local DocumentData = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentData)
 
 export type DocumentReaderState = {
 	document: DocumentData.Document,
@@ -21,113 +22,94 @@ type ChangedSignal = {
 	Connect: (self: ChangedSignal, callback: (state: DocumentReaderState?) -> ()) -> SignalConnection,
 }
 
-export type Dependencies = {
-	documents: DocumentsControllerModule.DocumentsController,
-}
-
 export type DocumentReaderController = {
 	changed: ChangedSignal,
-	state: DocumentReaderState?,
-	started: boolean,
-	generation: number,
-	inputConnections: { SignalConnection },
-	dependencies: Dependencies,
-	start: (self: DocumentReaderController) -> (),
-	stop: (self: DocumentReaderController) -> (),
-	getState: (self: DocumentReaderController) -> DocumentReaderState?,
-	open: (self: DocumentReaderController, documentId: string) -> boolean,
-	nextPage: (self: DocumentReaderController) -> (),
-	previousPage: (self: DocumentReaderController) -> (),
-	close: (self: DocumentReaderController) -> (),
+	start: () -> (),
+	stop: () -> (),
+	getState: () -> DocumentReaderState?,
+	open: (documentId: string) -> boolean,
+	nextPage: () -> (),
+	previousPage: () -> (),
+	close: () -> (),
 }
 
-local DocumentReaderController = {}
-DocumentReaderController.__index = DocumentReaderController
+local DocumentReaderController = {} :: DocumentReaderController
+local state: DocumentReaderState? = nil
+local started = false
+local inputConnections: { SignalConnection } = {}
+local documentsController: DocumentsControllerModule.DocumentsController? = nil
 
-local function publish(self: DocumentReaderController, state: DocumentReaderState?): ()
-	self.state = state
-	self.changed:Fire(state)
+DocumentReaderController.changed = (Signal.new() :: any) :: ChangedSignal
+
+local function publish(nextState: DocumentReaderState?): ()
+	state = nextState
+	DocumentReaderController.changed:Fire(nextState)
 end
 
-local function handleClose(self: DocumentReaderController): ()
-	self:close()
+local function handleClose(): ()
+	DocumentReaderController.close()
 end
 
-local function bindActions(self: DocumentReaderController): ()
+local function bindActions(): ()
 	local context = InputManager.Contexts.DocumentContext
-	table.insert(self.inputConnections, context:BindActionStateChanged("PreviousPage", function(state: boolean)
-		if state then
-			self:previousPage()
+	table.insert(inputConnections, context:BindActionStateChanged("PreviousPage", function(inputState: boolean)
+		if inputState then
+			DocumentReaderController.previousPage()
 		end
 	end))
-	table.insert(self.inputConnections, context:BindActionStateChanged("NextPage", function(state: boolean)
-		if state then
-			self:nextPage()
+	table.insert(inputConnections, context:BindActionStateChanged("NextPage", function(inputState: boolean)
+		if inputState then
+			DocumentReaderController.nextPage()
 		end
 	end))
-	table.insert(self.inputConnections, context:BindActionStateChanged("Close", function(state: boolean)
-		if state then
-			handleClose(self)
+	table.insert(inputConnections, context:BindActionStateChanged("Close", function(inputState: boolean)
+		if inputState then
+			handleClose()
 		end
 	end))
 end
 
-function DocumentReaderController.new(dependencies: Dependencies): DocumentReaderController
-	assert(type(dependencies) == "table", "DocumentReaderController dependencies are required")
-	assert(type(dependencies.documents.getDocument) == "function", "DocumentReaderController documents.getDocument is required")
-
-	local self = setmetatable({
-		changed = (Signal.new() :: any) :: ChangedSignal,
-		state = nil,
-		started = false,
-		generation = 0,
-		inputConnections = {},
-		dependencies = dependencies,
-	}, DocumentReaderController)
-	return (self :: any) :: DocumentReaderController
-end
-
-function DocumentReaderController.start(self: DocumentReaderController): ()
-	if self.started then
+function DocumentReaderController.start(): ()
+	if started then
 		return
 	end
-	self.started = true
-	bindActions(self)
+	documentsController = Locator.get("DocumentsController")
+	assert(documentsController ~= nil, "DocumentReaderController requires DocumentsController")
+	started = true
+	bindActions()
 end
 
-function DocumentReaderController.stop(self: DocumentReaderController): ()
-	if not self.started and self.state == nil then
+function DocumentReaderController.stop(): ()
+	if not started and state == nil then
 		return
 	end
 
-	self.started = false
-	for _, connection in self.inputConnections do
+	started = false
+	for _, connection in inputConnections do
 		connection:Disconnect()
 	end
-	table.clear(self.inputConnections)
-	self.generation += 1
-	if self.state ~= nil then
-		publish(self, nil)
+	table.clear(inputConnections)
+	if state ~= nil then
+		publish(nil)
 		InputManager.switchContext("PlayContext")
 	end
 end
 
-function DocumentReaderController.getState(self: DocumentReaderController): DocumentReaderState?
-	return self.state
+function DocumentReaderController.getState(): DocumentReaderState?
+	return state
 end
 
-function DocumentReaderController.open(self: DocumentReaderController, documentId: string): boolean
-	if not self.started then
+function DocumentReaderController.open(documentId: string): boolean
+	if not started or documentsController == nil then
 		return false
 	end
 
-	local document = self.dependencies.documents:getDocument(documentId)
+	local document = documentsController.getDocument(documentId)
 	if document == nil then
 		return false
 	end
 
-	self.generation += 1
-	publish(self, {
+	publish({
 		document = document,
 		pageIndex = 1,
 	})
@@ -135,42 +117,41 @@ function DocumentReaderController.open(self: DocumentReaderController, documentI
 	return true
 end
 
-function DocumentReaderController.nextPage(self: DocumentReaderController): ()
-	local current = self.state
+function DocumentReaderController.nextPage(): ()
+	local current = state
 	if current == nil then
 		return
 	end
 
 	if current.pageIndex >= #current.document.pages then
-		self:close()
+		DocumentReaderController.close()
 		return
 	end
 
-	publish(self, {
+	publish({
 		document = current.document,
 		pageIndex = current.pageIndex + 1,
 	})
 end
 
-function DocumentReaderController.previousPage(self: DocumentReaderController): ()
-	local current = self.state
+function DocumentReaderController.previousPage(): ()
+	local current = state
 	if current == nil then
 		return
 	end
 
-	publish(self, {
+	publish({
 		document = current.document,
 		pageIndex = math.max(1, current.pageIndex - 1),
 	})
 end
 
-function DocumentReaderController.close(self: DocumentReaderController): ()
-	if self.state == nil then
+function DocumentReaderController.close(): ()
+	if state == nil then
 		return
 	end
 
-	self.generation += 1
-	publish(self, nil)
+	publish(nil)
 	InputManager.switchContext("PlayContext")
 end
 

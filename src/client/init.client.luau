@@ -40,8 +40,6 @@ local Locator = require(ReplicatedStorage.Shared.locator.locator)
 
 local Players = game:GetService("Players")
 
-local App = require(StarterPlayer.StarterPlayerScripts.Client.ui.App)
-
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
@@ -72,14 +70,11 @@ FootstepController.start()
 
 local inventoryController = InventoryController.new()
 inventoryController:start()
-local documentsController = DocumentsController.new()
-documentsController:start()
-local documentReaderController = DocumentReaderController.new({
-	documents = documentsController,
-})
-documentReaderController:start()
-Locator.register('DocumentsController', documentsController)
-Locator.register('DocumentReaderController', documentReaderController)
+DocumentsController.start()
+Locator.register('DocumentsController', DocumentsController)
+Locator.register('DocumentReaderController', DocumentReaderController)
+DocumentReaderController.start()
+local App = require(StarterPlayer.StarterPlayerScripts.Client.ui.App)
 local enemyController = EnemyController.new()
 local combatService = CombatService.new({
 	inventory = inventoryController,
@@ -105,10 +100,7 @@ pickupManager:start()
 local pickupInteraction = PickupInteraction.new({
 	manager = pickupManager,
 })
-local documentInteraction = DocumentInteraction.new({
-	documents = documentsController,
-	reader = documentReaderController,
-})
+local documentInteraction = DocumentInteraction.new()
 PickupNotificationController.start({
 	source = pickupManager.collected,
 })
@@ -149,8 +141,6 @@ root:render(React.createElement(App, {
 		dialogueController = dialogueController,
 		cinematicController = cinematicController,
 		inventoryController = inventoryController,
-		documentsController = documentsController,
-		documentReaderController = documentReaderController,
 		combatService = combatService,
 	}))
 

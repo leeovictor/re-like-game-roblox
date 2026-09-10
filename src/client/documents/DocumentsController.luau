@@ -21,20 +21,14 @@ type ChangedSignal = {
 
 export type DocumentsController = {
 	changed: ChangedSignal,
-	started: boolean,
-	state: DocumentsState,
-	collectedIds: { string },
-	start: (self: DocumentsController) -> (),
-	stop: (self: DocumentsController) -> (),
-	getState: (self: DocumentsController) -> DocumentsState,
-	getCollected: (self: DocumentsController) -> { string },
-	has: (self: DocumentsController, id: string) -> boolean,
-	getDocument: (self: DocumentsController, id: string) -> DocumentData.Document?,
-	collect: (self: DocumentsController, id: string) -> DocumentData.Document?,
+	start: () -> (),
+	stop: () -> (),
+	getState: () -> DocumentsState,
+	getCollected: () -> { string },
+	has: (id: string) -> boolean,
+	getDocument: (id: string) -> DocumentData.Document?,
+	collect: (id: string) -> DocumentData.Document?,
 }
-
-local DocumentsController = {}
-DocumentsController.__index = DocumentsController
 
 local function makeState(collectedIds: { string }): DocumentsState
 	return {
@@ -42,49 +36,45 @@ local function makeState(collectedIds: { string }): DocumentsState
 	}
 end
 
-local function publish(self: DocumentsController): ()
-	self.state = makeState(self.collectedIds)
-	self.changed:Fire(self.state)
+local DocumentsController = {} :: DocumentsController
+local started = false
+local state = makeState({})
+local collectedIds = state.collectedIds
+
+local function publish(): ()
+	state = makeState(collectedIds)
+	DocumentsController.changed:Fire(state)
 end
 
-function DocumentsController.new(): DocumentsController
-	local collectedIds: { string } = {}
-	local self = setmetatable({
-		changed = (Signal.new() :: any) :: ChangedSignal,
-		started = false,
-		state = makeState(collectedIds),
-		collectedIds = collectedIds,
-	}, DocumentsController)
-	return (self :: any) :: DocumentsController
-end
+DocumentsController.changed = (Signal.new() :: any) :: ChangedSignal
 
-function DocumentsController.start(self: DocumentsController): ()
-	if self.started then
+function DocumentsController.start(): ()
+	if started then
 		return
 	end
-	self.started = true
-	self.state = makeState(self.collectedIds)
+	started = true
+	state = makeState(collectedIds)
 end
 
-function DocumentsController.stop(self: DocumentsController): ()
-	if not self.started then
+function DocumentsController.stop(): ()
+	if not started then
 		return
 	end
-	self.started = false
-	table.clear(self.collectedIds)
-	publish(self)
+	started = false
+	table.clear(collectedIds)
+	publish()
 end
 
-function DocumentsController.getState(self: DocumentsController): DocumentsState
-	return self.state
+function DocumentsController.getState(): DocumentsState
+	return state
 end
 
-function DocumentsController.getCollected(self: DocumentsController): { string }
-	return table.clone(self.collectedIds)
+function DocumentsController.getCollected(): { string }
+	return table.clone(collectedIds)
 end
 
-function DocumentsController.has(self: DocumentsController, id: string): boolean
-	for _, collectedId in self.collectedIds do
+function DocumentsController.has(id: string): boolean
+	for _, collectedId in collectedIds do
 		if collectedId == id then
 			return true
 		end
@@ -92,22 +82,22 @@ function DocumentsController.has(self: DocumentsController, id: string): boolean
 	return false
 end
 
-function DocumentsController.getDocument(_self: DocumentsController, id: string): DocumentData.Document?
+function DocumentsController.getDocument(id: string): DocumentData.Document?
 	return DocumentData.get(id)
 end
 
-function DocumentsController.collect(self: DocumentsController, id: string): DocumentData.Document?
-	if not self.started or self:has(id) then
+function DocumentsController.collect(id: string): DocumentData.Document?
+	if not started or DocumentsController.has(id) then
 		return nil
 	end
 
-	local document = self:getDocument(id)
+	local document = DocumentsController.getDocument(id)
 	if document == nil then
 		return nil
 	end
 
-	table.insert(self.collectedIds, id)
-	publish(self)
+	table.insert(collectedIds, id)
+	publish()
 	return document
 end
 
