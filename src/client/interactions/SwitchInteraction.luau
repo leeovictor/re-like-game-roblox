@@ -62,7 +62,7 @@ return function (deps: Deps)
         InputManager.switchContext("DialogueContext")
 
         if not data.enabled then
-            deps.dialogueController:show(data.preAskText, function (_, reason)
+            deps.dialogueController:show(data.preAskText, function (_, _reason)
                 InputManager.switchContext("PlayContext")
             end)
             return
@@ -86,7 +86,7 @@ return function (deps: Deps)
             return
         end
         
-        deps.dialogueController:show(data.preAskText, function (_, reason)
+        deps.dialogueController:show(data.preAskText, function (_, _reason)
             deps.dialogueController:ask(data.askText, data.options, handler)
         end)
     end

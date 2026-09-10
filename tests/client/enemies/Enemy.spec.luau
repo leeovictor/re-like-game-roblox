@@ -63,7 +63,9 @@ return function()
 			savedCharacterParent = if savedCharacter ~= nil then savedCharacter.Parent else nil
 		end)
 		afterEach(function()
-			for _, instance in created do instance:Destroy() end
+			for _, instance in created do
+				instance:Destroy()
+			end
 			if savedCharacter ~= nil then
 				Players.LocalPlayer.Character = savedCharacter
 				savedCharacter.Parent = savedCharacterParent

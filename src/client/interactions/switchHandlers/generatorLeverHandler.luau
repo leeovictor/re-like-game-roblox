@@ -90,7 +90,7 @@ local TIMELINE_GENERATOR_POWER_ON: CinematicController.Timeline = {
     },
 }
 
-return function (optionId, reason)
+return function (optionId, _reason)
     local cinematicController: CinematicController.Controller = Locator.get('CinematicController')
     
     if optionId == 'yes' then
