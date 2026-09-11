@@ -7,13 +7,13 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 local controller = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
 
-type ObjectiveView = {
+export type ObjectiveView = {
 	id: string,
 	text: string,
 	completed: boolean,
 }
 
-type ObjectiveState = {
+export type ObjectiveState = {
 	objectives: { ObjectiveView },
 }
 

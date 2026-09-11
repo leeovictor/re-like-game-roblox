@@ -26,6 +26,10 @@ local DocumentList = require(StarterPlayer.StarterPlayerScripts.Client.ui.Docume
 local DropdownMenu = require(StarterPlayer.StarterPlayerScripts.Client.ui.DropdownMenu)
 local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
 local combatHudState = require(StarterPlayer.StarterPlayerScripts.Client.ui.combatHudState)
+local CombatStatus = require(StarterPlayer.StarterPlayerScripts.Client.ui.CombatStatus)
+local PickupToast = require(StarterPlayer.StarterPlayerScripts.Client.ui.PickupToast)
+local DialogueOverlay = require(StarterPlayer.StarterPlayerScripts.Client.ui.DialogueOverlay)
+local ObjectivesPanel = require(StarterPlayer.StarterPlayerScripts.Client.ui.ObjectivesPanel)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
 local DocumentReaderOverlayComponent = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentReaderOverlay)
@@ -349,81 +353,6 @@ local function App(props: Props)
 		})
 		else nil
 
-	local objectiveRows = {}
-	if objectives ~= nil then
-		for index, objective in objectives.objectives do
-			local marker = if objective.completed then "[x] " else "* "
-			objectiveRows[objective.id] = React.createElement("TextLabel", {
-				BackgroundTransparency = 1,
-				LayoutOrder = index,
-				Size = UDim2.new(1, -24, 0, 28),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				Font = Enum.Font.Gotham,
-				Text = marker .. objective.text,
-				TextColor3 = if objective.completed
-					then theme.successMuted
-					else theme.objectiveText,
-				TextSize = 14,
-				TextWrapped = true,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextYAlignment = Enum.TextYAlignment.Center,
-			})
-		end
-	end
-	objectiveRows.ListLayout = React.createElement("UIListLayout", {
-		Padding = UDim.new(0, 2),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-	})
-
-	local objectivePanel = if inventoryVisible and objectives ~= nil then React.createElement("Frame", {
-		BackgroundColor3 = theme.panel,
-		BackgroundTransparency = 0.08,
-		LayoutOrder = 2,
-		Size = UDim2.new(1, 0, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-	}, {
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(0, 10),
-		}),
-		SizeConstraint = React.createElement("UISizeConstraint", {
-			MaxSize = Vector2.new(340, 1000),
-		}),
-		Title = React.createElement("TextLabel", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(16, 12),
-			Size = UDim2.new(1, -32, 0, 24),
-			Font = Enum.Font.GothamBold,
-			Text = "OBJETIVOS",
-			TextColor3 = theme.text,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			TextSize = 16,
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}),
-		List = React.createElement("Frame", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(16, 44),
-			Size = UDim2.new(1, -32, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-		}, objectiveRows),
-	}) else nil
-
-	local notificationItem = if notificationItemId ~= nil then items[notificationItemId] else nil
-	local notificationName = if notificationItem ~= nil then notificationItem.name else notificationItemId
-	local dialogueText: string? = nil
-
-	if dialogue ~= nil then
-		dialogueText = dialogue.visibleText
-		if dialogue.kind == "question" and not dialogue.isTyping then
-			local renderedOptions = {}
-			for index, option in dialogue.options do
-				local marker = if index == dialogue.selectedIndex then "> " else "  "
-				table.insert(renderedOptions, marker .. option.text)
-			end
-			local visibleText: string = dialogue.visibleText or ""
-			dialogueText = visibleText .. "\n" .. table.concat(renderedOptions, "    ")
-		end
-	end
-
 	React.useEffect(function()
 		if not documentReaderMounted then
 			return
@@ -478,7 +407,10 @@ local function App(props: Props)
 				MaxSize = Vector2.new(340, 1000),
 			}),
 			Notice = React.createElement(ObjectiveNotification),
-			Panel = objectivePanel,
+			Panel = React.createElement(ObjectivesPanel, {
+				visible = inventoryVisible,
+				objectives = objectives,
+			}),
 			}),
 			InventoryPanel = inventoryPanel,
 			ConfirmationModal = React.createElement(ConfirmationModal, {
@@ -493,93 +425,16 @@ local function App(props: Props)
 				setConfirmationItemUid(nil)
 			end,
 			}),
-			Dialogue = if dialogueText ~= nil
-			then React.createElement("TextLabel", {
-				AnchorPoint = Vector2.new(0.5, 1),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0.5, 0, 0.8, 0),
-				Size = UDim2.new(0.6, 0, 0, 0),
-				Font = Enum.Font.RobotoMono,
-				RichText = true,
-				Text = '<b>' .. dialogueText .. "</b>",
-				TextColor3 = theme.success,
-				TextSize = 20,
-				TextStrokeColor3 = theme.panel,
-				TextStrokeTransparency = 0.05,
-				TextWrapped = true,
-				TextXAlignment = Enum.TextXAlignment.Center,
-				TextYAlignment = Enum.TextYAlignment.Bottom,
-				ZIndex = 20,
-			})
-				else nil,
-			PickupNotification = if notificationName ~= nil
-			then React.createElement("TextLabel", {
-				AnchorPoint = Vector2.new(0, 1),
-				BackgroundColor3 = theme.panel,
-				BackgroundTransparency = 0.08,
-				Position = UDim2.new(0, 24, 1, -24),
-				Size = UDim2.fromOffset(240, 42),
-				Font = Enum.Font.GothamBold,
-				Text = "Pegou " .. notificationName,
-				TextColor3 = theme.text,
-				TextSize = 14,
-				TextXAlignment = Enum.TextXAlignment.Left,
-			}, {
-				Padding = React.createElement("UIPadding", {
-					PaddingLeft = UDim.new(0, 14),
-					PaddingRight = UDim.new(0, 14),
-				}),
-				Corner = React.createElement("UICorner", {
-					CornerRadius = UDim.new(0, 8),
-				}),
-			})
-				else nil,
-			CombatStatus = React.createElement("Frame", {
-				AnchorPoint = Vector2.new(1, 1),
-				BackgroundColor3 = theme.panel,
-				BackgroundTransparency = 0.08,
-				Position = UDim2.new(1, -24, 1, -24),
-				Size = UDim2.fromOffset(224, 76),
-			}, {
-				Corner = React.createElement("UICorner", {
-					CornerRadius = UDim.new(0, 10),
-				}),
-				Stroke = React.createElement("UIStroke", {
-					Color = theme.accent,
-					Transparency = 0.25,
-				}),
-				Title = React.createElement("TextLabel", {
-					BackgroundTransparency = 1,
-					Position = UDim2.fromOffset(14, 8),
-					Size = UDim2.new(1, -28, 0, 16),
-					Font = Enum.Font.Gotham,
-					Text = "ARMA EQUIPADA",
-					TextColor3 = theme.textMuted,
-					TextSize = 10,
-					TextXAlignment = Enum.TextXAlignment.Left,
-				}),
-				Weapon = React.createElement("TextLabel", {
-					BackgroundTransparency = 1,
-					Position = UDim2.fromOffset(14, 24),
-					Size = UDim2.new(1, -28, 0, 22),
-					Font = Enum.Font.GothamBold,
-					Text = combatHud.weaponName,
-					TextColor3 = theme.text,
-					TextSize = 14,
-					TextTruncate = Enum.TextTruncate.AtEnd,
-					TextXAlignment = Enum.TextXAlignment.Left,
-				}),
-				Ammo = React.createElement("TextLabel", {
-					BackgroundTransparency = 1,
-					Position = UDim2.fromOffset(14, 49),
-					Size = UDim2.new(1, -28, 0, 18),
-					Font = Enum.Font.GothamBold,
-					Text = string.format("CARREGADA  %s    DISPONÍVEL  %s", combatHud.loadedAmmo, combatHud.reserveAmmo),
-					TextColor3 = theme.success,
-					TextSize = 11,
-					TextXAlignment = Enum.TextXAlignment.Left,
-				}),
+			Dialogue = React.createElement(DialogueOverlay, {
+				dialogue = dialogue,
+			}),
+			PickupNotification = React.createElement(PickupToast, {
+				itemId = notificationItemId,
+			}),
+			CombatStatus = React.createElement(CombatStatus, {
+				weaponName = combatHud.weaponName,
+				loadedAmmo = combatHud.loadedAmmo,
+				reserveAmmo = combatHud.reserveAmmo,
 			}),
 		}),
 		CinematicLetterbox = React.createElement(CinematicLetterbox, {
