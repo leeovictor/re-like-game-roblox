@@ -15,6 +15,19 @@
 - Os padroes de arquitetura para novos controllers, managers e services estao em `docs/luau-architecture-patterns.md`; consulte-o antes de criar ou alterar esses modulos.
 - `src/server/cave-engine/` contem hifen. Use `script["cave-engine"].CaveEngine` ou `script["cave-engine"].TerrainWriter`, nunca notacao de ponto nem renomeie a pasta.
 - O cliente inicia em `src/client/init.client.luau` e usa React/ReactRoblox. Os runners de teste nao iniciam esses entrypoints. No projeto de testes, `TestEZAutoServer` e `TestEZAutoClient` executam automaticamente as suites ao iniciar o Play.
+- Hooks que recebem callbacks e nao devem reexecutar efeitos guardam o callback em `useRef`, como em `useInventoryHotkey`; `DocumentReaderOverlay` e `CinematicLetterbox` ja seguem esse padrao.
+
+## UI, Tema e Componentes
+
+- Cores de UI vem exclusivamente de `src/client/ui/theme.luau`; `Color3.fromRGB` e `Color3.new` aparecem apenas no proprio `theme.luau`.
+- `src/client/ui/App.luau` e a raiz de composicao e orquestracao; arvores de UI devem virar componentes em `src/client/ui/*.luau`.
+- Componentes de UI recebem props e retornam `nil` quando ocultos, como `DropdownMenu`, `ConfirmationModal`, `PickupToast`, `DialogueOverlay` e `ObjectivesPanel`.
+- Componentes que precisam preservar estado local ao ocultar (por exemplo, aba e selecao do `InventoryPanel`) ficam montados com prop `visible`, em vez de criacao condicional.
+- Estado local de UI (aba, selecao, animacao) pertence ao componente dono; `App` guarda apenas estado de orquestracao, como visibilidade global, modal de confirmacao e cinematic.
+- Overlays fullscreen (`ConfirmationModal`, `DocumentReaderOverlay`) permanecem filhos diretos da ScreenGui raiz; nao aninhe em frames com tamanho limitado.
+- Efeitos visuais globais, como `BlurEffect`, pertencem ao ciclo de vida do componente que os exibe, nao ao `App`.
+- Logica pura de apresentacao e derivacao (por exemplo, `inventoryPresentation`, `inventoryActions`, `combatHudState`) fica em modulos sem React.
+- Use PascalCase para arquivos de componentes (`InventoryPanel.luau`) e camelCase para hooks e modulos puros (`useInventoryHotkey.luau`, `theme.luau`).
 
 ## Dependencias e Ferramentas
 
@@ -72,6 +85,8 @@ rojo build -o /tmp/dungeon-game-canve-test.rbxlx test.project.json
 - A definicao Roblox versionada corresponde ao `luau-lsp 1.69.0`; nao troque por `latest` sem atualizar a ferramenta, a definicao e o hash documentado no README.
 - O typecheck usa os mesmos subdiretorios de producao mapeados em `test.project.json`; nao inclua `src/server/init.server.luau` ou `src/client/init.client.luau` nessa analise.
 - Use Roblox Studio/MCP para o DataModel real, Terrain, `Terrain:WriteVoxels` e inicializacao de scripts. `default.project.json` continua sendo o projeto do jogo.
+- Apos alterar UI, `rg -n "Color3\.(fromRGB|new)" src/client/ui` deve retornar ocorrencias apenas em `src/client/ui/theme.luau`.
+- Apos extrair ou mover componentes de UI, valide no Play: inventario, dropdown, modal de dialogo, leitor de documentos, objetivos, HUD de combate e toasts.
 
 ## Limites de Tipos
 
