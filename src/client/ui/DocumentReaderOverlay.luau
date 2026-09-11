@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 
 local React = require(ReplicatedStorage.Packages.React)
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -30,6 +31,17 @@ local function DocumentReaderOverlay(props: Props)
 	local transitionIdRef = React.useRef(0)
 	local onExitCompleteRef = React.useRef(props.onExitComplete)
 	onExitCompleteRef.current = props.onExitComplete
+
+	React.useEffect(function()
+		local blur = Instance.new("BlurEffect")
+		blur.Name = "DocumentReaderBlur"
+		blur.Size = 18
+		blur.Parent = Lighting
+
+		return function()
+			blur:Destroy()
+		end
+	end, {})
 
 	React.useEffect(function()
 		transitionIdRef.current += 1

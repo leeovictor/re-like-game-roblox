@@ -1,13 +1,8 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ContextActionService = game:GetService("ContextActionService")
-local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
-local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
-local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local items = require(ReplicatedStorage.Shared.inventory.items)
 local StarterPlayer = game:GetService("StarterPlayer")
 
@@ -20,6 +15,8 @@ local useObjectives = require(StarterPlayer.StarterPlayerScripts.Client.objectiv
 local usePickupNotification = require(StarterPlayer.StarterPlayerScripts.Client.pickups.usePickupNotification)
 local ObjectiveNotification = require(StarterPlayer.StarterPlayerScripts.Client.ui.ObjectiveNotification)
 local InventoryPanel = require(StarterPlayer.StarterPlayerScripts.Client.ui.InventoryPanel)
+local useInventoryHotkey = require(StarterPlayer.StarterPlayerScripts.Client.ui.useInventoryHotkey)
+local useDocumentReaderHost = require(StarterPlayer.StarterPlayerScripts.Client.ui.useDocumentReaderHost)
 local ConfirmationModal = require(StarterPlayer.StarterPlayerScripts.Client.ui.ConfirmationModal)
 local combatHudState = require(StarterPlayer.StarterPlayerScripts.Client.ui.combatHudState)
 local CombatStatus = require(StarterPlayer.StarterPlayerScripts.Client.ui.CombatStatus)
@@ -29,9 +26,6 @@ local ObjectivesPanel = require(StarterPlayer.StarterPlayerScripts.Client.ui.Obj
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
 local CinematicLetterbox = require(StarterPlayer.StarterPlayerScripts.Client.ui.CinematicLetterbox)
 local DocumentReaderOverlayComponent = require(StarterPlayer.StarterPlayerScripts.Client.ui.DocumentReaderOverlay)
-local useDocumentReader = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocumentReader)
-local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
-local documentReaderController: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
 
 type Props = {
 	cinematicController: CinematicController.Controller,
@@ -40,9 +34,6 @@ type Props = {
 	combatService: CombatServiceModule.CombatService,
 }
 
-local INVENTORY_TOGGLE_ACTION = "DungeonInventoryToggle"
-local INVENTORY_TOGGLE_PRIORITY = Enum.ContextActionPriority.High.Value + 3
-
 local function App(props: Props)
 	local inventoryVisible, setInventoryVisible = React.useState(false)
 	local confirmationItemUid: string?, setConfirmationItemUid: (string?) -> () = React.useState(nil :: string?)
@@ -50,11 +41,7 @@ local function App(props: Props)
 	local dungeonGuiHidden, setDungeonGuiHidden = React.useState(cinematicPlaying)
 	local notificationItemId = usePickupNotification()
 	local inventory: items.InventoryState? = useInventory(props.inventoryController)
-	local documentReader = useDocumentReader()
-	local documentReaderActive = documentReader ~= nil
-	local documentReaderPresentation, setDocumentReaderPresentation = React.useState(documentReader)
-	local documentReaderVisible, setDocumentReaderVisible = React.useState(documentReader ~= nil)
-	local documentReaderMounted = documentReaderPresentation ~= nil
+	local documentReaderHost = useDocumentReaderHost()
 	local objectives = useObjectives()
 	local dialogue = useDialogue(props.dialogueController)
 	local combatHud = combatHudState.getEquippedWeaponStats(inventory)
@@ -72,78 +59,27 @@ local function App(props: Props)
 		end
 	end, { props.cinematicController })
 
-	React.useEffect(function()
-		local playerListWasEnabled = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.PlayerList)
-		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-		ContextActionService:BindActionAtPriority(
-			INVENTORY_TOGGLE_ACTION,
-			function(_, inputState)
-				if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() then
-					return Enum.ContextActionResult.Sink
-				end
-				if documentReaderActive or documentReaderMounted then
-					return Enum.ContextActionResult.Sink
-				end
-				setInventoryVisible(function(previousVisible: boolean): boolean
-					return not previousVisible
-				end)
-				return Enum.ContextActionResult.Sink
-			end,
-			false,
-			INVENTORY_TOGGLE_PRIORITY,
-			Enum.KeyCode.Tab
-		)
-
-		return function()
-			ContextActionService:UnbindAction(INVENTORY_TOGGLE_ACTION)
-			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, playerListWasEnabled)
-		end
-	end, { documentReaderActive, documentReaderMounted })
+	useInventoryHotkey(documentReaderHost.active, function()
+		setInventoryVisible(function(previousVisible: boolean): boolean
+			return not previousVisible
+		end)
+	end)
 
 	React.useEffect(function()
-		if documentReader ~= nil then
-			setDocumentReaderPresentation(documentReader)
-			setDocumentReaderVisible(true)
-		elseif documentReaderPresentation ~= nil then
-			setDocumentReaderVisible(false)
-		end
-	end, { documentReader })
-
-	React.useEffect(function()
-		if documentReaderActive or documentReaderMounted then
+		if documentReaderHost.active then
 			setInventoryVisible(false)
 		end
-	end, { documentReaderActive, documentReaderMounted })
+	end, { documentReaderHost.active })
 
-	React.useEffect(function()
-		if not documentReaderMounted then
-			return
-		end
-
-		local blur = Instance.new("BlurEffect")
-		blur.Name = "DocumentReaderBlur"
-		blur.Size = 18
-		blur.Parent = Lighting
-
-		return function()
-			blur:Destroy()
-		end
-	end, { documentReaderMounted })
-
-	local documentReaderOverlay = if documentReaderPresentation ~= nil
+	local documentReaderState = documentReaderHost.presentation
+	local documentReaderOverlay = if documentReaderState ~= nil
 		then React.createElement(DocumentReaderOverlayComponent, {
 			enabled = not dungeonGuiHidden,
-			onNextPage = function()
-				documentReaderController.nextPage()
-			end,
-			onExitComplete = function()
-				setDocumentReaderPresentation(nil)
-			end,
-			onPreviousPage = function()
-				documentReaderController.previousPage()
-			end,
-			state = documentReaderPresentation,
-			visible = documentReaderVisible,
+			onNextPage = documentReaderHost.nextPage,
+			onExitComplete = documentReaderHost.onExitComplete,
+			onPreviousPage = documentReaderHost.previousPage,
+			state = documentReaderState,
+			visible = documentReaderHost.visible,
 		})
 		else nil
 
@@ -175,7 +111,7 @@ local function App(props: Props)
 			}),
 			}),
 			InventoryPanel = React.createElement(InventoryPanel, {
-				visible = inventoryVisible and not documentReaderActive and not documentReaderMounted,
+				visible = inventoryVisible and not documentReaderHost.active,
 				inventory = inventory,
 				inventoryController = props.inventoryController,
 				onDocumentActivated = function()
