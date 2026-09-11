@@ -1,8 +1,10 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local React = require(ReplicatedStorage.Packages.React)
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
 type Option = {
 	label: string,
@@ -21,14 +23,14 @@ local function DropdownOption(props: { option: Option, layoutOrder: number })
 	return React.createElement("TextButton", {
 		AutoButtonColor = false,
 		BackgroundColor3 = if highlighted
-			then Color3.fromRGB(78, 65, 111)
-			else Color3.fromRGB(52, 55, 70),
+			then theme.surfaceActive
+			else theme.surfaceHover,
 		Font = Enum.Font.GothamBold,
 		LayoutOrder = props.layoutOrder,
 		Selectable = true,
 		Size = UDim2.new(1, 0, 0, 30),
 		Text = props.option.label,
-		TextColor3 = Color3.fromRGB(241, 237, 255),
+		TextColor3 = theme.text,
 		TextSize = 13,
 		[React.Event.Activated] = props.option.onActivated,
 		[React.Event.MouseEnter] = function()
@@ -70,7 +72,7 @@ local function DropdownMenu(props: Props)
 	end
 
 	return React.createElement("Frame", {
-		BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+		BackgroundColor3 = theme.panel,
 		BackgroundTransparency = 0.04,
 		ClipsDescendants = false,
 		Position = props.position,
@@ -82,7 +84,7 @@ local function DropdownMenu(props: Props)
 			CornerRadius = UDim.new(0, 7),
 		}),
 		Stroke = React.createElement("UIStroke", {
-			Color = Color3.fromRGB(132, 104, 205),
+			Color = theme.accentStrong,
 			Transparency = 0.1,
 		}),
 		Padding = React.createElement("UIPadding", {

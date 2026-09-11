@@ -18,6 +18,7 @@ local theme = {
 	equipped = Color3.fromRGB(107, 78, 168),
 	equippedHover = Color3.fromRGB(142, 103, 209),
 	overlay = Color3.fromRGB(8, 9, 14),
+	black = Color3.new(0, 0, 0),
 	white = Color3.fromRGB(255, 255, 255),
 	objectiveText = Color3.fromRGB(225, 222, 239),
 }

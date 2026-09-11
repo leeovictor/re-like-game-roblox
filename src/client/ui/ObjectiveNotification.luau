@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local StarterPlayer = game:GetService("StarterPlayer")
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
 local ObjectiveController = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
 local useObjectiveNotification = require(StarterPlayer.StarterPlayerScripts.Client.objectives.useObjectiveNotification)
@@ -116,7 +117,7 @@ local function ObjectiveNotification()
 	end)(), "\n")
 
 	return React.createElement("Frame", {
-		BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+		BackgroundColor3 = theme.panel,
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
 		Size = UDim2.new(1, 0, 0, 0),
@@ -140,7 +141,7 @@ local function ObjectiveNotification()
 			ref = titleRef,
 			Size = UDim2.new(1, 0, 0, 18),
 			Text = if #objectiveNotification == 1 then "OBJETIVO ATUALIZADO" else "OBJETIVOS ATUALIZADOS",
-			TextColor3 = Color3.fromRGB(173, 179, 198),
+			TextColor3 = theme.textMuted,
 			TextSize = 12,
 			TextTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -153,7 +154,7 @@ local function ObjectiveNotification()
 			ref = descriptionRef,
 			Size = UDim2.new(1, 0, 0, 0),
 			Text = objectiveText,
-			TextColor3 = Color3.fromRGB(255, 255, 255),
+			TextColor3 = theme.white,
 			TextSize = 16,
 			TextTransparency = 1,
 			TextWrapped = true,

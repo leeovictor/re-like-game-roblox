@@ -1,8 +1,10 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local React = require(ReplicatedStorage.Packages.React)
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
 type Props = {
 	visible: boolean,
@@ -30,7 +32,7 @@ local function ConfirmationButton(props: {
 		Selectable = true,
 		Size = UDim2.new(0.45, -5, 1, 0),
 		Text = props.label,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextColor3 = theme.white,
 		TextSize = 14,
 		[React.Event.Activated] = props.onActivated,
 		[React.Event.MouseEnter] = function()
@@ -60,7 +62,7 @@ local function ConfirmationModal(props: Props)
 
 	return React.createElement("Frame", {
 		Active = true,
-		BackgroundColor3 = Color3.fromRGB(8, 9, 14),
+		BackgroundColor3 = theme.overlay,
 		BackgroundTransparency = 0.35,
 		ClipsDescendants = false,
 		Size = UDim2.fromScale(1, 1),
@@ -68,7 +70,7 @@ local function ConfirmationModal(props: Props)
 	}, {
 		Panel = React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+			BackgroundColor3 = theme.panel,
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.new(0.8, 0, 0, 164),
 			ZIndex = 101,
@@ -77,7 +79,7 @@ local function ConfirmationModal(props: Props)
 				CornerRadius = UDim.new(0, 10),
 			}),
 			Stroke = React.createElement("UIStroke", {
-				Color = Color3.fromRGB(132, 104, 205),
+				Color = theme.accentStrong,
 				Thickness = 1,
 			}),
 			SizeConstraint = React.createElement("UISizeConstraint", {
@@ -96,7 +98,7 @@ local function ConfirmationModal(props: Props)
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.new(1, 0, 0, 68),
 				Text = props.message,
-				TextColor3 = Color3.fromRGB(241, 237, 255),
+				TextColor3 = theme.text,
 				TextSize = 17,
 				TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Center,
@@ -116,15 +118,15 @@ local function ConfirmationModal(props: Props)
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
 				CancelButton = React.createElement(ConfirmationButton, {
-					backgroundColor = Color3.fromRGB(52, 55, 70),
-					highlightColor = Color3.fromRGB(78, 82, 105),
+					backgroundColor = theme.surfaceHover,
+					highlightColor = theme.stroke,
 					label = props.cancelLabel,
 					layoutOrder = 1,
 					onActivated = props.onCancel,
 				}),
 				ConfirmButton = React.createElement(ConfirmationButton, {
-					backgroundColor = Color3.fromRGB(107, 78, 168),
-					highlightColor = Color3.fromRGB(142, 103, 209),
+					backgroundColor = theme.equipped,
+					highlightColor = theme.equippedHover,
 					label = props.confirmLabel,
 					layoutOrder = 2,
 					onActivated = props.onConfirm,

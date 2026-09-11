@@ -6,6 +6,7 @@ local Lighting = game:GetService("Lighting")
 
 local React = require(ReplicatedStorage.Packages.React)
 local StarterPlayer = game:GetService("StarterPlayer")
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
 local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 
@@ -116,7 +117,7 @@ local function DocumentReaderOverlay(props: Props)
 	}, {
 		Shade = React.createElement("Frame", {
 			Active = true,
-			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundColor3 = theme.black,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ref = shadeRef,
@@ -125,7 +126,7 @@ local function DocumentReaderOverlay(props: Props)
 		}),
 		Panel = React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+			BackgroundColor3 = theme.panel,
 			BackgroundTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.5),
 			ref = panelRef,
@@ -140,7 +141,7 @@ local function DocumentReaderOverlay(props: Props)
 				CornerRadius = UDim.new(0, 10),
 			}),
 			Stroke = React.createElement("UIStroke", {
-			Color = Color3.fromRGB(191, 223, 161),
+			Color = theme.success,
 			ref = strokeRef,
 			Transparency = 1,
 			}),
@@ -157,7 +158,7 @@ local function DocumentReaderOverlay(props: Props)
 					Position = UDim2.fromOffset(28, 24),
 					Size = UDim2.new(1, -56, 0, 26),
 					Text = props.state.document.displayName,
-					TextColor3 = Color3.fromRGB(191, 223, 161),
+					TextColor3 = theme.success,
 					TextSize = 16,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					TextXAlignment = Enum.TextXAlignment.Left,
@@ -169,7 +170,7 @@ local function DocumentReaderOverlay(props: Props)
 					Position = UDim2.fromOffset(28, 58),
 					Size = UDim2.new(1, -56, 1, -116),
 					Text = pageContent,
-					TextColor3 = Color3.fromRGB(241, 237, 255),
+					TextColor3 = theme.text,
 					TextSize = 17,
 					TextWrapped = true,
 					TextXAlignment = Enum.TextXAlignment.Left,
@@ -186,7 +187,7 @@ local function DocumentReaderOverlay(props: Props)
 					Selectable = false,
 					Size = UDim2.fromOffset(24, 40),
 					Text = "<",
-					TextColor3 = Color3.fromRGB(191, 223, 161),
+					TextColor3 = theme.success,
 					TextSize = 28,
 					Visible = props.state.pageIndex > 1,
 					ZIndex = 4,
@@ -206,7 +207,7 @@ local function DocumentReaderOverlay(props: Props)
 					Selectable = false,
 					Size = UDim2.fromOffset(24, 40),
 					Text = ">",
-					TextColor3 = Color3.fromRGB(191, 223, 161),
+					TextColor3 = theme.success,
 					TextSize = 28,
 					Visible = props.state.pageIndex < pageCount,
 					ZIndex = 4,
@@ -223,7 +224,7 @@ local function DocumentReaderOverlay(props: Props)
 					Position = UDim2.new(0.5, 0, 1, -24),
 					Size = UDim2.new(1, -56, 0, 20),
 					Text = string.format("PAGINA %d/%d", props.state.pageIndex, pageCount),
-					TextColor3 = Color3.fromRGB(173, 179, 198),
+					TextColor3 = theme.textMuted,
 					TextSize = 12,
 					TextXAlignment = Enum.TextXAlignment.Center,
 					ZIndex = 3,

@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local React = require(ReplicatedStorage.Packages.React)
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local useDocuments = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocuments)
 local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
@@ -26,13 +27,13 @@ local function DocumentList(props: Props)
 			visibleDocumentCount += 1
 			documentRows[tostring(index)] = React.createElement("TextButton", {
 				AutoButtonColor = false,
-				BackgroundColor3 = Color3.fromRGB(39, 42, 56),
+				BackgroundColor3 = theme.surface,
 				Font = Enum.Font.RobotoMono,
 				LayoutOrder = index,
 				Selectable = true,
 				Size = UDim2.new(1, 0, 0, 36),
 				Text = document.displayName,
-				TextColor3 = Color3.fromRGB(241, 237, 255),
+				TextColor3 = theme.text,
 				TextSize = 13,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				[React.Event.Activated] = function()
@@ -53,7 +54,7 @@ local function DocumentList(props: Props)
 			Font = Enum.Font.RobotoMono,
 			Size = UDim2.new(1, 0, 0, 36),
 			Text = "Nenhum documento coletado.",
-			TextColor3 = Color3.fromRGB(173, 179, 198),
+			TextColor3 = theme.textMuted,
 			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})

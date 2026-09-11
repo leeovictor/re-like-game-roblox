@@ -1,10 +1,12 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local React = require(ReplicatedStorage.Packages.React)
+local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
 type Props = {
 	playing: boolean,
@@ -128,7 +130,7 @@ local function CinematicLetterbox(props: Props)
 	}, {
 		TopBar = React.createElement("Frame", {
 			AnchorPoint = Vector2.zero,
-			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundColor3 = theme.black,
 			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0, 0),
@@ -137,7 +139,7 @@ local function CinematicLetterbox(props: Props)
 		}),
 		BottomBar = React.createElement("Frame", {
 			AnchorPoint = Vector2.new(0, 1),
-			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundColor3 = theme.black,
 			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0, 1),
