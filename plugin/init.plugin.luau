@@ -125,6 +125,9 @@ local function deactivateEditor()
 	if widget ~= nil then
 		widget:clearSelection()
 	end
+	if widget ~= nil then
+		widget:closeDialog()
+	end
 	if widget ~= nil and widget.gui.Enabled then
 		widget.gui.Enabled = false
 	end
@@ -153,14 +156,14 @@ local function activateEditor()
 		preview = CameraSystemPreview.new(Workspace)
 
 		local callbacks = {
-			onNewShot = function()
-				local name = widget :: any
+			getDefaultFieldOfView = function(): number
+				return Workspace.CurrentCamera.FieldOfView
+			end,
+			onCreateShot = function(name: string, fieldOfView: number)
 				run("New Shot", function()
 					local camera = Workspace.CurrentCamera
-					local shotName = name.nameInput.Text
-					assert(shotName ~= "", "Enter a name first")
 					local currentModel = model :: any
-					currentModel:createShot(shotName, camera)
+					currentModel:createShot(name, camera, fieldOfView)
 				end)
 			end,
 			onCaptureCamera = function()
@@ -192,14 +195,19 @@ local function activateEditor()
 					currentModel:setDefaultShot(shot :: BasePart)
 				end)
 			end,
-			onNewZone = function()
-				local currentWidget = widget :: any
+			onCreateZone = function(name: string, shotName: string)
 				run("New Zone", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local shot = hierarchy.shots:FindFirstChild(shotName)
+					assert(shot ~= nil and shot:IsA("BasePart"), string.format('Shot "%s" not found', shotName))
 					local camera = Workspace.CurrentCamera
-					local zoneName = currentWidget.nameInput.Text
-					assert(zoneName ~= "", "Enter a name first")
 					local currentModel = model :: any
-					currentModel:createZone(zoneName, CFrame.new(camera.Focus.Position), Vector3.new(10, 10, 10))
+					currentModel:createZone(
+						name,
+						CFrame.new(camera.Focus.Position),
+						Vector3.new(10, 10, 10),
+						shot :: BasePart
+					)
 				end)
 			end,
 			onAssignShot = function()

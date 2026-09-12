@@ -109,10 +109,13 @@ environment; their defaults match the `Plugins` path documented in
 1. Open the **Camera System** toolbar and click **Edit Camera System** to toggle
    the dock widget. Clicking the button again (or closing the dock) deactivates
    the editor without discarding the persisted hierarchy.
-2. Type a name in the **Actions** input and use **New Shot** or **New Zone**.
-   New shots copy the current viewport camera and its `FieldOfView`; new zones
-   start as a 10x10x10 part at the camera focus, receive the next `Order`, and
-   are assigned to the default shot when one exists.
+2. Use **New Shot** to open the shot modal, name the shot, and set its
+   `FieldOfView` (prefilled from the current viewport camera). Use **New Zone**
+   to open the zone modal, name the zone, and pick its shot from the searchable
+   selector (the default shot is pre-selected; the button is disabled when no
+   shots exist). New shots copy the current viewport camera; new zones start as
+   a 10x10x10 part at the camera focus, receive the next `Order`, and are
+   assigned to the chosen shot.
 3. Select a shot or zone row in the panel, or pick the part in the viewport.
    The panel and the Studio `Selection` stay in sync.
 4. With a shot selected, use **Capture Camera** to overwrite it from the

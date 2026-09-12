@@ -199,10 +199,14 @@ function CameraSystemModel.listZones(self: Model): { BasePart }
 	return zones
 end
 
-function CameraSystemModel.createShot(self: Model, name: string, camera: Camera): Part
+function CameraSystemModel.createShot(self: Model, name: string, camera: Camera, fieldOfView: number?): Part
 	local shotName = requireNonEmptyName(name)
 	local hierarchy = self:ensureHierarchy()
 	assert(hierarchy.shots:FindFirstChild(shotName) == nil, string.format('Shot "%s" already exists', shotName))
+	if fieldOfView ~= nil then
+		assert(isValidFieldOfView(fieldOfView), "FieldOfView must be between 1 and 120")
+	end
+	local resolvedFieldOfView = if fieldOfView == nil then camera.FieldOfView else fieldOfView
 
 	setWaypoint(self.changeHistoryService, "Camera System: Begin create shot")
 	local shot = Instance.new("Part")
@@ -214,7 +218,7 @@ function CameraSystemModel.createShot(self: Model, name: string, camera: Camera)
 	shot.CanQuery = false
 	shot.Transparency = EDITOR_SHOT_TRANSPARENCY
 	shot.Locked = false
-	shot:SetAttribute(FIELD_OF_VIEW, camera.FieldOfView)
+	shot:SetAttribute(FIELD_OF_VIEW, resolvedFieldOfView)
 	shot.Parent = hierarchy.shots
 	selectInstance(self.selection, shot)
 	setWaypoint(self.changeHistoryService, "Camera System: End create shot")
@@ -257,11 +261,17 @@ function CameraSystemModel.setDefaultShot(self: Model, shot: Part)
 	setWaypoint(self.changeHistoryService, "Camera System: End set default shot")
 end
 
-function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame, size: Vector3): Part
+function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame, size: Vector3, shot: Part?): Part
 	local zoneName = requireNonEmptyName(name)
 	local hierarchy = self:ensureHierarchy()
 	assert(hierarchy.zones:FindFirstChild(zoneName) == nil, string.format('Zone "%s" already exists', zoneName))
 	assert(size.X > 0 and size.Y > 0 and size.Z > 0, "Zone size must be positive on every axis")
+	if shot ~= nil then
+		assert(
+			shot:IsA("BasePart") and shot.Parent == hierarchy.shots,
+			string.format('Shot "%s" is not owned by CameraSystem.Shots', shot.Name)
+		)
+	end
 
 	local nextOrder = 1
 	for _, zone in self:listZones() do
@@ -284,10 +294,16 @@ function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame,
 	zone.Locked = false
 	zone:SetAttribute(ORDER, nextOrder)
 
-	local defaultShotId = hierarchy.root:GetAttribute(DEFAULT_SHOT_ID)
-	local defaultShot = if type(defaultShotId) == "string" then hierarchy.shots:FindFirstChild(defaultShotId) else nil
-	if defaultShot ~= nil and defaultShot:IsA("BasePart") then
-		zone:SetAttribute(SHOT_ID, defaultShotId)
+	if shot ~= nil then
+		zone:SetAttribute(SHOT_ID, shot.Name)
+	else
+		local defaultShotId = hierarchy.root:GetAttribute(DEFAULT_SHOT_ID)
+		local defaultShot = if type(defaultShotId) == "string"
+			then hierarchy.shots:FindFirstChild(defaultShotId)
+			else nil
+		if defaultShot ~= nil and defaultShot:IsA("BasePart") then
+			zone:SetAttribute(SHOT_ID, defaultShotId)
+		end
 	end
 	zone.Parent = hierarchy.zones
 	selectInstance(self.selection, zone)
