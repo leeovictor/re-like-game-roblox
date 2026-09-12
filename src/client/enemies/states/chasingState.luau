@@ -9,7 +9,13 @@ local function failPath(self: EnemiesTypes.Enemy, message: string): ()
 	warn(("[Enemy:%s] %s"):format(self.model.Name, message))
 end
 
-local function updateChaseMovement(self: EnemiesTypes.Enemy, root: BasePart, humanoid: Humanoid, playerRoot: BasePart, dt: number): ()
+local function updateChaseMovement(
+	self: EnemiesTypes.Enemy,
+	root: BasePart,
+	humanoid: Humanoid,
+	playerRoot: BasePart,
+	dt: number
+): ()
 	self.chaseProgressElapsed += dt
 	if self.chaseProgressElapsed >= config.CHASE_STUCK_CHECK_INTERVAL then
 		local movementSinceLastCheck = (root.Position - self.chaseProgressPosition).Magnitude
@@ -37,7 +43,9 @@ local function updateChaseMovement(self: EnemiesTypes.Enemy, root: BasePart, hum
 	local targetPosition = if waypoint ~= nil then waypoint.Position else playerRoot.Position
 	local currentDirection = utils.horizontalUnit(root.CFrame.LookVector, self.chaseDirection)
 	local targetDirection = utils.horizontalUnit(targetPosition - root.Position, currentDirection)
-	local turnSpeed = if self.chaseStuckElapsed >= config.CHASE_STUCK_TIME then config.CHASE_STUCK_TURN_SPEED else config.CHASE_TURN_SPEED
+	local turnSpeed = if self.chaseStuckElapsed >= config.CHASE_STUCK_TIME
+		then config.CHASE_STUCK_TURN_SPEED
+		else config.CHASE_TURN_SPEED
 	local blend = 1 - math.exp(-turnSpeed * dt)
 	local movementDirection = utils.horizontalUnit(currentDirection:Lerp(targetDirection, blend), targetDirection)
 
@@ -48,24 +56,24 @@ local function updateChaseMovement(self: EnemiesTypes.Enemy, root: BasePart, hum
 end
 
 local ChasingState: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
-	update = function (context, dt: number)
+	update = function(context, dt: number)
 		context.enemy.pathElapsed += dt
 		local playerRoot = CharacterRoot.get()
 		local root = context.enemy.root
 		local path = context.enemy.path
-		
+
 		if root == nil or path == nil or playerRoot == nil then
-			return 'idle'
+			return "idle"
 		end
 
 		if (playerRoot.Position - root.Position).Magnitude <= context.enemy.attackTriggerDistance then
 			context.enemy.attackTriggerDistance = utils.rollAttackTriggerDistance()
-			context.enemy.pathElapsed = 0;
-			return 'try_attack';
+			context.enemy.pathElapsed = 0
+			return "try_attack"
 		end
 		local humanoid = context.enemy.humanoid
 		if humanoid == nil then
-			return 'idle'
+			return "idle"
 		end
 
 		if context.enemy.pathElapsed >= config.PATH_RECOMPUTE_INTERVAL then
@@ -76,12 +84,12 @@ local ChasingState: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 
 			if not ok then
 				failPath(context.enemy, ("ComputeAsync failed: %s"):format(tostring(errorMessage)))
-				return 'idle'
+				return "idle"
 			end
 
 			if path.Status ~= Enum.PathStatus.Success then
 				failPath(context.enemy, ("Pathfinding failed with status: %s"):format(path.Status.Name))
-				return 'idle'
+				return "idle"
 			end
 
 			local waypoints = path:GetWaypoints()
@@ -103,7 +111,7 @@ local ChasingState: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 
 		updateChaseMovement(context.enemy, root, humanoid, playerRoot, dt)
 		return
-	end
+	end,
 }
 
 return ChasingState

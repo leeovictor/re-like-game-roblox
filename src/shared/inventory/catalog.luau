@@ -47,7 +47,7 @@ local items: { [ItemId]: ItemDefinition } = {
 		category = "consumable",
 		stackable = false,
 		capabilities = { "consume", "heal" },
-	}
+	},
 }
 
 return items

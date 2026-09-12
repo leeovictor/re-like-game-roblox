@@ -8,7 +8,8 @@ local React = require(ReplicatedStorage.Packages.React)
 local StarterPlayer = game:GetService("StarterPlayer")
 local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 
-local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local DocumentReaderControllerModule =
+	require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 
 type Props = {
 	enabled: boolean,
@@ -141,9 +142,9 @@ local function DocumentReaderOverlay(props: Props)
 				CornerRadius = UDim.new(0, 10),
 			}),
 			Stroke = React.createElement("UIStroke", {
-			Color = theme.success,
-			ref = strokeRef,
-			Transparency = 1,
+				Color = theme.success,
+				ref = strokeRef,
+				Transparency = 1,
 			}),
 			Content = React.createElement("CanvasGroup", {
 				BackgroundTransparency = 1,

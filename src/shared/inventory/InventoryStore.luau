@@ -72,10 +72,14 @@ local function validAttributes(attributes: any): boolean
 		return false
 	end
 	for key, value in attributes do
-		if type(key) ~= "string" or (type(value) ~= "string" and type(value) ~= "number" and type(value) ~= "boolean") then
+		if
+			type(key) ~= "string" or (type(value) ~= "string" and type(value) ~= "number" and type(value) ~= "boolean")
+		then
 			return false
 		end
-		if type(value) == "number" and not isFinite(value) then return false end
+		if type(value) == "number" and not isFinite(value) then
+			return false
+		end
 	end
 	return true
 end
@@ -84,7 +88,11 @@ local function validInstance(instance: any, seen: { [string]: boolean }): boolea
 	if type(instance) ~= "table" or type(instance.uid) ~= "string" or instance.uid == "" or seen[instance.uid] then
 		return false
 	end
-	if type(instance.itemId) ~= "string" or items[instance.itemId] == nil or not validAttributes(instance.attributes) then
+	if
+		type(instance.itemId) ~= "string"
+		or items[instance.itemId] == nil
+		or not validAttributes(instance.attributes)
+	then
 		return false
 	end
 	local definition = items[instance.itemId]
@@ -102,7 +110,12 @@ local function validInstance(instance: any, seen: { [string]: boolean }): boolea
 end
 
 local function validState(state: any): boolean
-	if type(state) ~= "table" or state.version ~= 2 or type(state.items) ~= "table" or type(state.equipped) ~= "table" then
+	if
+		type(state) ~= "table"
+		or state.version ~= 2
+		or type(state.items) ~= "table"
+		or type(state.equipped) ~= "table"
+	then
 		return false
 	end
 	local seen: { [string]: boolean } = {}
@@ -136,13 +149,19 @@ function InventoryStore.findInstance(state: InventoryState, uid: string): ItemIn
 end
 
 function InventoryStore.addInstance(state: InventoryState, instance: ItemInstance): InventoryState?
-	if not validState(state) or not validInstance(instance, (function()
-		local seen: { [string]: boolean } = {}
-		for _, existing in state.items do
-			seen[existing.uid] = true
-		end
-		return seen
-	end)()) then
+	if
+		not validState(state)
+		or not validInstance(
+			instance,
+			(function()
+				local seen: { [string]: boolean } = {}
+				for _, existing in state.items do
+					seen[existing.uid] = true
+				end
+				return seen
+			end)()
+		)
+	then
 		return nil
 	end
 	local result = InventoryStore.copyState(state)
@@ -151,7 +170,9 @@ function InventoryStore.addInstance(state: InventoryState, instance: ItemInstanc
 end
 
 function InventoryStore.removeInstance(state: InventoryState, uid: string): InventoryState?
-	if not validState(state) then return nil end
+	if not validState(state) then
+		return nil
+	end
 	local result = InventoryStore.copyState(state)
 	for index, instance in result.items do
 		if instance.uid == uid then
@@ -167,13 +188,28 @@ function InventoryStore.removeInstance(state: InventoryState, uid: string): Inve
 	return nil
 end
 
-function InventoryStore.addQuantity(state: InventoryState, itemId: string, quantity: number, uid: string?): InventoryState?
-	if not validState(state) or items[itemId] == nil or not items[itemId].stackable or type(quantity) ~= "number" or not isInteger(quantity) then return nil end
+function InventoryStore.addQuantity(
+	state: InventoryState,
+	itemId: string,
+	quantity: number,
+	uid: string?
+): InventoryState?
+	if
+		not validState(state)
+		or items[itemId] == nil
+		or not items[itemId].stackable
+		or type(quantity) ~= "number"
+		or not isInteger(quantity)
+	then
+		return nil
+	end
 	local result = InventoryStore.copyState(state)
 	for _, instance in result.items do
 		if instance.itemId == itemId and instance.attributes == nil then
 			local updatedQuantity = (instance.quantity :: number) + quantity
-			if not isFinite(updatedQuantity) then return nil end
+			if not isFinite(updatedQuantity) then
+				return nil
+			end
 			instance.quantity = updatedQuantity
 			return result
 		end
@@ -183,10 +219,16 @@ function InventoryStore.addQuantity(state: InventoryState, itemId: string, quant
 end
 
 function InventoryStore.removeQuantity(state: InventoryState, uid: string, quantity: number): InventoryState?
-	if not validState(state) or type(quantity) ~= "number" or not isInteger(quantity) then return nil end
+	if not validState(state) or type(quantity) ~= "number" or not isInteger(quantity) then
+		return nil
+	end
 	local instance = InventoryStore.findInstance(state, uid)
-	if instance == nil or instance.quantity == nil or quantity > instance.quantity then return nil end
-	if quantity == instance.quantity then return InventoryStore.removeInstance(state, uid) end
+	if instance == nil or instance.quantity == nil or quantity > instance.quantity then
+		return nil
+	end
+	if quantity == instance.quantity then
+		return InventoryStore.removeInstance(state, uid)
+	end
 	local result = InventoryStore.copyState(state)
 	for _, updated in result.items do
 		if updated.uid == uid then
@@ -198,8 +240,14 @@ function InventoryStore.removeQuantity(state: InventoryState, uid: string, quant
 	return result
 end
 
-function InventoryStore.updateAttributes(state: InventoryState, uid: string, attributes: ItemAttributes): InventoryState?
-	if not validState(state) or not validAttributes(attributes) or InventoryStore.findInstance(state, uid) == nil then return nil end
+function InventoryStore.updateAttributes(
+	state: InventoryState,
+	uid: string,
+	attributes: ItemAttributes
+): InventoryState?
+	if not validState(state) or not validAttributes(attributes) or InventoryStore.findInstance(state, uid) == nil then
+		return nil
+	end
 	local result = InventoryStore.copyState(state)
 	for _, instance in result.items do
 		if instance.uid == uid then
@@ -211,9 +259,13 @@ function InventoryStore.updateAttributes(state: InventoryState, uid: string, att
 end
 
 function InventoryStore.equip(state: InventoryState, slot: string, uid: string): InventoryState?
-	if not validState(state) or type(slot) ~= "string" then return nil end
+	if not validState(state) or type(slot) ~= "string" then
+		return nil
+	end
 	local instance = InventoryStore.findInstance(state, uid)
-	if instance == nil or not hasCapability(instance.itemId, "equip") then return nil end
+	if instance == nil or not hasCapability(instance.itemId, "equip") then
+		return nil
+	end
 	local result = InventoryStore.copyState(state)
 	result.equipped[slot] = uid
 	return result

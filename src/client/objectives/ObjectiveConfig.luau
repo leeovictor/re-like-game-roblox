@@ -6,8 +6,8 @@ local config: { any } = {
 		initial = true,
 		completesWhen = {
 			event = "cinematic_play_ended",
-			timelineId = "generator-power-off"
-		}
+			timelineId = "generator-power-off",
+		},
 	},
 	{
 		id = "access_facility",
@@ -27,13 +27,13 @@ local config: { any } = {
 		text = "Religue o gerador",
 		startsWhen = {
 			event = "cinematic_play_ended",
-			timelineId = "generator-power-off"
+			timelineId = "generator-power-off",
 		},
 		completesWhen = {
 			event = "cinematic_play_ended",
 			timelineId = "generator-power-on",
 		},
-	}
+	},
 }
 
 return config

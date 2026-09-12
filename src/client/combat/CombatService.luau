@@ -143,7 +143,11 @@ local function getLoadedAmmo(weapon: items.ItemInstance, config: typeof(CombatCo
 	return value
 end
 
-local function ensureLoadedAmmo(self: CombatService, weapon: items.ItemInstance, config: typeof(CombatConfig.handgun)): ()
+local function ensureLoadedAmmo(
+	self: CombatService,
+	weapon: items.ItemInstance,
+	config: typeof(CombatConfig.handgun)
+): ()
 	local value = if weapon.attributes ~= nil then weapon.attributes.loadedAmmo else nil
 	if value ~= nil then
 		return
@@ -168,7 +172,11 @@ local function findReserve(self: CombatService, config: typeof(CombatConfig.hand
 	return nil, 0
 end
 
-local function beginReload(self: CombatService, config: typeof(CombatConfig.handgun), weapon: items.ItemInstance): boolean
+local function beginReload(
+	self: CombatService,
+	config: typeof(CombatConfig.handgun),
+	weapon: items.ItemInstance
+): boolean
 	local _, reserveQuantity = findReserve(self, config)
 	local loadedAmmo = getLoadedAmmo(weapon, config)
 	if loadedAmmo == nil or loadedAmmo >= config.magazineSize or reserveQuantity <= 0 then
@@ -269,7 +277,8 @@ function CombatService.start(self: CombatService): ()
 		end
 		local weapon = self.dependencies.inventory:getEquipped("weapon")
 		local equippedUid = if weapon ~= nil then weapon.uid else nil
-		if (self.state == "reloading" and equippedUid ~= self.reloadWeaponUid)
+		if
+			(self.state == "reloading" and equippedUid ~= self.reloadWeaponUid)
 			or (self.state == "aiming" and equippedUid ~= self.aimWeaponUid)
 		then
 			abortActiveAction(self)
@@ -305,7 +314,17 @@ function CombatService.update(self: CombatService, deltaTime: number): ()
 	if self.state == "reloading" then
 		self.reloadElapsed += deltaTime
 		local weapon = self.reloadWeaponUid
-		if self.reloadElapsed >= (if weapon ~= nil then (CombatConfig[(self.dependencies.inventory:getEquipped("weapon") or { itemId = "" }).itemId] or CombatConfig.handgun).reloadDuration else CombatConfig.handgun.reloadDuration) then
+		if
+			self.reloadElapsed
+			>= (
+				if weapon ~= nil
+					then (
+						CombatConfig[(self.dependencies.inventory:getEquipped("weapon") or { itemId = "" }).itemId]
+						or CombatConfig.handgun
+					).reloadDuration
+					else CombatConfig.handgun.reloadDuration
+			)
+		then
 			finishReload(self)
 		end
 		return

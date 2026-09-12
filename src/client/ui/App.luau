@@ -91,24 +91,24 @@ local function App(props: Props)
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		}, {
 			ObjectiveStack = React.createElement("Frame", {
-			AnchorPoint = Vector2.new(1, 0),
-			BackgroundTransparency = 1,
-			Position = UDim2.new(1, -24, 0, 24),
-			Size = UDim2.new(1, -48, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-		}, {
-			ListLayout = React.createElement("UIListLayout", {
-				Padding = UDim.new(0, 8),
-				SortOrder = Enum.SortOrder.LayoutOrder,
-			}),
-			SizeConstraint = React.createElement("UISizeConstraint", {
-				MaxSize = Vector2.new(340, 1000),
-			}),
-			Notice = React.createElement(ObjectiveNotification),
-			Panel = React.createElement(ObjectivesPanel, {
-				visible = inventoryVisible,
-				objectives = objectives,
-			}),
+				AnchorPoint = Vector2.new(1, 0),
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -24, 0, 24),
+				Size = UDim2.new(1, -48, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+			}, {
+				ListLayout = React.createElement("UIListLayout", {
+					Padding = UDim.new(0, 8),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				SizeConstraint = React.createElement("UISizeConstraint", {
+					MaxSize = Vector2.new(340, 1000),
+				}),
+				Notice = React.createElement(ObjectiveNotification),
+				Panel = React.createElement(ObjectivesPanel, {
+					visible = inventoryVisible,
+					objectives = objectives,
+				}),
 			}),
 			InventoryPanel = React.createElement(InventoryPanel, {
 				visible = inventoryVisible and not documentReaderHost.active,
@@ -122,16 +122,16 @@ local function App(props: Props)
 				end,
 			}),
 			ConfirmationModal = React.createElement(ConfirmationModal, {
-			visible = confirmationItemUid ~= nil,
-			message = "Deseja descartar o item?",
-			cancelLabel = "não",
-			confirmLabel = "sim",
-			onCancel = function()
-				setConfirmationItemUid(nil)
-			end,
-			onConfirm = function()
-				setConfirmationItemUid(nil)
-			end,
+				visible = confirmationItemUid ~= nil,
+				message = "Deseja descartar o item?",
+				cancelLabel = "não",
+				confirmLabel = "sim",
+				onCancel = function()
+					setConfirmationItemUid(nil)
+				end,
+				onConfirm = function()
+					setConfirmationItemUid(nil)
+				end,
 			}),
 			Dialogue = React.createElement(DialogueOverlay, {
 				dialogue = dialogue,

@@ -7,11 +7,11 @@ local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.C
 
 local HitBoxSpec = {
 	size = Vector3.new(2, 2, 1.5),
-	rootOffset = CFrame.new(0, 1, -1)
+	rootOffset = CFrame.new(0, 1, -1),
 }
 
 local function createDebugHitbox(): BasePart
-	local part = Instance.new('Part');
+	local part = Instance.new("Part")
 	part.CanCollide = false
 	part.Transparency = 0.6
 	part.Color = Color3.fromRGB(255, 0, 0)
@@ -44,15 +44,9 @@ local function canStartPlayerAttack(state: EnemiesTypes.SystemState): boolean
 	return not state.playerAttackInProgress and os.clock() >= state.playerInvulnerableUntil
 end
 
-local function getAttackOrientations(
-	enemyRoot: BasePart,
-	playerRoot: BasePart
-): (CFrame, CFrame)
-	local directionToPlayer = Vector3.new(
-		playerRoot.Position.X - enemyRoot.Position.X,
-		0,
-		playerRoot.Position.Z - enemyRoot.Position.Z
-	)
+local function getAttackOrientations(enemyRoot: BasePart, playerRoot: BasePart): (CFrame, CFrame)
+	local directionToPlayer =
+		Vector3.new(playerRoot.Position.X - enemyRoot.Position.X, 0, playerRoot.Position.Z - enemyRoot.Position.Z)
 	if directionToPlayer.Magnitude == 0 then
 		return enemyRoot.CFrame, playerRoot.CFrame
 	end
@@ -60,7 +54,9 @@ local function getAttackOrientations(
 
 	local enemyTargetCFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + directionToPlayer)
 	local playerLookVector = playerRoot.CFrame.LookVector
-	local playerDirection = if playerLookVector:Dot(directionToPlayer) >= 0 then directionToPlayer else -directionToPlayer
+	local playerDirection = if playerLookVector:Dot(directionToPlayer) >= 0
+		then directionToPlayer
+		else -directionToPlayer
 	local playerTargetPosition = Vector3.new(
 		enemyRoot.Position.X + directionToPlayer.X * config.ATTACKING_PLAYER_DISTANCE,
 		playerRoot.Position.Y,
@@ -96,7 +92,8 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			else playerRoot.CFrame.LookVector
 		local positiveAngleDirection = CFrame.Angles(0, attackAngle, 0):VectorToWorldSpace(attackDirection)
 		local negativeAngleDirection = CFrame.Angles(0, -attackAngle, 0):VectorToWorldSpace(attackDirection)
-		local alignmentDifference = positiveAngleDirection:Dot(movementDirection) - negativeAngleDirection:Dot(movementDirection)
+		local alignmentDifference = positiveAngleDirection:Dot(movementDirection)
+			- negativeAngleDirection:Dot(movementDirection)
 		if math.abs(alignmentDifference) > 0.001 and math.random() < config.ATTACK_MOVEMENT_DIRECTION_WEIGHT then
 			attackDirectionSign = if alignmentDifference > 0 then 1 else -1
 		end
@@ -108,26 +105,26 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			enemy.debugHitbox.CFrame = root.CFrame * HitBoxSpec.rootOffset
 		end
 	end,
-	update = function (context, dt: number)
+	update = function(context, dt: number)
 		local enemy = context.enemy
-        local state = context.systemState
-		
+		local state = context.systemState
+
 		if not enemy.humanoid then
-			return 'idle'
+			return "idle"
 		end
 
 		local playerRoot = CharacterRoot.get()
 		local root = enemy.root
 
 		if not playerRoot or not root then
-			return 'idle'
+			return "idle"
 		end
-		
+
 		enemy.ellapsedAttackTime += dt
 		local attackTime = enemy.realAttackTime
 		local attackDirection = enemy.attackDirection
 		if attackTime == nil or attackDirection == nil then
-			return 'idle'
+			return "idle"
 		end
 		local currentDirection = utils.horizontalUnit(root.CFrame.LookVector, attackDirection)
 		local blend = 1 - math.exp(-config.TRY_ATTACK_TURN_SPEED * dt)
@@ -145,38 +142,38 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			enemy.humanoid.WalkSpeed = config.ATTACK_PEAK_SPEED
 				+ (config.ATTACK_END_SPEED - config.ATTACK_PEAK_SPEED) * decelerationProgress
 		end
-		
+
 		-- check for player collision with the hitbox
 		if enemy.debugHitbox ~= nil then
 			enemy.debugHitbox.CFrame = root.CFrame * HitBoxSpec.rootOffset
 		end
-		
+
 		local params = OverlapParams.new()
 		local playerCharacter = playerRoot.Parent
 		if playerCharacter == nil then
-			return 'idle'
+			return "idle"
 		end
 		params.IncludeInstances = { playerCharacter }
 		local result = workspace:GetPartBoundsInBox(root.CFrame * HitBoxSpec.rootOffset, HitBoxSpec.size, params)
 		if #result > 0 and not enemy.attackEffectResolved then
 			enemy.attackEffectResolved = true
 			if not canStartPlayerAttack(state) then
-				print('player attack blocked')
+				print("player attack blocked")
 				return
 			end
 			if not utils.rollChance(config.ATTACK_EFFECTIVE_CHANCE) then
-				print('player not attacked. chance roll failed')
+				print("player not attacked. chance roll failed")
 				return
 			end
-			print('player attacked')
+			print("player attacked")
 
-			enemy.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass('Humanoid')
+			enemy.attackTargetHumanoid = playerCharacter:FindFirstChildOfClass("Humanoid")
 			enemy.attackingEnemyStartCFrame = root.CFrame
-		local attackingPlayerStartCFrame = playerRoot.CFrame
-		local attackingEnemyTargetCFrame, attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
-		enemy.attackingEnemyTargetCFrame = attackingEnemyTargetCFrame
-		enemy.playerAttackGeneration += 1
-		enemy.activePlayerAttackId = enemy.playerAttackGeneration
+			local attackingPlayerStartCFrame = playerRoot.CFrame
+			local attackingEnemyTargetCFrame, attackingPlayerTargetCFrame = getAttackOrientations(root, playerRoot)
+			enemy.attackingEnemyTargetCFrame = attackingEnemyTargetCFrame
+			enemy.playerAttackGeneration += 1
+			enemy.activePlayerAttackId = enemy.playerAttackGeneration
 			enemy.playerAttackOwner = true
 			state.playerAttackInProgress = true
 			enemy.playerAttackStarted:Fire({
@@ -187,13 +184,13 @@ local tryAttack: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 				turnDuration = config.ATTACKING_TURN_TIME,
 				duration = config.ATTACKING_TIME,
 			})
-			return 'attacking'
+			return "attacking"
 		end
-		
+
 		if enemy.ellapsedAttackTime >= attackTime then
-			return 'stunned'
+			return "stunned"
 		end
-		
+
 		return
 	end,
 	onEnd = function(context)

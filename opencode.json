@@ -1,4 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]
+  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
+  "formatter": {
+    "stylua": {
+      "command": ["stylua", "$FILE"],
+      "extensions": [".luau", ".lua"]
+    }
+  }
 }

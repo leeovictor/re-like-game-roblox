@@ -37,7 +37,7 @@ local config: Config = {
 		"rbxassetid://78929988454004",
 		"rbxassetid://119989047815622",
 		"rbxassetid://108386584391768",
-		"rbxassetid://103963258527392"
+		"rbxassetid://103963258527392",
 	},
 	surfaceSounds = {
 		[Enum.Material.Metal] = {
@@ -45,8 +45,8 @@ local config: Config = {
 			"rbxassetid://138898236956764",
 			"rbxassetid://98915841855850",
 			"rbxassetid://121770947554725",
-			"rbxassetid://127841183521474"
-		}
+			"rbxassetid://127841183521474",
+		},
 	},
 	playbackSpeed = {
 		min = 0.95,

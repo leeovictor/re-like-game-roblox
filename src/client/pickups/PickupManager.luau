@@ -88,7 +88,8 @@ function PickupManager.new(dependencies: Dependencies): PickupManager
 		if not target:IsA("BasePart") and not target:IsA("Model") then
 			return false
 		end
-		if not target:IsDescendantOf(Workspace)
+		if
+			not target:IsDescendantOf(Workspace)
 			or not CollectionService:HasTag(target, interactionTypes.INTERACTABLE_TAG)
 			or target:GetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE) ~= interactionTypes.PICKUP_TYPE
 		then
@@ -120,11 +121,12 @@ function PickupManager.new(dependencies: Dependencies): PickupManager
 			return
 		end
 		started = true
-		tagConnection = CollectionService:GetInstanceAddedSignal(interactionTypes.INTERACTABLE_TAG):Connect(function(target)
-			if target:GetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE) == interactionTypes.PICKUP_TYPE then
-				registerPickup(target)
-			end
-		end)
+		tagConnection = CollectionService:GetInstanceAddedSignal(interactionTypes.INTERACTABLE_TAG)
+			:Connect(function(target)
+				if target:GetAttribute(interactionTypes.INTERACTION_TYPE_ATTRIBUTE) == interactionTypes.PICKUP_TYPE then
+					registerPickup(target)
+				end
+			end)
 		for _, target in CollectionService:GetTagged(interactionTypes.INTERACTABLE_TAG) do
 			registerPickup(target)
 		end

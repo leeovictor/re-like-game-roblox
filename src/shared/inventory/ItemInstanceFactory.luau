@@ -51,7 +51,10 @@ function ItemInstanceFactory.new(): Factory
 		if type(itemId) ~= "string" or item == nil then
 			return nil
 		end
-		if quantity ~= nil and (type(quantity) ~= "number" or not isFinite(quantity) or quantity <= 0 or quantity % 1 ~= 0) then
+		if
+			quantity ~= nil
+			and (type(quantity) ~= "number" or not isFinite(quantity) or quantity <= 0 or quantity % 1 ~= 0)
+		then
 			return nil
 		end
 		if quantity ~= nil and not item.stackable then

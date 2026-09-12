@@ -11,10 +11,12 @@ local AudioService = require(ReplicatedStorage.Shared.audio.AudioService)
 local CameraController = require(StarterPlayer.StarterPlayerScripts.Client.camera.CameraController)
 local CameraVisibility = require(StarterPlayer.StarterPlayerScripts.Client.camera.CameraVisibility)
 local CinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicController)
-local MachineRoomCinematicController = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.MachineRoomCinematicController)
+local MachineRoomCinematicController =
+	require(StarterPlayer.StarterPlayerScripts.Client.cinematics.MachineRoomCinematicController)
 local CinematicSoundPlayer = require(StarterPlayer.StarterPlayerScripts.Client.cinematics.CinematicSoundPlayer)
 local DialogueController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueController)
-local DialogueInteractionController = require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueInteractionController)
+local DialogueInteractionController =
+	require(StarterPlayer.StarterPlayerScripts.Client.dialogue.DialogueInteractionController)
 local DoorController = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorController)
 local DoorManager = require(StarterPlayer.StarterPlayerScripts.Client.doors.DoorManager)
 local TransitionController = require(StarterPlayer.StarterPlayerScripts.Client.doors.TransitionController)
@@ -30,7 +32,8 @@ local InteractionController = require(StarterPlayer.StarterPlayerScripts.Client.
 local ObjectiveController = require(StarterPlayer.StarterPlayerScripts.Client.objectives.ObjectiveController)
 local PickupInteraction = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupInteraction)
 local PickupManager = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupManager)
-local PickupNotificationController = require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupNotificationController)
+local PickupNotificationController =
+	require(StarterPlayer.StarterPlayerScripts.Client.pickups.PickupNotificationController)
 local ItemInstanceFactory = require(ReplicatedStorage.Shared.inventory.ItemInstanceFactory)
 local FootstepController = require(StarterPlayer.StarterPlayerScripts.Client.player.FootstepController)
 local React = require(ReplicatedStorage.Packages.React)
@@ -71,8 +74,8 @@ FootstepController.start()
 local inventoryController = InventoryController.new()
 inventoryController:start()
 DocumentsController.start()
-Locator.register('DocumentsController', DocumentsController)
-Locator.register('DocumentReaderController', DocumentReaderController)
+Locator.register("DocumentsController", DocumentsController)
+Locator.register("DocumentReaderController", DocumentReaderController)
 DocumentReaderController.start()
 local App = require(StarterPlayer.StarterPlayerScripts.Client.ui.App)
 local enemyController = EnemyController.new()
@@ -119,7 +122,7 @@ ObjectiveController.start()
 local cinematicController = CinematicController.new({
 	camera = cameraController,
 	sound = cinematicSoundPlayer,
-	doorManager = doorManager
+	doorManager = doorManager,
 })
 
 local machineRoomCinematicController = MachineRoomCinematicController.new({
@@ -138,10 +141,10 @@ interactionController:start()
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local root = ReactRoblox.createRoot(playerGui)
 root:render(React.createElement(App, {
-		dialogueController = dialogueController,
-		cinematicController = cinematicController,
-		inventoryController = inventoryController,
-		combatService = combatService,
-	}))
+	dialogueController = dialogueController,
+	cinematicController = cinematicController,
+	inventoryController = inventoryController,
+	combatService = combatService,
+}))
 
-Locator.register('CinematicController', cinematicController)
+Locator.register("CinematicController", cinematicController)

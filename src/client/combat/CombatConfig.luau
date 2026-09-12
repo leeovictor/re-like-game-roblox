@@ -28,7 +28,7 @@ local CombatConfig: { [string]: WeaponConfig } = {
 		acquisitionRadius = 40,
 		shotRange = 80,
 		reloadDuration = 1.5,
-		aimTurnSpeed = 2.5
+		aimTurnSpeed = 2.5,
 	},
 }
 

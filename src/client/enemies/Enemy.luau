@@ -18,17 +18,17 @@ local utils = require(StarterPlayer.StarterPlayerScripts.Client.enemies.utils)
 local state: EnemiesTypes.SystemState = {
 	playerAttackInProgress = false,
 	playerInvulnerableUntil = 0,
-	debugEnabled = false
+	debugEnabled = false,
 }
 
 local DEFAULT_CHASE_DIRECTION = Vector3.new(0, 0, -1)
 
 local states = {
-	['idle'] = idleState,
-	['chasing'] = chasingState,
-	['try_attack'] = tryAttack,
-	['attacking'] = attacking,
-	['stunned'] = stunned
+	["idle"] = idleState,
+	["chasing"] = chasingState,
+	["try_attack"] = tryAttack,
+	["attacking"] = attacking,
+	["stunned"] = stunned,
 }
 
 local Enemy = {}
@@ -43,7 +43,7 @@ function Enemy.new(model: Model, signals: EnemiesTypes.PlayerAttackSignals): Ene
 	humanoid.AutoRotate = false
 
 	local self = setmetatable({
-		currentState = states['idle'],
+		currentState = states["idle"],
 		model = model,
 		humanoid = humanoid,
 		root = root,
@@ -89,7 +89,7 @@ function Enemy.update(self: EnemiesTypes.Enemy, dt: number): ()
 	end
 
 	if self.currentState == nil then
-		warn('current state is nil on the enemy');
+		warn("current state is nil on the enemy")
 		return
 	end
 
@@ -101,19 +101,19 @@ function Enemy.update(self: EnemiesTypes.Enemy, dt: number): ()
 	end
 
 	if not states[newState] then
-		warn('invalid state: ', newState)
-		return;
+		warn("invalid state: ", newState)
+		return
 	end
 
 	if self.currentState == states[newState] then
-		warn('trying transition to state equal to previous state')
+		warn("trying transition to state equal to previous state")
 		return
 	end
 
 	if self.currentState.onEnd then
 		self.currentState.onEnd(context)
 	end
-	
+
 	self.currentState = states[newState]
 
 	if self.currentState.onBegin then

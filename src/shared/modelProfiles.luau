@@ -30,12 +30,7 @@ type ProfileOperation = {
 	entryName: string,
 }
 
-local function makeError(
-	message: string,
-	entry: Instance?,
-	target: Instance?,
-	propertyName: string?
-): ProfileError
+local function makeError(message: string, entry: Instance?, target: Instance?, propertyName: string?): ProfileError
 	return {
 		message = message,
 		entryName = if entry ~= nil then entry.Name else nil,
@@ -60,15 +55,15 @@ local function rollback(operations: { ProfileOperation }, errors: { ProfileError
 			target[operation.propertyName] = operation.previousValue
 		end)
 		if not ok then
-			table.insert(errors, makeError(
-				string.format(
-					"nao foi possivel restaurar a propriedade: %s",
-					tostring(restoreError)
-				),
-				nil,
-				operation.target,
-				operation.propertyName
-			))
+			table.insert(
+				errors,
+				makeError(
+					string.format("nao foi possivel restaurar a propriedade: %s", tostring(restoreError)),
+					nil,
+					operation.target,
+					operation.propertyName
+				)
+			)
 		end
 	end
 end
@@ -84,30 +79,26 @@ function ModelProfiles.setProfile(model: Model, profile: string): ProfileResult
 
 	local profilesFolder = model:FindFirstChild(PROFILES_FOLDER_NAME)
 	if profilesFolder == nil then
-		return resultWithError(makeError(
-			string.format('o modelo precisa conter uma Folder chamada "%s"', PROFILES_FOLDER_NAME),
-			nil,
-			model,
-			nil
-		))
+		return resultWithError(
+			makeError(
+				string.format('o modelo precisa conter uma Folder chamada "%s"', PROFILES_FOLDER_NAME),
+				nil,
+				model,
+				nil
+			)
+		)
 	end
 	if not profilesFolder:IsA("Folder") then
-		return resultWithError(makeError(
-			string.format('"%s" precisa ser uma Folder', PROFILES_FOLDER_NAME),
-			profilesFolder,
-			model,
-			nil
-		))
+		return resultWithError(
+			makeError(string.format('"%s" precisa ser uma Folder', PROFILES_FOLDER_NAME), profilesFolder, model, nil)
+		)
 	end
 
 	local profileInstance = profilesFolder:FindFirstChild(profile)
 	if profileInstance == nil or not profileInstance:IsA("Configuration") then
-		return resultWithError(makeError(
-			string.format('o profile "%s" precisa existir como Configuration', profile),
-			nil,
-			model,
-			nil
-		))
+		return resultWithError(
+			makeError(string.format('o profile "%s" precisa existir como Configuration', profile), nil, model, nil)
+		)
 	end
 
 	local errors: { ProfileError } = {}
@@ -116,12 +107,7 @@ function ModelProfiles.setProfile(model: Model, profile: string): ProfileResult
 
 	for _, entry in profileInstance:GetChildren() do
 		if not entry:IsA("ObjectValue") then
-			table.insert(errors, makeError(
-				"todos os filhos do profile precisam ser ObjectValue",
-				entry,
-				nil,
-				nil
-			))
+			table.insert(errors, makeError("todos os filhos do profile precisam ser ObjectValue", entry, nil, nil))
 			continue
 		end
 
@@ -132,21 +118,11 @@ function ModelProfiles.setProfile(model: Model, profile: string): ProfileResult
 			continue
 		end
 		if target ~= model and not target:IsDescendantOf(model) then
-			table.insert(errors, makeError(
-				"o alvo precisa pertencer ao proprio Model",
-				entry,
-				target,
-				nil
-			))
+			table.insert(errors, makeError("o alvo precisa pertencer ao proprio Model", entry, target, nil))
 			continue
 		end
 		if target == profilesFolder or target:IsDescendantOf(profilesFolder) then
-			table.insert(errors, makeError(
-				"o profile nao pode alterar a propria configuracao",
-				entry,
-				target,
-				nil
-			))
+			table.insert(errors, makeError("o profile nao pode alterar a propria configuracao", entry, target, nil))
 			continue
 		end
 
@@ -164,21 +140,22 @@ function ModelProfiles.setProfile(model: Model, profile: string): ProfileResult
 
 		for propertyName, value in attributes do
 			if BLOCKED_PROPERTIES[propertyName] then
-				table.insert(errors, makeError(
-					string.format('a propriedade "%s" nao pode ser alterada por um profile', propertyName),
-					entry,
-					target,
-					propertyName
-				))
+				table.insert(
+					errors,
+					makeError(
+						string.format('a propriedade "%s" nao pode ser alterada por um profile', propertyName),
+						entry,
+						target,
+						propertyName
+					)
+				)
 				continue
 			end
 			if targetProperties[propertyName] then
-				table.insert(errors, makeError(
-					"a mesma propriedade foi declarada mais de uma vez",
-					entry,
-					target,
-					propertyName
-				))
+				table.insert(
+					errors,
+					makeError("a mesma propriedade foi declarada mais de uma vez", entry, target, propertyName)
+				)
 				continue
 			end
 			targetProperties[propertyName] = true
@@ -188,12 +165,10 @@ function ModelProfiles.setProfile(model: Model, profile: string): ProfileResult
 				return dynamicTarget[propertyName]
 			end)
 			if not readOk then
-				table.insert(errors, makeError(
-					"a propriedade nao existe ou nao pode ser lida",
-					entry,
-					target,
-					propertyName
-				))
+				table.insert(
+					errors,
+					makeError("a propriedade nao existe ou nao pode ser lida", entry, target, propertyName)
+				)
 				continue
 			end
 

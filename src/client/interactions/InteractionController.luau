@@ -31,7 +31,11 @@ export type InteractionController = {
 	debugPart: Part?,
 	start: (self: InteractionController) -> (),
 	stop: (self: InteractionController) -> (),
-	register: (self: InteractionController, interactionType: InteractionType, handler: interactionTypes.InteractionHandler) -> (),
+	register: (
+		self: InteractionController,
+		interactionType: InteractionType,
+		handler: interactionTypes.InteractionHandler
+	) -> (),
 	isEnabled: (self: InteractionController) -> boolean,
 	getTarget: (self: InteractionController) -> Instance?,
 	handleAction: (self: InteractionController) -> (),
@@ -81,14 +85,34 @@ local function resolveRoot(self: InteractionController, part: BasePart): (Instan
 			if (current:IsA("Model") or current:IsA("BasePart")) and interactionType ~= nil then
 				return current, interactionType
 			elseif current:IsA("Model") or current:IsA("BasePart") then
-				warnOnce(self, current, "invalid-type", string.format("Interactable has invalid InteractionType: %s", current:GetFullName()))
+				warnOnce(
+					self,
+					current,
+					"invalid-type",
+					string.format("Interactable has invalid InteractionType: %s", current:GetFullName())
+				)
 			end
 		elseif interactionTypeAttribute ~= nil then
-			warnOnce(self, current, "type-without-tag", string.format("InteractionType without Interactable tag: %s", current:GetFullName()))
+			warnOnce(
+				self,
+				current,
+				"type-without-tag",
+				string.format("InteractionType without Interactable tag: %s", current:GetFullName())
+			)
 		elseif itemId ~= nil then
-			warnOnce(self, current, "item-without-tag", string.format("ItemId without Interactable tag: %s", current:GetFullName()))
+			warnOnce(
+				self,
+				current,
+				"item-without-tag",
+				string.format("ItemId without Interactable tag: %s", current:GetFullName())
+			)
 		elseif legacyDoor then
-			warnOnce(self, current, "legacy-door", string.format("Legacy Door tag without interaction contract: %s", current:GetFullName()))
+			warnOnce(
+				self,
+				current,
+				"legacy-door",
+				string.format("Legacy Door tag without interaction contract: %s", current:GetFullName())
+			)
 		end
 
 		current = current.Parent
@@ -143,7 +167,7 @@ end
 
 local function bind(self: InteractionController): ()
 	if self.started and self.enabled then
-		InputManager.Contexts.PlayContext:BindActionStateChanged('Interact', function (state)
+		InputManager.Contexts.PlayContext:BindActionStateChanged("Interact", function(state)
 			if state then
 				self:handleAction()
 			end
@@ -176,14 +200,19 @@ end
 function InteractionController.handleAction(self: InteractionController)
 	local selected, interactionType = probe(self)
 	self.target = selected
-	
+
 	if selected == nil or interactionType == nil then
 		return
 	end
 
 	local handler = self.handlers[interactionType]
 	if handler == nil then
-		warnOnce(self, selected, "missing-handler", string.format("No handler for %s: %s", interactionType, selected:GetFullName()))
+		warnOnce(
+			self,
+			selected,
+			"missing-handler",
+			string.format("No handler for %s: %s", interactionType, selected:GetFullName())
+		)
 	else
 		handler.interact(selected)
 	end

@@ -108,13 +108,16 @@ local function ObjectiveNotification()
 		return nil
 	end
 
-	local objectiveText = table.concat((function()
-		local texts = {}
-		for _, objective in objectiveNotification do
-			table.insert(texts, objective.text)
-		end
-		return texts
-	end)(), "\n")
+	local objectiveText = table.concat(
+		(function()
+			local texts = {}
+			for _, objective in objectiveNotification do
+				table.insert(texts, objective.text)
+			end
+			return texts
+		end)(),
+		"\n"
+	)
 
 	return React.createElement("Frame", {
 		BackgroundColor3 = theme.panel,
@@ -163,7 +166,7 @@ local function ObjectiveNotification()
 		}),
 		Corner = React.createElement("UICorner", {
 			CornerRadius = UDim.new(0, 8),
-		})
+		}),
 	})
 end
 

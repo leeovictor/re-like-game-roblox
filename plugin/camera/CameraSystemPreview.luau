@@ -5,10 +5,13 @@ local PREVIEW_NAME = "__CameraSystemPreview"
 local CameraSystemPreview = {}
 CameraSystemPreview.__index = CameraSystemPreview
 
-export type Preview = typeof(setmetatable({} :: {
-	workspace: Workspace,
-	folder: Folder,
-}, CameraSystemPreview))
+export type Preview = typeof(setmetatable(
+	{} :: {
+		workspace: Workspace,
+		folder: Folder,
+	},
+	CameraSystemPreview
+))
 
 local function configureMarker(part: Part)
 	part.Archivable = false
@@ -58,7 +61,10 @@ function CameraSystemPreview.refresh(self: Preview, shots: { BasePart }, zones: 
 			local segment = Instance.new("Part")
 			segment.Name = string.format("Shot_%s_%d", shot.Name, segmentIndex)
 			segment.Size = Vector3.new(0.18, 0.18, length)
-			segment.CFrame = CFrame.lookAt(shot.Position + direction * centerDistance, shot.Position + direction * (centerDistance + 1))
+			segment.CFrame = CFrame.lookAt(
+				shot.Position + direction * centerDistance,
+				shot.Position + direction * (centerDistance + 1)
+			)
 			segment.Color = color
 			configureMarker(segment)
 			segment.Parent = self.folder

@@ -31,9 +31,7 @@ local function ObjectivesPanel(props: Props)
 			AutomaticSize = Enum.AutomaticSize.Y,
 			Font = Enum.Font.Gotham,
 			Text = marker .. objective.text,
-			TextColor3 = if objective.completed
-				then theme.successMuted
-				else theme.objectiveText,
+			TextColor3 = if objective.completed then theme.successMuted else theme.objectiveText,
 			TextSize = 14,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left,

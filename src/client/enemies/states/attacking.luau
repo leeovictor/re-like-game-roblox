@@ -8,7 +8,7 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 		local enemy = context.enemy
 		enemy.ellapsedAttackingTime = 0
 	end,
-	update = function (context, dt: number)
+	update = function(context, dt: number)
 		local enemy = context.enemy
 
 		enemy.ellapsedAttackingTime += dt
@@ -20,8 +20,10 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			local interpolatedCFrame = enemyStartCFrame:Lerp(enemyTargetCFrame, turnProgress)
 			enemyRoot.CFrame = CFrame.new(enemyRoot.Position) * (interpolatedCFrame - interpolatedCFrame.Position)
 		end
-		if enemy.ellapsedAttackingTime < config.ATTACKING_TIME then return end
-		return 'stunned'
+		if enemy.ellapsedAttackingTime < config.ATTACKING_TIME then
+			return
+		end
+		return "stunned"
 	end,
 	onEnd = function(context)
 		local enemy = context.enemy
@@ -38,11 +40,11 @@ local attacking: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
 			})
 			enemy.activePlayerAttackId = nil
 		end
-        
+
 		enemy.playerAttackOwner = false
 		state.playerAttackInProgress = false
 		state.playerInvulnerableUntil = os.clock() + config.PLAYER_INVULNERABILITY_TIME
-        
+
 		enemy.ellapsedAttackingTime = 0
 		enemy.attackTargetHumanoid = nil
 		enemy.attackingEnemyStartCFrame = nil

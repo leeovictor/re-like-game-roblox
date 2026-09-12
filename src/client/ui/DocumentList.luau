@@ -8,9 +8,11 @@ local theme = require(StarterPlayer.StarterPlayerScripts.Client.ui.theme)
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local useDocuments = require(StarterPlayer.StarterPlayerScripts.Client.documents.useDocuments)
 local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
-local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local DocumentReaderControllerModule =
+	require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 local documentsController: DocumentsControllerModule.DocumentsController = Locator.get("DocumentsController")
-local documentReaderController: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
+local documentReaderController: DocumentReaderControllerModule.DocumentReaderController =
+	Locator.get("DocumentReaderController")
 
 type Props = {
 	onDocumentActivated: () -> (),

@@ -75,7 +75,11 @@ end
 
 local function onAttackEnded(self: Controller, event: EnemyTypes.PlayerAttackEndedEvent): ()
 	local activeAttack = self.activeAttack
-	if activeAttack == nil or activeAttack.event.enemy ~= event.enemy or activeAttack.event.attackId ~= event.attackId then
+	if
+		activeAttack == nil
+		or activeAttack.event.enemy ~= event.enemy
+		or activeAttack.event.attackId ~= event.attackId
+	then
 		return
 	end
 	releaseAttack(self, event.cancelled)
@@ -114,12 +118,18 @@ function PlayerAttackController.start(self: PlayerAttackController): ()
 		return
 	end
 	controller.started = true
-	table.insert(controller.inputConnections, controller.dependencies.attackStarted:Connect(function(event)
-		onAttackStarted(controller, event)
-	end))
-	table.insert(controller.inputConnections, controller.dependencies.attackEnded:Connect(function(event)
-		onAttackEnded(controller, event)
-	end))
+	table.insert(
+		controller.inputConnections,
+		controller.dependencies.attackStarted:Connect(function(event)
+			onAttackStarted(controller, event)
+		end)
+	)
+	table.insert(
+		controller.inputConnections,
+		controller.dependencies.attackEnded:Connect(function(event)
+			onAttackEnded(controller, event)
+		end)
+	)
 	controller.renderConnection = RunService.PreRender:Connect(function(deltaTime)
 		update(controller, deltaTime)
 	end)

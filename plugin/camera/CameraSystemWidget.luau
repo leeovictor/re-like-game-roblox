@@ -16,20 +16,23 @@ type Callbacks = {
 	classifySelection: (Instance) -> string?,
 }
 
-export type Widget = typeof(setmetatable({} :: {
-	gui: DockWidgetPluginGui,
-	callbacks: Callbacks,
-	shotRows: { TextButton },
-	zoneRows: { TextButton },
-	rowInstances: { [TextButton]: BasePart },
-	shotSelection: BasePart?,
-	zoneSelection: BasePart?,
-	nameInput: TextBox,
-	shotIdInput: TextBox,
-	fovInput: TextBox,
-	status: TextLabel,
-	actionButtons: { [string]: TextButton },
-	}, CameraSystemWidget))
+export type Widget = typeof(setmetatable(
+	{} :: {
+		gui: DockWidgetPluginGui,
+		callbacks: Callbacks,
+		shotRows: { TextButton },
+		zoneRows: { TextButton },
+		rowInstances: { [TextButton]: BasePart },
+		shotSelection: BasePart?,
+		zoneSelection: BasePart?,
+		nameInput: TextBox,
+		shotIdInput: TextBox,
+		fovInput: TextBox,
+		status: TextLabel,
+		actionButtons: { [string]: TextButton },
+	},
+	CameraSystemWidget
+))
 
 local function make(className: string, parent: Instance): Instance
 	local instance = Instance.new(className)
@@ -174,22 +177,36 @@ end
 
 function CameraSystemWidget.updateSelectionVisuals(self: Widget)
 	for _, row in self.shotRows do
-		row.BackgroundColor3 = if self.rowInstances[row] == self.shotSelection then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
+		row.BackgroundColor3 = if self.rowInstances[row] == self.shotSelection
+			then Color3.fromRGB(70, 90, 125)
+			else Color3.fromRGB(45, 48, 55)
 	end
 	for _, row in self.zoneRows do
-		row.BackgroundColor3 = if self.rowInstances[row] == self.zoneSelection then Color3.fromRGB(70, 90, 125) else Color3.fromRGB(45, 48, 55)
+		row.BackgroundColor3 = if self.rowInstances[row] == self.zoneSelection
+			then Color3.fromRGB(70, 90, 125)
+			else Color3.fromRGB(45, 48, 55)
 	end
 	local hasShot = self.shotSelection ~= nil
 	local hasZone = self.zoneSelection ~= nil
 	for name, button in self.actionButtons do
-		local enabled = if name == "assign" then hasShot and hasZone elseif name == "moveUp" or name == "moveDown" then hasZone elseif name == "fov" or name == "capture" or name == "apply" or name == "default" then hasShot else true
+		local enabled = if name == "assign"
+			then hasShot and hasZone
+			elseif name == "moveUp" or name == "moveDown" then hasZone
+			elseif name == "fov" or name == "capture" or name == "apply" or name == "default" then hasShot
+			else true
 		button.Active = enabled
 		button.AutoButtonColor = enabled
 		button.TextTransparency = if enabled then 0 else 0.5
 	end
 end
 
-function CameraSystemWidget.refresh(self: Widget, shots: { BasePart }, zones: { BasePart }, defaultShotId: string?, errors: { string })
+function CameraSystemWidget.refresh(
+	self: Widget,
+	shots: { BasePart },
+	zones: { BasePart },
+	defaultShotId: string?,
+	errors: { string }
+)
 	for _, row in self.shotRows do
 		row:Destroy()
 	end

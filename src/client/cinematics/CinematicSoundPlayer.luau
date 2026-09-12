@@ -53,7 +53,9 @@ function CinematicSoundPlayer.new(dependencies: Dependencies?): CinematicSoundPl
 	local preloadAsync = if dependencies ~= nil and dependencies.preloadAsync ~= nil
 		then dependencies.preloadAsync
 		else defaultPreloadAsync
-	local isLoaded = if dependencies ~= nil and dependencies.isLoaded ~= nil then dependencies.isLoaded else defaultIsLoaded
+	local isLoaded = if dependencies ~= nil and dependencies.isLoaded ~= nil
+		then dependencies.isLoaded
+		else defaultIsLoaded
 
 	local self = setmetatable({
 		parent = parent,
@@ -136,11 +138,7 @@ function CinematicSoundPlayer.preload(self: CinematicSoundPlayer, soundIds: { st
 	return true
 end
 
-local function removePlayback(
-	self: CinematicSoundPlayer,
-	executionId: number,
-	playback: Playback
-): ()
+local function removePlayback(self: CinematicSoundPlayer, executionId: number, playback: Playback): ()
 	local active = self.active[executionId]
 	if active == nil then
 		return

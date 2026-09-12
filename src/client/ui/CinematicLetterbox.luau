@@ -76,9 +76,11 @@ local function CinematicLetterbox(props: Props)
 
 		tweenBars(
 			if props.playing then getBarScale() else 0,
-			if props.playing then nil else function()
-				onExitCompleteRef.current()
-			end
+			if props.playing
+				then nil
+				else function()
+					onExitCompleteRef.current()
+				end
 		)
 
 		local viewportConnection: RBXScriptConnection? = nil

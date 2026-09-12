@@ -15,7 +15,9 @@ local catalog: { [string]: any } = {
 		id = "november-report",
 		displayName = "Relatório de Novembro",
 		pages = {
-			{ content = "<b>Relatório de Novembro</b>\n\nA manutenção confirmou que o gerador permanece instável." },
+			{
+				content = "<b>Relatório de Novembro</b>\n\nA manutenção confirmou que o gerador permanece instável.",
+			},
 			{ content = "Os registros indicam que a falha começou antes do isolamento da instalação." },
 		},
 	},
@@ -32,16 +34,24 @@ local catalog: { [string]: any } = {
 		id = "security-memo",
 		displayName = "Memorando de Segurança",
 		pages = {
-			{ content = "<b>Memorando de Segurança</b>\n\nTodos os funcionários devem permanecer nas áreas iluminadas." },
-			{ content = "Se o alarme tocar, não use os elevadores. A saída de emergência deve ser operada manualmente." },
-	},
+			{
+				content = "<b>Memorando de Segurança</b>\n\nTodos os funcionários devem permanecer nas áreas iluminadas.",
+			},
+			{
+				content = "Se o alarme tocar, não use os elevadores. A saída de emergência deve ser operada manualmente.",
+			},
+		},
 	},
 	["patient-record"] = {
 		id = "patient-record",
 		displayName = "Registro de Observação",
 		pages = {
-			{ content = "<b>Registro de Observação</b>\n\nO paciente repete a mesma frase desde a última troca de turno." },
-			{ content = "Quando perguntado sobre a origem da voz, aponta para as paredes e pede que as luzes permaneçam apagadas." },
+			{
+				content = "<b>Registro de Observação</b>\n\nO paciente repete a mesma frase desde a última troca de turno.",
+			},
+			{
+				content = "Quando perguntado sobre a origem da voz, aponta para as paredes e pede que as luzes permaneçam apagadas.",
+			},
 		},
 	},
 }

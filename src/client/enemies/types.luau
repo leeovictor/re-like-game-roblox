@@ -1,5 +1,5 @@
 export type StateMachine<C> = {
-	states: { [string]: StateObject<C> }
+	states: { [string]: StateObject<C> },
 }
 
 export type StateObject<C> = {
@@ -11,7 +11,7 @@ export type StateObject<C> = {
 export type SystemState = {
 	playerAttackInProgress: boolean,
 	playerInvulnerableUntil: number,
-	debugEnabled: boolean
+	debugEnabled: boolean,
 }
 
 export type SignalConnection = {
@@ -43,10 +43,7 @@ export type PlayerAttackStartedSignal = {
 
 export type PlayerAttackEndedSignal = {
 	Fire: (self: PlayerAttackEndedSignal, event: PlayerAttackEndedEvent) -> (),
-	Connect: (
-		self: PlayerAttackEndedSignal,
-		callback: (event: PlayerAttackEndedEvent) -> ()
-	) -> SignalConnection,
+	Connect: (self: PlayerAttackEndedSignal, callback: (event: PlayerAttackEndedEvent) -> ()) -> SignalConnection,
 }
 
 export type PlayerAttackSignals = {

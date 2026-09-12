@@ -85,7 +85,11 @@ local function validateDoor(door: Model): (BasePart?, Attachment?, boolean?, boo
 	if type(sealed) ~= "boolean" then
 		return nil, nil, nil, nil, nil, failure("invalid_config")
 	end
-	if locked and not sealed and (requiredItemId == "" or catalog[requiredItemId] == nil or not hasUnlockCapability(requiredItemId)) then
+	if
+		locked
+		and not sealed
+		and (requiredItemId == "" or catalog[requiredItemId] == nil or not hasUnlockCapability(requiredItemId))
+	then
 		return nil, nil, nil, nil, nil, failure("invalid_config")
 	end
 	return doorway, center, locked, sealed, requiredItemId, nil

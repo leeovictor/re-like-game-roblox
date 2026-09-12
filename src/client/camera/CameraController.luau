@@ -53,7 +53,7 @@ local function update(self: CameraController): ()
 	-- O PlayerModule pode restaurar Custom durante o spawn ou um respawn.
 	-- Reafirmar o modo em cada frame mantém este controller como autoridade
 	ensureScriptableCamera(camera)
-	
+
 	local character = player.Character
 	if character == nil then
 		return
@@ -86,7 +86,7 @@ local function update(self: CameraController): ()
 		self.currentShotId = desiredShotId
 		camera.CFrame = shot.cframe
 		camera.FieldOfView = shot.fieldOfView
-		
+
 		-- isso é necessário para o roblox priorizar a renderizar de tudo que está próximo à câmera, ao contrário do player.
 		-- em cinematics por exemplo um shot processador pode estar distante do player e mesmo assim a renderização do terreno e modelos
 		-- deve ser consistente. apesar de poder gerar alguns artefatos no sistema de renderização (exibir terreno ainda não atualizado por um instante)

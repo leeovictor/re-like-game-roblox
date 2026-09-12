@@ -4,18 +4,20 @@ local EnemiesTypes = require(StarterPlayer.StarterPlayerScripts.Client.enemies.t
 local CharacterRoot = require(StarterPlayer.StarterPlayerScripts.Client.player.CharacterRoot)
 
 local IdleState: EnemiesTypes.StateObject<EnemiesTypes.EnemyContext> = {
-	update = function (context)
+	update = function(context)
 		local playerRoot = CharacterRoot.get()
 		local enemyRoot = context.enemy.root
 
-		if 	playerRoot == nil
+		if
+			playerRoot == nil
 			or enemyRoot == nil
-			or (playerRoot.Position - enemyRoot.Position).Magnitude > context.enemy.detectionRadius then
+			or (playerRoot.Position - enemyRoot.Position).Magnitude > context.enemy.detectionRadius
+		then
 			return
 		end
 
-		return 'chasing';
-	end
+		return "chasing"
+	end,
 }
 
 return IdleState

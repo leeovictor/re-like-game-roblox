@@ -36,7 +36,7 @@ export type SetSealDoorEffect = {
 	name: "set-seal-door",
 	attributes: {
 		door: string,
-		value: boolean
+		value: boolean,
 	},
 }
 
@@ -45,8 +45,8 @@ export type SetAttribute = {
 	attributes: {
 		instance: string,
 		name: string,
-		value: any
-	}	
+		value: any,
+	},
 }
 
 export type Effect = SetCameraShotEffect | PlaySoundEffect | SetModelProfileEffect | SetSealDoorEffect | SetAttribute
@@ -68,10 +68,7 @@ type SignalConnection = {
 
 export type PlayingChangedSignal = {
 	Fire: (self: PlayingChangedSignal, playing: boolean) -> (),
-	Connect: (
-		self: PlayingChangedSignal,
-		callback: (playing: boolean) -> ()
-	) -> SignalConnection,
+	Connect: (self: PlayingChangedSignal, callback: (playing: boolean) -> ()) -> SignalConnection,
 }
 
 export type Dependencies = {
@@ -113,10 +110,7 @@ local function unknownField(value: any, allowed: { [string]: boolean }): string?
 end
 
 local function resolveWorkspaceInstance(path: string): Instance?
-	if string.match(path, "^%.") ~= nil
-		or string.match(path, "%.$") ~= nil
-		or string.match(path, "%.%.") ~= nil
-	then
+	if string.match(path, "^%.") ~= nil or string.match(path, "%.$") ~= nil or string.match(path, "%.%.") ~= nil then
 		return nil
 	end
 
@@ -128,7 +122,7 @@ local function resolveWorkspaceInstance(path: string): Instance?
 		end
 		current = child
 	end
-	
+
 	return current
 end
 
@@ -160,11 +154,7 @@ local function contiguousLength(value: any): (number?, string?)
 	return maximum, nil
 end
 
-local function validateEffect(
-	value: any,
-	index: number,
-	camera: CameraController.CameraController
-): (Effect?, string?)
+local function validateEffect(value: any, index: number, camera: CameraController.CameraController): (Effect?, string?)
 	if type(value) ~= "table" then
 		return nil, string.format("effects[%d] must be a table", index)
 	end
@@ -206,7 +196,8 @@ local function validateEffect(
 		if field ~= nil then
 			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
 		end
-		if type(value.attributes.soundId) ~= "string"
+		if
+			type(value.attributes.soundId) ~= "string"
 			or string.match(value.attributes.soundId, "^rbxassetid://%d+$") == nil
 		then
 			return nil, string.format("effects[%d].attributes.soundId is invalid", index)
@@ -234,26 +225,28 @@ local function validateEffect(
 				model = value.attributes.model,
 				profile = value.attributes.profile,
 			},
-		}, nil
+		},
+			nil
 	elseif value.name == "set-seal-door" then
 		field = unknownField(value.attributes, { door = true, value = true })
 		if field ~= nil then
 			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
 		end
-		
+
 		return {
 			name = "set-seal-door",
 			attributes = {
 				door = value.attributes.door,
 				value = value.attributes.value,
 			},
-		}, nil
+		},
+			nil
 	elseif value.name == "set-attribute" then
 		field = unknownField(value.attributes, { instance = true, name = true, value = true })
 		if field ~= nil then
 			return nil, string.format("effects[%d].attributes has unknown field %s", index, field)
 		end
-		
+
 		return {
 			name = "set-attribute",
 			attributes = {
@@ -261,7 +254,8 @@ local function validateEffect(
 				name = value.attributes.name,
 				value = value.attributes.value,
 			},
-		}, nil
+		},
+			nil
 	end
 
 	return nil, string.format("effects[%d] has an unknown name", index)
@@ -357,9 +351,7 @@ local function warnInvalidTimeline(message: string): ()
 end
 
 local function ensureCurrentGeneration(self: Controller, executionId: number, generation: number): boolean
-	return self.generation == generation
-		and self.currentExecutionId == executionId
-		and self.state ~= "idle"
+	return self.generation == generation and self.currentExecutionId == executionId and self.state ~= "idle"
 end
 
 local function clearCamera(self: Controller): ()
@@ -479,7 +471,10 @@ local function handleSetModelProfile(_self: Controller, effect: Effect, _executi
 	local result = ModelProfiles.setProfile(model, effect.attributes.profile)
 	if not result.success then
 		local firstError = result.errors[1]
-		warn("CinematicController model profile failed: " .. (if firstError ~= nil then firstError.message else "unknown error"))
+		warn(
+			"CinematicController model profile failed: "
+				.. (if firstError ~= nil then firstError.message else "unknown error")
+		)
 		return false
 	end
 	return true
@@ -498,7 +493,7 @@ local function handleSetSealDoor(self: Controller, effect: Effect, _executionId:
 
 	local result, reason = self.dependencies.doorManager:setSealed(model, effect.attributes.value)
 	if not result and reason then
-		warn('CinematicController error at set seal door effect beacause ' .. reason)
+		warn("CinematicController error at set seal door effect beacause " .. reason)
 		return false
 	end
 	return true

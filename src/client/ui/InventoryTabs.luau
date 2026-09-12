@@ -19,9 +19,7 @@ local function InventoryTabs(props: Props)
 	}, {
 		Items = React.createElement("TextButton", {
 			AutoButtonColor = false,
-			BackgroundColor3 = if props.activeTab == "items"
-				then theme.surfaceActive
-				else theme.surface,
+			BackgroundColor3 = if props.activeTab == "items" then theme.surfaceActive else theme.surface,
 			Font = Enum.Font.GothamBold,
 			Size = UDim2.new(0.48, -3, 1, 0),
 			Text = "ITENS",
@@ -37,9 +35,7 @@ local function InventoryTabs(props: Props)
 		}),
 		Documents = React.createElement("TextButton", {
 			AutoButtonColor = false,
-			BackgroundColor3 = if props.activeTab == "documents"
-				then theme.surfaceActive
-				else theme.surface,
+			BackgroundColor3 = if props.activeTab == "documents" then theme.surfaceActive else theme.surface,
 			Font = Enum.Font.GothamBold,
 			Position = UDim2.new(0.52, 3, 0, 0),
 			Size = UDim2.new(0.48, -3, 1, 0),

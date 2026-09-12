@@ -5,7 +5,8 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local DocumentsControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentsController)
-local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local DocumentReaderControllerModule =
+	require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 local interactionTypes = require(ReplicatedStorage.Shared.interactions.interactionTypes)
 
 export type DocumentInteraction = interactionTypes.InteractionHandler

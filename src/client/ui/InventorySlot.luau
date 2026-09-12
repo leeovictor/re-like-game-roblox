@@ -100,9 +100,7 @@ local function InteractiveSlot(props: {
 	local highlighted, setHighlighted = React.useState(false)
 	local buttonProps = {
 		AutoButtonColor = false,
-		BackgroundColor3 = if highlighted
-			then theme.slotHighlight
-			else theme.surface,
+		BackgroundColor3 = if highlighted then theme.slotHighlight else theme.surface,
 		Selectable = true,
 		Size = SLOT_SIZE,
 		Text = "",

@@ -22,9 +22,7 @@ local function DropdownOption(props: { option: Option, layoutOrder: number })
 
 	return React.createElement("TextButton", {
 		AutoButtonColor = false,
-		BackgroundColor3 = if highlighted
-			then theme.surfaceActive
-			else theme.surfaceHover,
+		BackgroundColor3 = if highlighted then theme.surfaceActive else theme.surfaceHover,
 		Font = Enum.Font.GothamBold,
 		LayoutOrder = props.layoutOrder,
 		Selectable = true,

@@ -36,7 +36,9 @@ local function getEquippedWeaponStats(inventory: items.InventoryState?): CombatH
 					loadedAmmo = value
 				end
 			end
-			if loadedAmmo == nil and weaponConfig ~= nil
+			if
+				loadedAmmo == nil
+				and weaponConfig ~= nil
 				and (equippedWeapon.attributes == nil or equippedWeapon.attributes.loadedAmmo == nil)
 			then
 				loadedAmmo = weaponConfig.magazineSize

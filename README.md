@@ -13,154 +13,45 @@ aftman install
 wally install
 ```
 
-`wally install` regenerates the ignored `Packages/` and `DevPackages/` links
-and the versioned `wally.lock`. Runtime packages are mapped to
-`ReplicatedStorage.Packages`. The TestEZ development dependency is mapped by
-`test.project.json` to `ReplicatedStorage.DevPackages.TestEZ`.
+`wally install` regenerates the ignored `Packages/` links and the versioned
+`wally.lock`. Runtime packages are mapped to `ReplicatedStorage.Packages`. Do not
+edit generated package links by hand.
 
-The normal game place is built from `default.project.json` and keeps the
-production entrypoints in `src/server/init.server.luau` and
+The game place is built from `default.project.json` and keeps the production
+entrypoints in `src/server/init.server.luau` and
 `src/client/init.client.luau`:
 
 ```bash
 rojo build -o /tmp/dungeon-game-canve.rbxlx default.project.json
 ```
 
-## Testes TestEZ no Roblox Studio
-
-Tests run in a real Roblox DataModel through the isolated `test.project.json`.
-That project maps `tests/shared`, `tests/server`, and `tests/client` to separate
-TestEZ roots, maps production subdirectories without starting the normal
-entrypoints, and exposes the explicit server and client runners. It also maps
-`TestEZAutoServer` and `TestEZAutoClient`, which launch those runners
-automatically whenever a test Play session starts. `CameraVisibility` belongs to
-the client root. Do not edit generated package links by hand.
-
-### Writing Specs
-
-Each `*.spec.luau` file is a strict ModuleScript that returns one TestEZ
-registration function. TestEZ provides `describe`, `it`, `expect`, `beforeEach`,
-and `afterEach` while the spec runs:
-
-```lua
---!strict
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-return function()
-    local fixture: Folder?
-
-    beforeEach(function()
-        fixture = Instance.new("Folder")
-        fixture.Parent = ReplicatedStorage
-    end)
-
-    afterEach(function()
-        if fixture then
-            fixture:Destroy()
-            fixture = nil
-        end
-    end)
-
-    describe("DataModel fixtures", function()
-        it("uses the real Roblox services", function()
-            expect(fixture).to.be.ok()
-            expect(typeof(Vector3.new(1, 2, 3))).to.equal("Vector3")
-        end)
-    end)
-end
-```
-
-Use imports from the real DataModel, such as `ReplicatedStorage.Shared`,
-`ServerScriptService.Server`, and `Players.LocalPlayer.PlayerScripts.Client`.
-Do not add virtual module indirection, filesystem imports, or UI
-specs to this workflow. Specs that create Instances, connections, temporary
-folders, or other mutable state must destroy or disconnect them in `afterEach`
-and use `beforeEach` to create isolated fixtures. Keep production entrypoints
-out of the test place.
-
-For client remote integrations, a local `Signal:Fire` assertion verifies only
-the public signal contract. Actual `RemoteEvent:FireClient` delivery must be
-checked separately through the Studio MCP server-to-client checkpoint; a client
-runner must not pretend to simulate that cross-DataModel boundary.
-
-### Rojo and Studio
-
-Build or connect the test place with one of these commands:
-
-```bash
-rojo build -o /tmp/dungeon-game-canve-test.rbxlx test.project.json
-rojo serve test.project.json
-# Use this for a one-shot sync when the Studio session is already connected:
-rojo sync test.project.json
-```
-
-Open the test place in a separate Roblox Studio session named `RE Like Test`
-and connect that session to the `rojo serve test.project.json` server. For each
-run, start a clean Play session through the Roblox Studio MCP tools. The
-`TestEZAutoServer` and `TestEZAutoClient` launchers run the server and client
-suites automatically. The server launcher prepares a character before running
-the server suite, and the client launcher waits for the current character before
-running client tests.
-
-The server and client results are reported separately. The Play session passes
-only when both summaries report `failed == 0`. Use the Studio Output and
-TestService reporter for failure details, not as a replacement for the
-structured result. If a manual rerun is needed, use the explicit runners:
-
-Server DataModel:
-
-```lua
-return require(game.ServerScriptService.TestEZRunner).run()
-```
-
-Client DataModel, after the local player and its `PlayerScripts` exist:
-
-```lua
-return require(game.Players.LocalPlayer.PlayerScripts.TestEZClientRunner).run()
-```
-
-Stop Play after each run and confirm temporary fixtures and connections are
-gone. Repeat the full server/client sequence twice, with Play stopped between
-clean sessions.
-
 ## Static Verification
 
-Selene uses the Roblox standard library for both production and TestEZ code:
+Selene uses the Roblox standard library:
 
 ```bash
 selene --config selene.roblox.toml src
-selene --config selene.roblox-tests.toml tests
 ```
 
-Generate the test DataModel sourcemap before typechecking:
+Generate the game place sourcemap before typechecking:
 
 ```bash
-rojo sourcemap --include-non-scripts test.project.json --output test-sourcemap.json
+rojo sourcemap --include-non-scripts default.project.json --output sourcemap.json
 
 luau-lsp analyze --platform roblox \
   --settings typecheck/luau-lsp.roblox.json \
   --base-luaurc typecheck/roblox.luaurc \
   --definitions @roblox=typecheck/globalTypes.None.d.luau \
-  --definitions @testez=typecheck/testez.d.luau \
-  --sourcemap test-sourcemap.json \
+  --sourcemap sourcemap.json \
   --formatter gnu \
-  src/shared \
-  src/server/player \
-   src/client/camera src/client/doors src/client/dialogue src/client/documents \
-   src/client/interactions src/client/inventory src/client/pickups src/client/player \
-   src/client/ui \
-  tests
+  src
 ```
 
 The analysis must use the Roblox platform so `script` imports, services,
-Instances, datatypes, and TestEZ globals resolve against the real test tree. The
-paths match the production subdirectories mapped by `test.project.json`; do not
-include `src/server/init.server.luau` or `src/client/init.client.luau`, which are
-intentionally omitted from the test place.
-Build both projects after static checks:
+Instances, and datatypes resolve against the real game tree.
+
+Build the place after static checks:
 
 ```bash
 rojo build -o /tmp/dungeon-game-canve.rbxlx default.project.json
-rojo build -o /tmp/dungeon-game-canve-test.rbxlx test.project.json
 ```

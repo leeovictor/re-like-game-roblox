@@ -17,22 +17,16 @@ local function useInventoryHotkey(blocked: boolean, onToggle: () -> ())
 	React.useEffect(function()
 		local playerListWasEnabled = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.PlayerList)
 		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-		ContextActionService:BindActionAtPriority(
-			INVENTORY_TOGGLE_ACTION,
-			function(_, inputState)
-				if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() then
-					return Enum.ContextActionResult.Sink
-				end
-				if blocked then
-					return Enum.ContextActionResult.Sink
-				end
-				onToggleRef.current()
+		ContextActionService:BindActionAtPriority(INVENTORY_TOGGLE_ACTION, function(_, inputState)
+			if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() then
 				return Enum.ContextActionResult.Sink
-			end,
-			false,
-			INVENTORY_TOGGLE_PRIORITY,
-			Enum.KeyCode.Tab
-		)
+			end
+			if blocked then
+				return Enum.ContextActionResult.Sink
+			end
+			onToggleRef.current()
+			return Enum.ContextActionResult.Sink
+		end, false, INVENTORY_TOGGLE_PRIORITY, Enum.KeyCode.Tab)
 
 		return function()
 			ContextActionService:UnbindAction(INVENTORY_TOGGLE_ACTION)

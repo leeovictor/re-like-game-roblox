@@ -121,100 +121,100 @@ local function activateEditor()
 		preview = CameraSystemPreview.new(Workspace)
 
 		local callbacks = {
-		onNewShot = function()
-			local name = widget :: any
-			run("New Shot", function()
-				local camera = Workspace.CurrentCamera
-				local shotName = name.nameInput.Text
-				assert(shotName ~= "", "Enter a name first")
-				local currentModel = model :: any
-				currentModel:createShot(shotName, camera)
-			end)
-		end,
-		onCaptureCamera = function()
-			run("Capture Camera", function()
-				local hierarchy = (model :: any):ensureHierarchy()
-				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-				local camera = Workspace.CurrentCamera
-				assert(shot ~= nil, "Select a shot first")
-				local currentModel = model :: any
-				currentModel:captureCamera(shot :: BasePart, camera)
-			end)
-		end,
-		onApplyCamera = function()
-			run("Apply To Camera", function()
-				local hierarchy = (model :: any):ensureHierarchy()
-				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-				local camera = Workspace.CurrentCamera
-				assert(shot ~= nil, "Select a shot first")
-				local currentModel = model :: any
-				currentModel:applyShot(shot :: BasePart, camera)
-			end)
-		end,
-		onSetDefault = function()
-			run("Set Default", function()
-				local hierarchy = (model :: any):ensureHierarchy()
-				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-				assert(shot ~= nil, "Select a shot first")
-				local currentModel = model :: any
-				currentModel:setDefaultShot(shot :: BasePart)
-			end)
-		end,
-		onNewZone = function()
-			local currentWidget = widget :: any
-			run("New Zone", function()
-				local camera = Workspace.CurrentCamera
-				local zoneName = currentWidget.nameInput.Text
-				assert(zoneName ~= "", "Enter a name first")
-				local currentModel = model :: any
-				currentModel:createZone(zoneName, CFrame.new(camera.Focus.Position), Vector3.new(10, 10, 10))
-			end)
-		end,
-		onAssignShot = function()
-			run("Assign Shot", function()
-				local hierarchy = (model :: any):ensureHierarchy()
+			onNewShot = function()
+				local name = widget :: any
+				run("New Shot", function()
+					local camera = Workspace.CurrentCamera
+					local shotName = name.nameInput.Text
+					assert(shotName ~= "", "Enter a name first")
+					local currentModel = model :: any
+					currentModel:createShot(shotName, camera)
+				end)
+			end,
+			onCaptureCamera = function()
+				run("Capture Camera", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
+					local camera = Workspace.CurrentCamera
+					assert(shot ~= nil, "Select a shot first")
+					local currentModel = model :: any
+					currentModel:captureCamera(shot :: BasePart, camera)
+				end)
+			end,
+			onApplyCamera = function()
+				run("Apply To Camera", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
+					local camera = Workspace.CurrentCamera
+					assert(shot ~= nil, "Select a shot first")
+					local currentModel = model :: any
+					currentModel:applyShot(shot :: BasePart, camera)
+				end)
+			end,
+			onSetDefault = function()
+				run("Set Default", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
+					assert(shot ~= nil, "Select a shot first")
+					local currentModel = model :: any
+					currentModel:setDefaultShot(shot :: BasePart)
+				end)
+			end,
+			onNewZone = function()
 				local currentWidget = widget :: any
-				local zone = selectedPart(hierarchy.zones, currentWidget.zoneSelection)
-				local shot = selectedPart(hierarchy.shots, currentWidget.shotSelection)
-				assert(zone ~= nil and shot ~= nil, "Select a zone and a shot first")
-				local currentModel = model :: any
-				currentModel:assignShot(zone :: BasePart, shot :: BasePart)
-			end)
-		end,
-		onMoveZone = function(delta: number)
-			run("Move Zone", function()
+				run("New Zone", function()
+					local camera = Workspace.CurrentCamera
+					local zoneName = currentWidget.nameInput.Text
+					assert(zoneName ~= "", "Enter a name first")
+					local currentModel = model :: any
+					currentModel:createZone(zoneName, CFrame.new(camera.Focus.Position), Vector3.new(10, 10, 10))
+				end)
+			end,
+			onAssignShot = function()
+				run("Assign Shot", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local currentWidget = widget :: any
+					local zone = selectedPart(hierarchy.zones, currentWidget.zoneSelection)
+					local shot = selectedPart(hierarchy.shots, currentWidget.shotSelection)
+					assert(zone ~= nil and shot ~= nil, "Select a zone and a shot first")
+					local currentModel = model :: any
+					currentModel:assignShot(zone :: BasePart, shot :: BasePart)
+				end)
+			end,
+			onMoveZone = function(delta: number)
+				run("Move Zone", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local zone = selectedPart(hierarchy.zones, (widget :: any).zoneSelection)
+					assert(zone ~= nil, "Select a zone first")
+					local currentModel = model :: any
+					currentModel:reorderZone(zone :: BasePart, delta)
+				end)
+			end,
+			onFieldOfView = function(value: number)
+				run("Set FieldOfView", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
+					assert(shot ~= nil, "Select a shot first")
+					local currentModel = model :: any
+					currentModel:setFieldOfView(shot :: BasePart, value)
+				end)
+			end,
+			onSelect = function(instance: Instance)
+				(Selection :: any):Set({ instance })
+				if widget ~= nil then
+					widget:setSelection(instance)
+				end
+			end,
+			classifySelection = function(instance: Instance): string?
 				local hierarchy = (model :: any):ensureHierarchy()
-				local zone = selectedPart(hierarchy.zones, (widget :: any).zoneSelection)
-				assert(zone ~= nil, "Select a zone first")
-				local currentModel = model :: any
-				currentModel:reorderZone(zone :: BasePart, delta)
-			end)
-		end,
-		onFieldOfView = function(value: number)
-			run("Set FieldOfView", function()
-				local hierarchy = (model :: any):ensureHierarchy()
-				local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-				assert(shot ~= nil, "Select a shot first")
-				local currentModel = model :: any
-				currentModel:setFieldOfView(shot :: BasePart, value)
-			end)
-		end,
-		onSelect = function(instance: Instance)
-			(Selection :: any):Set({ instance })
-			if widget ~= nil then
-				widget:setSelection(instance)
-			end
-		end,
-		classifySelection = function(instance: Instance): string?
-			local hierarchy = (model :: any):ensureHierarchy()
-			if instance:IsA("BasePart") and instance.Parent == hierarchy.shots then
-				return "shot"
-			elseif instance:IsA("BasePart") and instance.Parent == hierarchy.zones then
-				return "zone"
-			end
-			return nil
-		end,
-	}
+				if instance:IsA("BasePart") and instance.Parent == hierarchy.shots then
+					return "shot"
+				elseif instance:IsA("BasePart") and instance.Parent == hierarchy.zones then
+					return "zone"
+				end
+				return nil
+			end,
+		}
 
 		local gui = pluginApi:CreateDockWidgetPluginGui("CameraSystem", widgetInfo) :: DockWidgetPluginGui
 		widget = CameraSystemWidget.new(gui, callbacks)
@@ -227,16 +227,21 @@ local function activateEditor()
 	local currentModel = model :: any
 	currentModel:ensureHierarchy()
 	currentModel:setPartsVisible(true)
-	table.insert(connections, Selection.SelectionChanged:Connect(function()
-		local instances = (Selection :: any):Get()
-		local instance = instances[1]
-		if widget ~= nil then
-			widget:setSelection(instance)
-		end
-		refresh()
-	end))
+	table.insert(
+		connections,
+		Selection.SelectionChanged:Connect(function()
+			local instances = (Selection :: any):Get()
+			local instance = instances[1]
+			if widget ~= nil then
+				widget:setSelection(instance)
+			end
+			refresh()
+		end)
+	)
 	local hierarchy = model:ensureHierarchy()
-	for _, signal in { hierarchy.root.DescendantAdded, hierarchy.root.DescendantRemoving, hierarchy.root.AttributeChanged } do
+	for _, signal in
+		{ hierarchy.root.DescendantAdded, hierarchy.root.DescendantRemoving, hierarchy.root.AttributeChanged }
+	do
 		table.insert(connections, signal:Connect(refresh))
 	end
 	local function watchPart(instance: Instance)
@@ -249,10 +254,13 @@ local function activateEditor()
 	for _, instance in hierarchy.root:GetDescendants() do
 		watchPart(instance)
 	end
-	table.insert(connections, hierarchy.root.DescendantAdded:Connect(function(instance)
-		watchPart(instance)
-		refresh()
-	end))
+	table.insert(
+		connections,
+		hierarchy.root.DescendantAdded:Connect(function(instance)
+			watchPart(instance)
+			refresh()
+		end)
+	)
 	refresh()
 	local currentWidget = widget :: any
 	currentWidget.gui.Enabled = true

@@ -261,10 +261,7 @@ local function update(self: Controller, deltaTime: number): ()
 	self.currentState.update(self.stateContext, deltaTime)
 end
 
-function PlayerController.new(
-	dependencies: Dependencies,
-	config: PlayerControllerConfig?
-): PlayerController
+function PlayerController.new(dependencies: Dependencies, config: PlayerControllerConfig?): PlayerController
 	local walkSpeed = if config ~= nil and config.walkSpeed ~= nil then config.walkSpeed else WALK_SPEED
 	local runSpeed = if config ~= nil and config.runSpeed ~= nil then config.runSpeed else RUN_SPEED
 	local self = setmetatable({
@@ -350,29 +347,38 @@ function PlayerController.start(self: PlayerController): ()
 	controller.dependencies.combat:start()
 
 	local playContext = InputManager.Contexts.PlayContext :: InputManager.Context
-	table.insert(controller.inputConnections, playContext:BindActionStateChanged("Aim", function(value): ()
-		controller.input.aiming = value :: boolean
-		local callback = controller.currentState.onAimChanged
-		if callback ~= nil then
-			callback(controller.stateContext, controller.input.aiming)
-		end
-	end))
-	table.insert(controller.inputConnections, playContext:BindActionStateChanged("Shoot", function(value): ()
-		if value :: boolean then
-			local callback = controller.currentState.onShoot
+	table.insert(
+		controller.inputConnections,
+		playContext:BindActionStateChanged("Aim", function(value): ()
+			controller.input.aiming = value :: boolean
+			local callback = controller.currentState.onAimChanged
 			if callback ~= nil then
-				callback(controller.stateContext)
+				callback(controller.stateContext, controller.input.aiming)
 			end
-		end
-	end))
-	table.insert(controller.inputConnections, playContext:BindActionStateChanged("Reload", function(value): ()
-		if value :: boolean then
-			local callback = controller.currentState.onReload
-			if callback ~= nil then
-				callback(controller.stateContext)
+		end)
+	)
+	table.insert(
+		controller.inputConnections,
+		playContext:BindActionStateChanged("Shoot", function(value): ()
+			if value :: boolean then
+				local callback = controller.currentState.onShoot
+				if callback ~= nil then
+					callback(controller.stateContext)
+				end
 			end
-		end
-	end))
+		end)
+	)
+	table.insert(
+		controller.inputConnections,
+		playContext:BindActionStateChanged("Reload", function(value): ()
+			if value :: boolean then
+				local callback = controller.currentState.onReload
+				if callback ~= nil then
+					callback(controller.stateContext)
+				end
+			end
+		end)
+	)
 
 	readInput(controller)
 

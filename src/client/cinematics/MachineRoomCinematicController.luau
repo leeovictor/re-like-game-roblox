@@ -32,85 +32,85 @@ local ACCESS_CARD_ID = "access_card"
 local TIMELINE: CinematicController.Timeline = {
 	id = "generator-power-off",
 	steps = {
-	{
-		frame = 1,
-		duration = 1.5,
-		effects = {},
-	},
-	{
-		frame = 2,
-		duration = 1,
-		effects = {
-			{
-				name = "set-camera-shot",
-				attributes = { shot = "MachineRoom_MachineCloseUp" },
-			},
+		{
+			frame = 1,
+			duration = 1.5,
+			effects = {},
 		},
-	},
-	{
-		frame = 3,
-		duration = 1.4,
-		effects = {
-			{
-				name = "play-sound",
-				attributes = { soundId = 'rbxassetid://97288059041494' },
-			},
-			{
-				name = "set-model-profile",
-				attributes = { model = "Machine", profile = "disabled" },
-			},
-		},
-	},
-	{
-		frame = 4,
-		duration = 1,
-		effects = {
-			{
-				name = "set-camera-shot",
-				attributes = { shot = "Final_G" },
-			},
-		},
-	},
-	{
-		frame = 5,
-		duration = 1.8,
-		effects = {
-			{
-				name = "play-sound",
-				attributes = { soundId = 'rbxassetid://125440417623813' },
-			},
-			{
-				name = "set-model-profile",
-				attributes = {
-					model = "FacilityEntrance.DoorTest",
-					profile = "power_off",
+		{
+			frame = 2,
+			duration = 1,
+			effects = {
+				{
+					name = "set-camera-shot",
+					attributes = { shot = "MachineRoom_MachineCloseUp" },
 				},
 			},
-			{
-				name = "set-model-profile",
-				attributes = {
-					model = "SimpleLamp_1",
-					profile = "disabled"
-				}
+		},
+		{
+			frame = 3,
+			duration = 1.4,
+			effects = {
+				{
+					name = "play-sound",
+					attributes = { soundId = "rbxassetid://97288059041494" },
+				},
+				{
+					name = "set-model-profile",
+					attributes = { model = "Machine", profile = "disabled" },
+				},
 			},
-			{
-				name = "set-seal-door",
-				attributes = {
-					door = "FacilityEntrance.DoorTest",
-					value = true
-				}
+		},
+		{
+			frame = 4,
+			duration = 1,
+			effects = {
+				{
+					name = "set-camera-shot",
+					attributes = { shot = "Final_G" },
+				},
 			},
-			{
-				name = "set-attribute",
-				attributes = {
-					instance = 'Machine.LeverInteraction',
-					name = 'enabled',
-					value = true
-				}
-			}
+		},
+		{
+			frame = 5,
+			duration = 1.8,
+			effects = {
+				{
+					name = "play-sound",
+					attributes = { soundId = "rbxassetid://125440417623813" },
+				},
+				{
+					name = "set-model-profile",
+					attributes = {
+						model = "FacilityEntrance.DoorTest",
+						profile = "power_off",
+					},
+				},
+				{
+					name = "set-model-profile",
+					attributes = {
+						model = "SimpleLamp_1",
+						profile = "disabled",
+					},
+				},
+				{
+					name = "set-seal-door",
+					attributes = {
+						door = "FacilityEntrance.DoorTest",
+						value = true,
+					},
+				},
+				{
+					name = "set-attribute",
+					attributes = {
+						instance = "Machine.LeverInteraction",
+						name = "enabled",
+						value = true,
+					},
+				},
+			},
 		},
 	},
-},
 }
 
 local function hasAccessCard(inventory: InventoryController): boolean
@@ -133,7 +133,10 @@ MachineRoomCinematicController.__index = MachineRoomCinematicController
 function MachineRoomCinematicController.new(dependencies: Dependencies): Controller
 	assert(type(dependencies) == "table", "MachineRoomCinematicController dependencies are required")
 	assert(type(dependencies.cinematic.play) == "function", "MachineRoomCinematicController cinematic.play is required")
-	assert(type(dependencies.inventory.getState) == "function", "MachineRoomCinematicController inventory.getState is required")
+	assert(
+		type(dependencies.inventory.getState) == "function",
+		"MachineRoomCinematicController inventory.getState is required"
+	)
 
 	local controller = setmetatable({
 		dependencies = dependencies,

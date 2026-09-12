@@ -26,7 +26,13 @@ export type InventoryController = {
 	getEquipped: (self: InventoryController, slot: string) -> items.ItemInstance?,
 	updateAttributes: (self: InventoryController, uid: string, attributes: items.ItemAttributes) -> boolean,
 	consumeLoadedAmmo: (self: InventoryController, weaponUid: string) -> boolean,
-	reloadWeapon: (self: InventoryController, weaponUid: string, ammoUid: string, amount: number, loadedAmmo: number) -> boolean,
+	reloadWeapon: (
+		self: InventoryController,
+		weaponUid: string,
+		ammoUid: string,
+		amount: number,
+		loadedAmmo: number
+	) -> boolean,
 }
 
 local InventoryController = {}
@@ -123,7 +129,11 @@ function InventoryController.getEquipped(self: InventoryController, slot: string
 	return InventoryStore.findInstance(self.state, uid)
 end
 
-function InventoryController.updateAttributes(self: InventoryController, uid: string, attributes: items.ItemAttributes): boolean
+function InventoryController.updateAttributes(
+	self: InventoryController,
+	uid: string,
+	attributes: items.ItemAttributes
+): boolean
 	if not self.started or self.state == nil then
 		return false
 	end
@@ -166,15 +176,25 @@ function InventoryController.reloadWeapon(
 	if not self.started or self.state == nil then
 		return false
 	end
-	if type(amount) ~= "number" or amount <= 0 or amount ~= math.floor(amount)
-		or type(loadedAmmo) ~= "number" or loadedAmmo < 0 or loadedAmmo ~= math.floor(loadedAmmo)
+	if
+		type(amount) ~= "number"
+		or amount <= 0
+		or amount ~= math.floor(amount)
+		or type(loadedAmmo) ~= "number"
+		or loadedAmmo < 0
+		or loadedAmmo ~= math.floor(loadedAmmo)
 	then
 		return false
 	end
 	local weapon = InventoryStore.findInstance(self.state, weaponUid)
 	local ammo = InventoryStore.findInstance(self.state, ammoUid)
-	if weapon == nil or ammo == nil or weapon.itemId ~= "handgun" or ammo.itemId ~= "handgun_ammo"
-		or ammo.quantity == nil or ammo.quantity < amount
+	if
+		weapon == nil
+		or ammo == nil
+		or weapon.itemId ~= "handgun"
+		or ammo.itemId ~= "handgun_ammo"
+		or ammo.quantity == nil
+		or ammo.quantity < amount
 	then
 		return false
 	end

@@ -30,10 +30,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 	local warnedDoors: { [Model]: boolean } = {}
 	local doorSounds = DoorSoundPlayer.new()
 
-	local function publishDoorEvent(
-		door: Model,
-		eventName: "door_blocked" | "door_unlocked" | "door_entered"
-	): ()
+	local function publishDoorEvent(door: Model, eventName: "door_blocked" | "door_unlocked" | "door_entered"): ()
 		local doorKey = door:GetAttribute(doorTypes.DOOR_KEY_ATTRIBUTE)
 		if type(doorKey) ~= "string" or doorKey == "" then
 			if not warnedDoors[door] then
@@ -68,7 +65,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 			messages = { { name = "", text = fallback } }
 		end
 
-		InputManager.switchContext('DialogueContext')
+		InputManager.switchContext("DialogueContext")
 		local index = 1
 		local function nextMessage(_: nil, reason: string): ()
 			if reason ~= "completed" then
@@ -80,7 +77,7 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 				dependencies.dialogue:show(message.text, nextMessage)
 			else
 				onCompleted()
-				InputManager.switchContext('PlayContext')
+				InputManager.switchContext("PlayContext")
 			end
 		end
 
@@ -167,9 +164,9 @@ function DoorController.new(dependencies: Dependencies): InteractionHandler
 		local result = dependencies.manager:unlock(door)
 		if result.success and result.action == "unlock" then
 			doorSounds:playOneShot("unlocked")
-			modelProfiles.setProfile(door, 'unlocked')
+			modelProfiles.setProfile(door, "unlocked")
 			InputManager.switchContext("DialogueContext")
-			dependencies.dialogue:show("Porta destrancada.", function (_, dialogueReason)
+			dependencies.dialogue:show("Porta destrancada.", function(_, dialogueReason)
 				if dialogueReason == "completed" then
 					publishDoorEvent(door, "door_unlocked")
 					InputManager.switchContext("PlayContext")

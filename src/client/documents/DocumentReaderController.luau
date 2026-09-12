@@ -52,21 +52,30 @@ end
 
 local function bindActions(): ()
 	local context = InputManager.Contexts.DocumentContext
-	table.insert(inputConnections, context:BindActionStateChanged("PreviousPage", function(inputState: boolean)
-		if inputState then
-			DocumentReaderController.previousPage()
-		end
-	end))
-	table.insert(inputConnections, context:BindActionStateChanged("NextPage", function(inputState: boolean)
-		if inputState then
-			DocumentReaderController.nextPage()
-		end
-	end))
-	table.insert(inputConnections, context:BindActionStateChanged("Close", function(inputState: boolean)
-		if inputState then
-			handleClose()
-		end
-	end))
+	table.insert(
+		inputConnections,
+		context:BindActionStateChanged("PreviousPage", function(inputState: boolean)
+			if inputState then
+				DocumentReaderController.previousPage()
+			end
+		end)
+	)
+	table.insert(
+		inputConnections,
+		context:BindActionStateChanged("NextPage", function(inputState: boolean)
+			if inputState then
+				DocumentReaderController.nextPage()
+			end
+		end)
+	)
+	table.insert(
+		inputConnections,
+		context:BindActionStateChanged("Close", function(inputState: boolean)
+			if inputState then
+				handleClose()
+			end
+		end)
+	)
 end
 
 function DocumentReaderController.start(): ()

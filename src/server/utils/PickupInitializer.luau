@@ -47,7 +47,8 @@ local function validateConfiguration(itemId: string, quantity: number?): ()
 	if quantity == nil then
 		return
 	end
-	if type(quantity) ~= "number"
+	if
+		type(quantity) ~= "number"
 		or quantity ~= quantity
 		or quantity == math.huge
 		or quantity == -math.huge

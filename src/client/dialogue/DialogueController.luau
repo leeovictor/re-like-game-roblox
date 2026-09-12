@@ -164,7 +164,7 @@ local function handleInteract(self: DialogueController)
 	if current == nil then
 		return
 	end
-	
+
 	if current.isTyping then
 		reveal(self)
 	elseif current.kind == "message" then
@@ -176,16 +176,15 @@ local function handleInteract(self: DialogueController)
 end
 
 local function handlePrevOption(self: DialogueController)
-	
 	local current = self.state
 	if current == nil then
 		return
 	end
-	
+
 	if current.kind ~= "question" or current.isTyping then
 		return
 	end
-	
+
 	local selectedIndex = math.max(1, (current.selectedIndex :: number) - 1)
 	local nextState: DialogState = {
 		kind = current.kind,
@@ -222,19 +221,19 @@ end
 
 local function bindActions(self: DialogueController): ()
 	local context = InputManager.Contexts.DialogueContext :: InputManager.Context
-	context:BindActionStateChanged('Interact', function (state: boolean)
+	context:BindActionStateChanged("Interact", function(state: boolean)
 		if not state then
 			return
 		end
 		handleInteract(self)
 	end)
-	context:BindActionStateChanged('OptionRight', function (state)
+	context:BindActionStateChanged("OptionRight", function(state)
 		if not state then
 			return
 		end
 		handleNextOption(self)
 	end)
-	context:BindActionStateChanged('OptionLeft', function (state)
+	context:BindActionStateChanged("OptionLeft", function(state)
 		if not state then
 			return
 		end
@@ -305,7 +304,12 @@ function DialogueController.show(self: DialogueController, text: string, callbac
 	startTyping(self, validatedText, dialogGeneration)
 end
 
-function DialogueController.ask(self: DialogueController, text: string, options: { DialogOption }, callback: AskCallback?): ()
+function DialogueController.ask(
+	self: DialogueController,
+	text: string,
+	options: { DialogOption },
+	callback: AskCallback?
+): ()
 	if not self.started then
 		return
 	end

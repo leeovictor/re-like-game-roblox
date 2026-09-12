@@ -4,7 +4,7 @@ local config = require(StarterPlayer.StarterPlayerScripts.Client.enemies.config)
 local EnemiesUtils = {}
 
 function EnemiesUtils.rollChance(chance: number): boolean
-	assert(chance >= 0 and chance <= 100, 'chance must be between 0 and 100')
+	assert(chance >= 0 and chance <= 100, "chance must be between 0 and 100")
 	local gen = math.random(1, 100)
 	return gen >= 1 and gen <= chance
 end

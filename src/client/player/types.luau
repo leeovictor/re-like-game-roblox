@@ -49,10 +49,7 @@ export type TransformOverride = {
 export type PlayerController = MovementController & {
 	state: PlayerState,
 	started: boolean,
-	beginTransformOverride: (
-		self: PlayerController,
-		attackId: number
-	) -> TransformOverride?,
+	beginTransformOverride: (self: PlayerController, attackId: number) -> TransformOverride?,
 	start: (self: PlayerController) -> (),
 	stop: (self: PlayerController) -> (),
 }

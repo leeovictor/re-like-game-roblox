@@ -27,11 +27,14 @@ type SelectionLike = Selection & {
 	Set: (self: Selection, instances: { Instance }) -> (),
 }
 
-export type Model = typeof(setmetatable({} :: {
-	workspace: Workspace,
-	selection: Selection,
-	changeHistoryService: ChangeHistoryService,
-}, CameraSystemModel))
+export type Model = typeof(setmetatable(
+	{} :: {
+		workspace: Workspace,
+		selection: Selection,
+		changeHistoryService: ChangeHistoryService,
+	},
+	CameraSystemModel
+))
 
 local function requireNonEmptyName(name: string): string
 	assert(type(name) == "string" and name ~= "", "name must be a non-empty string")
@@ -84,17 +87,17 @@ end
 function CameraSystemModel.ensureHierarchy(self: Model): Hierarchy
 	local root = self.workspace:FindFirstChild(CAMERA_SYSTEM_NAME)
 	if root ~= nil and not root:IsA("Folder") then
-		error('Workspace.CameraSystem must be a Folder', 2)
+		error("Workspace.CameraSystem must be a Folder", 2)
 	end
 
 	local rootFolder = if root == nil then nil else root :: Folder
 	local existingShots = if rootFolder == nil then nil else rootFolder:FindFirstChild(SHOTS_NAME)
 	local existingZones = if rootFolder == nil then nil else rootFolder:FindFirstChild(ZONES_NAME)
 	if existingShots ~= nil and not existingShots:IsA("Folder") then
-		error('CameraSystem.Shots must be a Folder', 2)
+		error("CameraSystem.Shots must be a Folder", 2)
 	end
 	if existingZones ~= nil and not existingZones:IsA("Folder") then
-		error('CameraSystem.Zones must be a Folder', 2)
+		error("CameraSystem.Zones must be a Folder", 2)
 	end
 
 	if rootFolder ~= nil and existingShots ~= nil and existingZones ~= nil then
@@ -312,7 +315,10 @@ function CameraSystemModel.reorderZone(self: Model, zone: Part, delta: number)
 	local orders = {}
 	for _, candidate in zones do
 		local order = candidate:GetAttribute(ORDER)
-		assert(type(order) == "number" and order % 1 == 0 and order >= 0, string.format('Zone "%s" has an invalid Order', candidate.Name))
+		assert(
+			type(order) == "number" and order % 1 == 0 and order >= 0,
+			string.format('Zone "%s" has an invalid Order', candidate.Name)
+		)
 		assert(orders[order :: number] == nil, "Zone orders must be unique")
 		orders[order :: number] = candidate
 	end
@@ -350,13 +356,19 @@ end
 
 function CameraSystemModel._ownedShot(self: Model, shot: Part): Part
 	local hierarchy = self:_hierarchy()
-	assert(shot:IsA("BasePart") and shot.Parent == hierarchy.shots, string.format('Shot "%s" is not owned by CameraSystem.Shots', shot.Name))
+	assert(
+		shot:IsA("BasePart") and shot.Parent == hierarchy.shots,
+		string.format('Shot "%s" is not owned by CameraSystem.Shots', shot.Name)
+	)
 	return shot
 end
 
 function CameraSystemModel._ownedZone(self: Model, zone: Part): Part
 	local hierarchy = self:_hierarchy()
-	assert(zone:IsA("BasePart") and zone.Parent == hierarchy.zones, string.format('Zone "%s" is not owned by CameraSystem.Zones', zone.Name))
+	assert(
+		zone:IsA("BasePart") and zone.Parent == hierarchy.zones,
+		string.format('Zone "%s" is not owned by CameraSystem.Zones', zone.Name)
+	)
 	return zone
 end
 
@@ -384,7 +396,12 @@ function CameraSystemModel.validate(self: Model): { string }
 	if zonesInstance == nil or not zonesInstance:IsA("Folder") then
 		add("CameraSystem.Zones folder is missing")
 	end
-	if shotsInstance == nil or not shotsInstance:IsA("Folder") or zonesInstance == nil or not zonesInstance:IsA("Folder") then
+	if
+		shotsInstance == nil
+		or not shotsInstance:IsA("Folder")
+		or zonesInstance == nil
+		or not zonesInstance:IsA("Folder")
+	then
 		return errors
 	end
 

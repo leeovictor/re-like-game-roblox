@@ -23,10 +23,7 @@ export type Facts = {
 		eventName: GameplayEvents.EventName,
 		fields: { [string]: string | number | boolean }?
 	) -> boolean,
-	latest: (
-		self: Facts,
-		eventName: GameplayEvents.EventName
-	) -> GameplayEvents.GameplayEvent?,
+	latest: (self: Facts, eventName: GameplayEvents.EventName) -> GameplayEvents.GameplayEvent?,
 }
 
 export type ObjectiveDefinition = {
@@ -157,7 +154,10 @@ local function validateDefinitions(definitions: any): ()
 		assert(not ids[value.id], "duplicate ids: " .. value.id)
 		ids[value.id] = true
 		assert(type(value.text) == "string" and value.text ~= "", value.id .. " has invalid text")
-		assert(value.initial == true or value.startsWhen ~= nil or value.requires ~= nil, value.id .. " has missing activation gate")
+		assert(
+			value.initial == true or value.startsWhen ~= nil or value.requires ~= nil,
+			value.id .. " has missing activation gate"
+		)
 		local hasEventCompletion = value.completesWhen ~= nil
 		local hasPredicateCompletion = value.completeIf ~= nil
 		assert(hasEventCompletion or hasPredicateCompletion, value.id .. " has missing completion condition")
@@ -192,7 +192,7 @@ local function validateDefinitions(definitions: any): ()
 	for _, definition in definitions do
 		byId[definition.id] = definition
 	end
-		local function visit(id: string): ()
+	local function visit(id: string): ()
 		if visiting[id] then
 			error("dependency cycle: " .. id, 0)
 		end
@@ -241,7 +241,11 @@ local function createController(definitions: any, dependencies: Dependencies?): 
 	local started = false
 	local predicateWarnings: { [string]: boolean } = {}
 
-	local function hasEvent(_self: Facts, eventName: GameplayEvents.EventName, fields: { [string]: string | number | boolean }?): boolean
+	local function hasEvent(
+		_self: Facts,
+		eventName: GameplayEvents.EventName,
+		fields: { [string]: string | number | boolean }?
+	): boolean
 		for _, event in facts do
 			if event.name == eventName then
 				local matchesFields = true
@@ -452,7 +456,7 @@ end
 
 local defaultPlaySound, defaultCleanupSound = makeDefaultSound()
 local defaultController = createController(defaultDefinitions, {
-		events = {
+	events = {
 		subscribe = function(_self: EventSource, callback)
 			return GameplayEvents.subscribe(callback)
 		end,

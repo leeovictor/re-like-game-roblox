@@ -6,7 +6,8 @@ local React = require(ReplicatedStorage.Packages.React)
 local Locator = require(ReplicatedStorage.Shared.locator.locator)
 local StarterPlayer = game:GetService("StarterPlayer")
 
-local DocumentReaderControllerModule = require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
+local DocumentReaderControllerModule =
+	require(StarterPlayer.StarterPlayerScripts.Client.documents.DocumentReaderController)
 local controller: DocumentReaderControllerModule.DocumentReaderController = Locator.get("DocumentReaderController")
 
 local function useDocumentReader()

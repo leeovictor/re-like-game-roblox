@@ -30,14 +30,11 @@ local function useObjectiveNotification(): { ObjectiveView }?
 					return
 				end
 				setBatch(nextBatch)
-				task.delay(
-					timing.fadeInDuration + timing.visibleDuration + timing.fadeOutDuration,
-					function()
-						if active and generation == notificationGeneration then
-							setBatch(nil)
-						end
+				task.delay(timing.fadeInDuration + timing.visibleDuration + timing.fadeOutDuration, function()
+					if active and generation == notificationGeneration then
+						setBatch(nil)
 					end
-				)
+				end)
 			end)
 		end
 
