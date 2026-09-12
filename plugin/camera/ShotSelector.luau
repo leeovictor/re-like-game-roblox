@@ -8,6 +8,10 @@ local TextInput = require(script.Parent.TextInput)
 local ShotSelector = {}
 ShotSelector.__index = ShotSelector
 
+export type Options = {
+	openUpward: boolean?,
+}
+
 export type Selector = typeof(setmetatable(
 	{} :: {
 		root: Frame,
@@ -19,6 +23,7 @@ export type Selector = typeof(setmetatable(
 		options: { string },
 		selected: string?,
 		defaultName: string?,
+		openUpward: boolean,
 		onChanged: (() -> ())?,
 		inputConnection: RBXScriptConnection?,
 		destroyed: boolean,
@@ -41,7 +46,7 @@ local function isPointInside(frame: GuiObject, position: Vector2): boolean
 		and position.Y <= bottomRight.Y
 end
 
-function ShotSelector.new(parent: Instance, onChanged: (() -> ())?): Selector
+function ShotSelector.new(parent: Instance, onChanged: (() -> ())?, options: Options?): Selector
 	local root = make("Frame", parent) :: Frame
 	root.Name = "ShotSelector"
 	root.Size = UDim2.new(1, 0, 0, CameraSystemStyle.inputHeight)
@@ -84,7 +89,6 @@ function ShotSelector.new(parent: Instance, onChanged: (() -> ())?): Selector
 
 	local popup = make("Frame", root) :: Frame
 	popup.Name = "Popup"
-	popup.Position = UDim2.new(0, 0, 1, 4)
 	popup.Size = UDim2.new(1, 0, 0, 0)
 	popup.AutomaticSize = Enum.AutomaticSize.Y
 	popup.BackgroundColor3 = CameraSystemStyle.popup
@@ -123,6 +127,14 @@ function ShotSelector.new(parent: Instance, onChanged: (() -> ())?): Selector
 	local listLayout = make("UIListLayout", list) :: UIListLayout
 	listLayout.Padding = UDim.new(0, 2)
 
+	local openUpward = options ~= nil and options.openUpward == true
+	if openUpward then
+		popup.AnchorPoint = Vector2.new(0, 1)
+		popup.Position = UDim2.new(0, 0, 0, -4)
+	else
+		popup.Position = UDim2.new(0, 0, 1, 4)
+	end
+
 	local selector = setmetatable({
 		root = root,
 		fieldLabel = fieldLabel,
@@ -133,6 +145,7 @@ function ShotSelector.new(parent: Instance, onChanged: (() -> ())?): Selector
 		options = {},
 		selected = nil,
 		defaultName = nil,
+		openUpward = openUpward,
 		onChanged = onChanged,
 		inputConnection = nil,
 		destroyed = false,
@@ -230,7 +243,7 @@ function ShotSelector.renderOptions(self: Selector, filter: string)
 	self.list.Size = UDim2.new(1, 0, 0, math.min(contentHeight, CameraSystemStyle.listMaxHeight))
 end
 
-function ShotSelector.setOptions(self: Selector, names: { string }, defaultName: string?)
+function ShotSelector.setOptions(self: Selector, names: { string }, selectedName: string?, defaultName: string?)
 	local options: { string } = {}
 	for _, name in names do
 		table.insert(options, name)
@@ -238,13 +251,29 @@ function ShotSelector.setOptions(self: Selector, names: { string }, defaultName:
 	self.options = options
 	self.defaultName = defaultName
 	self.selected = nil
-	if defaultName ~= nil then
+	if selectedName ~= nil then
 		for _, name in self.options do
-			if name == defaultName then
-				self.selected = defaultName
+			if name == selectedName then
+				self.selected = selectedName
 				break
 			end
 		end
+	end
+	self:updateFieldLabel()
+	if self.popup.Visible then
+		self:renderOptions(self.search.Text)
+	end
+end
+
+function ShotSelector.syncOptions(self: Selector, names: { string }, defaultName: string?)
+	local options: { string } = {}
+	for _, name in names do
+		table.insert(options, name)
+	end
+	self.options = options
+	self.defaultName = defaultName
+	if self.selected ~= nil and table.find(options, self.selected) == nil then
+		self.selected = nil
 	end
 	self:updateFieldLabel()
 	if self.popup.Visible then

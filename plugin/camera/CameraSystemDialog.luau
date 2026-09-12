@@ -13,6 +13,11 @@ export type Callbacks = {
 	canCancel: (() -> ())?,
 }
 
+export type Options = {
+	confirmText: string?,
+	cancelText: string?,
+}
+
 export type Dialog = typeof(setmetatable(
 	{} :: {
 		scrim: TextButton,
@@ -40,7 +45,14 @@ local function styleFooterButton(button: TextButton, background: Color3)
 	button.AutoButtonColor = true
 end
 
-function CameraSystemDialog.new(gui: DockWidgetPluginGui, title: string, callbacks: Callbacks): Dialog
+function CameraSystemDialog.new(
+	gui: DockWidgetPluginGui,
+	title: string,
+	callbacks: Callbacks,
+	options: Options?
+): Dialog
+	local confirmText = if options ~= nil and options.confirmText ~= nil then options.confirmText else "Create"
+	local cancelText = if options ~= nil and options.cancelText ~= nil then options.cancelText else "Cancel"
 	local scrim = make("TextButton", gui) :: TextButton
 	scrim.Name = "CameraSystemDialog"
 	scrim.Size = UDim2.fromScale(1, 1)
@@ -119,13 +131,13 @@ function CameraSystemDialog.new(gui: DockWidgetPluginGui, title: string, callbac
 	local cancelButton = make("TextButton", footer) :: TextButton
 	cancelButton.Name = "Cancel"
 	cancelButton.Size = UDim2.new(0, 88, 1, 0)
-	cancelButton.Text = "Cancel"
+	cancelButton.Text = cancelText
 	styleFooterButton(cancelButton, CameraSystemStyle.input)
 
 	local confirmButton = make("TextButton", footer) :: TextButton
 	confirmButton.Name = "Create"
 	confirmButton.Size = UDim2.new(0, 88, 1, 0)
-	confirmButton.Text = "Create"
+	confirmButton.Text = confirmText
 	styleFooterButton(confirmButton, CameraSystemStyle.accent)
 
 	local dialog = setmetatable({

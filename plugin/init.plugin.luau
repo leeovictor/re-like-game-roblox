@@ -166,35 +166,6 @@ local function activateEditor()
 					currentModel:createShot(name, camera, fieldOfView)
 				end)
 			end,
-			onCaptureCamera = function()
-				run("Capture Camera", function()
-					local hierarchy = (model :: any):ensureHierarchy()
-					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-					local camera = Workspace.CurrentCamera
-					assert(shot ~= nil, "Select a shot first")
-					local currentModel = model :: any
-					currentModel:captureCamera(shot :: BasePart, camera)
-				end)
-			end,
-			onApplyCamera = function()
-				run("Apply To Camera", function()
-					local hierarchy = (model :: any):ensureHierarchy()
-					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-					local camera = Workspace.CurrentCamera
-					assert(shot ~= nil, "Select a shot first")
-					local currentModel = model :: any
-					currentModel:applyShot(shot :: BasePart, camera)
-				end)
-			end,
-			onSetDefault = function()
-				run("Set Default", function()
-					local hierarchy = (model :: any):ensureHierarchy()
-					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-					assert(shot ~= nil, "Select a shot first")
-					local currentModel = model :: any
-					currentModel:setDefaultShot(shot :: BasePart)
-				end)
-			end,
 			onCreateZone = function(name: string, shotName: string)
 				run("New Zone", function()
 					local hierarchy = (model :: any):ensureHierarchy()
@@ -210,33 +181,94 @@ local function activateEditor()
 					)
 				end)
 			end,
-			onAssignShot = function()
-				run("Assign Shot", function()
+			onCaptureCamera = function(shot: BasePart)
+				run("Capture Camera", function()
 					local hierarchy = (model :: any):ensureHierarchy()
-					local currentWidget = widget :: any
-					local zone = selectedPart(hierarchy.zones, currentWidget.zoneSelection)
-					local shot = selectedPart(hierarchy.shots, currentWidget.shotSelection)
-					assert(zone ~= nil and shot ~= nil, "Select a zone and a shot first")
+					local owned = selectedPart(hierarchy.shots, shot)
+					assert(owned ~= nil, "Select a shot first")
+					local ownedPart = owned :: BasePart
+					local camera = Workspace.CurrentCamera
 					local currentModel = model :: any
-					currentModel:assignShot(zone :: BasePart, shot :: BasePart)
+					currentModel:captureCamera(ownedPart, camera)
 				end)
 			end,
-			onMoveZone = function(delta: number)
+			onApplyCamera = function(shot: BasePart)
+				run("Apply To Camera", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local owned = selectedPart(hierarchy.shots, shot)
+					assert(owned ~= nil, "Select a shot first")
+					local ownedPart = owned :: BasePart
+					local camera = Workspace.CurrentCamera
+					local currentModel = model :: any
+					currentModel:applyShot(ownedPart, camera)
+				end)
+			end,
+			onSetDefault = function(shot: BasePart)
+				run("Set Default", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local owned = selectedPart(hierarchy.shots, shot)
+					assert(owned ~= nil, "Select a shot first")
+					local currentModel = model :: any
+					currentModel:setDefaultShot(owned :: BasePart)
+				end)
+			end,
+			onSaveShot = function(shot: BasePart, name: string, fieldOfView: number)
+				run("Save Shot", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local owned = selectedPart(hierarchy.shots, shot)
+					assert(owned ~= nil, "Select a shot first")
+					local ownedPart = owned :: BasePart
+					local currentModel = model :: any
+					if ownedPart.Name ~= name then
+						currentModel:renameShot(ownedPart, name)
+					end
+					if ownedPart:GetAttribute("FieldOfView") ~= fieldOfView then
+						currentModel:setFieldOfView(ownedPart, fieldOfView)
+					end
+				end)
+			end,
+			onSaveZone = function(zone: BasePart, name: string, shotName: string)
+				run("Save Zone", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local owned = selectedPart(hierarchy.zones, zone)
+					assert(owned ~= nil, "Select a zone first")
+					local ownedPart = owned :: BasePart
+					local shot = hierarchy.shots:FindFirstChild(shotName)
+					assert(shot ~= nil and shot:IsA("BasePart"), string.format('Shot "%s" not found', shotName))
+					local currentModel = model :: any
+					if ownedPart.Name ~= name then
+						currentModel:renameZone(ownedPart, name)
+					end
+					if ownedPart:GetAttribute("ShotId") ~= shotName then
+						currentModel:assignShot(ownedPart, shot :: BasePart)
+					end
+				end)
+			end,
+			onMoveZone = function(zone: BasePart, delta: number)
 				run("Move Zone", function()
 					local hierarchy = (model :: any):ensureHierarchy()
-					local zone = selectedPart(hierarchy.zones, (widget :: any).zoneSelection)
-					assert(zone ~= nil, "Select a zone first")
+					local owned = selectedPart(hierarchy.zones, zone)
+					assert(owned ~= nil, "Select a zone first")
 					local currentModel = model :: any
-					currentModel:reorderZone(zone :: BasePart, delta)
+					currentModel:reorderZone(owned :: BasePart, delta)
 				end)
 			end,
-			onFieldOfView = function(value: number)
-				run("Set FieldOfView", function()
+			onDeleteShot = function(shot: BasePart)
+				run("Delete Shot", function()
 					local hierarchy = (model :: any):ensureHierarchy()
-					local shot = selectedPart(hierarchy.shots, (widget :: any).shotSelection)
-					assert(shot ~= nil, "Select a shot first")
+					local owned = selectedPart(hierarchy.shots, shot)
+					assert(owned ~= nil, "Select a shot first")
 					local currentModel = model :: any
-					currentModel:setFieldOfView(shot :: BasePart, value)
+					currentModel:deleteShot(owned :: BasePart)
+				end)
+			end,
+			onDeleteZone = function(zone: BasePart)
+				run("Delete Zone", function()
+					local hierarchy = (model :: any):ensureHierarchy()
+					local owned = selectedPart(hierarchy.zones, zone)
+					assert(owned ~= nil, "Select a zone first")
+					local currentModel = model :: any
+					currentModel:deleteZone(owned :: BasePart)
 				end)
 			end,
 			onSelect = function(instance: Instance)

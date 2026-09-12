@@ -116,15 +116,20 @@ environment; their defaults match the `Plugins` path documented in
    shots exist). New shots copy the current viewport camera; new zones start as
    a 10x10x10 part at the camera focus, receive the next `Order`, and are
    assigned to the chosen shot.
-3. Select a shot or zone row in the panel, or pick the part in the viewport.
-   The panel and the Studio `Selection` stay in sync.
-4. With a shot selected, use **Capture Camera** to overwrite it from the
-   viewport camera, **Apply To Camera** to move the viewport camera to the shot,
-   **Set Default** to mark it as `DefaultShotId`, and **Set FOV** to apply the
-   value in the field-of-view input.
-5. With a zone selected, use **Assign Shot** to bind it to the selected shot and
-   **Move Up** / **Move Down** to swap `Order` with the adjacent zone.
-6. The status line reports validation errors: missing default shot, invalid
+3. The dock is split into **Shots** and **Zones** tabs. Select a row in the
+   active tab, or pick the part in the viewport, to open the edit panel fixed at
+   the bottom; the Studio `Selection` stays in sync and the matching tab is
+   activated automatically.
+4. In the shot panel, **Apply To Camera** moves the viewport camera to the shot,
+   **Capture Camera** overwrites it from the current camera, and **Set Default**
+   marks it as `DefaultShotId`. Edit `Shot Name` and `Field of View` as a draft
+   and press **Save Changes** to apply both; **Delete** removes the shot only
+   when no zone references it.
+5. In the zone panel, **Move Up** / **Move Down** swap `Order` with the adjacent
+   zone. Edit `Zone Name` and the shot dropdown as a draft and press
+   **Save Changes**; **Delete** removes the zone.
+6. **Close**, switching tabs or changing the selection discards the draft. The
+   status line reports validation errors: missing default shot, invalid
    `FieldOfView`, dangling `ShotId`, invalid or duplicate `Order`, and
    non-positive zone `Size`.
 

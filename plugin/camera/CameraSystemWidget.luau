@@ -2,21 +2,27 @@
 
 local CameraSystemDialog = require(script.Parent.CameraSystemDialog)
 local CameraSystemStyle = require(script.Parent.CameraSystemStyle)
+local ShotEditPanel = require(script.Parent.ShotEditPanel)
 local ShotSelector = require(script.Parent.ShotSelector)
 local TextInput = require(script.Parent.TextInput)
+local ZoneEditPanel = require(script.Parent.ZoneEditPanel)
 
 local CameraSystemWidget = {}
 CameraSystemWidget.__index = CameraSystemWidget
 
+export type TabName = "shots" | "zones"
+
 type Callbacks = {
 	onCreateShot: (string, number) -> (),
 	onCreateZone: (string, string) -> (),
-	onCaptureCamera: () -> (),
-	onApplyCamera: () -> (),
-	onSetDefault: () -> (),
-	onAssignShot: () -> (),
-	onMoveZone: (number) -> (),
-	onFieldOfView: (number) -> (),
+	onCaptureCamera: (BasePart) -> (),
+	onApplyCamera: (BasePart) -> (),
+	onSetDefault: (BasePart) -> (),
+	onMoveZone: (BasePart, number) -> (),
+	onSaveShot: (BasePart, string, number) -> (),
+	onSaveZone: (BasePart, string, string) -> (),
+	onDeleteShot: (BasePart) -> (),
+	onDeleteZone: (BasePart) -> (),
 	onSelect: (Instance) -> (),
 	classifySelection: (Instance) -> string?,
 	getDefaultFieldOfView: () -> number,
@@ -26,15 +32,22 @@ export type Widget = typeof(setmetatable(
 	{} :: {
 		gui: DockWidgetPluginGui,
 		callbacks: Callbacks,
+		activeTab: TabName,
+		shotsContent: ScrollingFrame,
+		zonesContent: ScrollingFrame,
+		shotsTab: TextButton,
+		zonesTab: TextButton,
+		shotsEmpty: TextLabel,
+		zonesEmpty: TextLabel,
+		newZoneButton: TextButton,
+		status: TextLabel,
+		shotPanel: ShotEditPanel.Panel,
+		zonePanel: ZoneEditPanel.Panel,
 		shotRows: { TextButton },
 		zoneRows: { TextButton },
 		rowInstances: { [TextButton]: BasePart },
 		shotSelection: BasePart?,
 		zoneSelection: BasePart?,
-		shotIdInput: TextBox,
-		fovInput: TextBox,
-		status: TextLabel,
-		actionButtons: { [string]: TextButton },
 		shots: { BasePart },
 		zones: { BasePart },
 		defaultShotId: string?,
@@ -53,32 +66,27 @@ local function trim(value: string): string
 	return (string.gsub(value, "^%s*(.-)%s*$", "%1"))
 end
 
-local function styleButton(button: TextButton)
-	button.BackgroundColor3 = CameraSystemStyle.panel
+local function styleButton(button: TextButton, background: Color3)
+	button.BackgroundColor3 = background
 	button.BorderSizePixel = 0
 	button.TextColor3 = CameraSystemStyle.text
 	button.TextSize = CameraSystemStyle.textSize
 	button.AutoButtonColor = true
 end
 
+local function setButtonEnabled(button: TextButton, enabled: boolean)
+	button.Active = enabled
+	button.AutoButtonColor = enabled
+	button.TextTransparency = if enabled then 0 else 0.5
+end
+
 local function makeButton(parent: Instance, text: string, callback: () -> ()): TextButton
 	local button = make("TextButton", parent) :: TextButton
 	button.Text = text
 	button.Size = UDim2.new(1, 0, 0, CameraSystemStyle.buttonHeight)
-	styleButton(button)
+	styleButton(button, CameraSystemStyle.panel)
 	button.Activated:Connect(callback)
 	return button
-end
-
-local function makeSection(parent: Instance, title: string): (Frame, UIListLayout)
-	local section = make("Frame", parent) :: Frame
-	section.Name = title
-	section.Size = UDim2.new(1, -12, 0, 0)
-	section.AutomaticSize = Enum.AutomaticSize.Y
-	section.BackgroundTransparency = 1
-	local layout = make("UIListLayout", section) :: UIListLayout
-	layout.Padding = UDim.new(0, 4)
-	return section, layout
 end
 
 local function makeLabel(parent: Instance, text: string, order: number): TextLabel
@@ -94,95 +102,213 @@ local function makeLabel(parent: Instance, text: string, order: number): TextLab
 	return label
 end
 
+local function makeEmptyLabel(parent: Instance, text: string): TextLabel
+	local label = make("TextLabel", parent) :: TextLabel
+	label.Name = "Empty"
+	label.Size = UDim2.new(1, 0, 0, 0)
+	label.AutomaticSize = Enum.AutomaticSize.Y
+	label.BackgroundTransparency = 1
+	label.TextColor3 = CameraSystemStyle.mutedText
+	label.TextSize = CameraSystemStyle.smallTextSize
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Text = text
+	label.LayoutOrder = 2
+	return label
+end
+
+local function makeList(parent: Instance, name: string): ScrollingFrame
+	local list = make("ScrollingFrame", parent) :: ScrollingFrame
+	list.Name = name
+	list.Size = UDim2.fromScale(1, 1)
+	list.CanvasSize = UDim2.new()
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	list.ScrollBarThickness = 8
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	local layout = make("UIListLayout", list) :: UIListLayout
+	layout.Padding = UDim.new(0, 4)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	local padding = make("UIPadding", list) :: UIPadding
+	padding.PaddingTop = UDim.new(0, 4)
+	padding.PaddingBottom = UDim.new(0, 4)
+	padding.PaddingLeft = UDim.new(0, 4)
+	padding.PaddingRight = UDim.new(0, 4)
+	return list
+end
+
+local function styleTab(button: TextButton, active: boolean)
+	button.BackgroundColor3 = if active then CameraSystemStyle.accent else CameraSystemStyle.panel
+	button.BorderSizePixel = 0
+	button.TextColor3 = CameraSystemStyle.text
+	button.TextSize = CameraSystemStyle.textSize
+	button.AutoButtonColor = true
+end
+
+local function formatNameList(names: { string }): string
+	local quoted: { string } = {}
+	for _, name in names do
+		table.insert(quoted, string.format('"%s"', name))
+	end
+	return table.concat(quoted, ", ")
+end
+
 function CameraSystemWidget.new(gui: DockWidgetPluginGui, callbacks: Callbacks): Widget
 	gui.Title = "Camera System"
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-	local root = make("ScrollingFrame", gui) :: ScrollingFrame
+	local root = make("Frame", gui) :: Frame
+	root.Name = "Root"
 	root.Size = UDim2.fromScale(1, 1)
-	root.CanvasSize = UDim2.new()
-	root.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	root.ScrollBarThickness = 8
 	root.BackgroundColor3 = CameraSystemStyle.background
 	root.BorderSizePixel = 0
 	local rootLayout = make("UIListLayout", root) :: UIListLayout
 	rootLayout.Padding = UDim.new(0, 6)
-	local padding = make("UIPadding", root) :: UIPadding
-	padding.PaddingTop = UDim.new(0, 6)
-	padding.PaddingBottom = UDim.new(0, 6)
-	padding.PaddingLeft = UDim.new(0, 6)
-	padding.PaddingRight = UDim.new(0, 6)
+	rootLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	local rootPadding = make("UIPadding", root) :: UIPadding
+	rootPadding.PaddingTop = UDim.new(0, 6)
+	rootPadding.PaddingBottom = UDim.new(0, 6)
+	rootPadding.PaddingLeft = UDim.new(0, 6)
+	rootPadding.PaddingRight = UDim.new(0, 6)
 
 	local widgetRef: Widget? = nil
 
-	local actions = makeSection(root, "Actions")
-	makeButton(actions, "New Shot", function()
+	local tabBar = make("Frame", root) :: Frame
+	tabBar.Name = "TabBar"
+	tabBar.Size = UDim2.new(1, 0, 0, CameraSystemStyle.buttonHeight)
+	tabBar.BackgroundTransparency = 1
+	tabBar.LayoutOrder = 1
+	local tabLayout = make("UIListLayout", tabBar) :: UIListLayout
+	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.Padding = UDim.new(0, 6)
+	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local shotsTab = make("TextButton", tabBar) :: TextButton
+	shotsTab.Name = "ShotsTab"
+	shotsTab.Text = "Shots"
+	shotsTab.Size = UDim2.new(0.5, -3, 1, 0)
+	shotsTab.LayoutOrder = 1
+	styleTab(shotsTab, true)
+
+	local zonesTab = make("TextButton", tabBar) :: TextButton
+	zonesTab.Name = "ZonesTab"
+	zonesTab.Text = "Zones"
+	zonesTab.Size = UDim2.new(0.5, -3, 1, 0)
+	zonesTab.LayoutOrder = 2
+	styleTab(zonesTab, false)
+
+	local contentArea = make("Frame", root) :: Frame
+	contentArea.Name = "ContentArea"
+	contentArea.Size = UDim2.new(1, 0, 0, 0)
+	contentArea.BackgroundTransparency = 1
+	contentArea.LayoutOrder = 2
+	local flex = make("UIFlexItem", contentArea) :: UIFlexItem
+	flex.FlexMode = Enum.UIFlexMode.Fill
+
+	local shotsContent = makeList(contentArea, "ShotsContent")
+	local newShotButton = makeButton(shotsContent, "New Shot", function()
 		local current = widgetRef
 		if current ~= nil then
 			current:openNewShotDialog()
 		end
 	end)
-	local captureButton = makeButton(actions, "Capture Camera", callbacks.onCaptureCamera)
-	local applyButton = makeButton(actions, "Apply To Camera", callbacks.onApplyCamera)
-	local defaultButton = makeButton(actions, "Set Default", callbacks.onSetDefault)
-	local newZoneButton = makeButton(actions, "New Zone", function()
+	newShotButton.LayoutOrder = 1
+	local shotsEmpty = makeEmptyLabel(shotsContent, "No shots yet")
+
+	local zonesContent = makeList(contentArea, "ZonesContent")
+	zonesContent.Visible = false
+	local newZoneButton = makeButton(zonesContent, "New Zone", function()
 		local current = widgetRef
 		if current ~= nil then
 			current:openNewZoneDialog()
 		end
 	end)
-
-	local shotsSection = makeSection(root, "Shots")
-	local fovInput = TextInput.new(shotsSection, { placeholder = "Field of View (1-120)" })
-	local fovButton = makeButton(shotsSection, "Set FOV", function()
-		local value = tonumber(fovInput.Text)
-		if value ~= nil then
-			callbacks.onFieldOfView(value)
-		end
-	end)
-	fovButton.Name = "SetFieldOfView"
-
-	local zonesSection = makeSection(root, "Zones")
-	local shotIdInput = TextInput.new(zonesSection, { placeholder = "ShotId" })
-	local assignButton = makeButton(zonesSection, "Assign Shot", callbacks.onAssignShot)
-	local moveUpButton = makeButton(zonesSection, "Move Up", function()
-		callbacks.onMoveZone(-1)
-	end)
-	local moveDownButton = makeButton(zonesSection, "Move Down", function()
-		callbacks.onMoveZone(1)
-	end)
+	newZoneButton.LayoutOrder = 1
+	local zonesEmpty = makeEmptyLabel(zonesContent, "No zones yet")
 
 	local status = make("TextLabel", root) :: TextLabel
 	status.Name = "Status"
-	status.Size = UDim2.new(1, -12, 0, 0)
+	status.Size = UDim2.new(1, 0, 0, 0)
 	status.AutomaticSize = Enum.AutomaticSize.Y
 	status.TextWrapped = true
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.TextColor3 = CameraSystemStyle.errorText
 	status.BackgroundTransparency = 1
 	status.TextSize = CameraSystemStyle.smallTextSize
+	status.LayoutOrder = 3
+
+	local shotPanel = ShotEditPanel.new(root, {
+		onApply = function(shot: BasePart)
+			callbacks.onApplyCamera(shot)
+		end,
+		onCapture = function(shot: BasePart)
+			callbacks.onCaptureCamera(shot)
+		end,
+		onSetDefault = function(shot: BasePart)
+			callbacks.onSetDefault(shot)
+		end,
+		onDelete = function(shot: BasePart)
+			local current = widgetRef
+			if current ~= nil then
+				current:requestDeleteShot(shot)
+			end
+		end,
+		onSave = function(shot: BasePart, name: string, fieldOfView: number)
+			callbacks.onSaveShot(shot, name, fieldOfView)
+		end,
+		onClose = function()
+			local current = widgetRef
+			if current ~= nil then
+				current:closeShotPanel()
+			end
+		end,
+	})
+	shotPanel.root.LayoutOrder = 4
+
+	local zonePanel = ZoneEditPanel.new(root, {
+		onMoveUp = function(zone: BasePart)
+			callbacks.onMoveZone(zone, -1)
+		end,
+		onMoveDown = function(zone: BasePart)
+			callbacks.onMoveZone(zone, 1)
+		end,
+		onDelete = function(zone: BasePart)
+			local current = widgetRef
+			if current ~= nil then
+				current:requestDeleteZone(zone)
+			end
+		end,
+		onSave = function(zone: BasePart, name: string, shotName: string)
+			callbacks.onSaveZone(zone, name, shotName)
+		end,
+		onClose = function()
+			local current = widgetRef
+			if current ~= nil then
+				current:closeZonePanel()
+			end
+		end,
+	})
+	zonePanel.root.LayoutOrder = 5
 
 	local widget = setmetatable({
 		gui = gui,
 		callbacks = callbacks,
+		activeTab = "shots" :: TabName,
+		shotsContent = shotsContent,
+		zonesContent = zonesContent,
+		shotsTab = shotsTab,
+		zonesTab = zonesTab,
+		shotsEmpty = shotsEmpty,
+		zonesEmpty = zonesEmpty,
+		newZoneButton = newZoneButton,
+		status = status,
+		shotPanel = shotPanel,
+		zonePanel = zonePanel,
 		shotRows = {},
 		zoneRows = {},
 		rowInstances = {},
 		shotSelection = nil,
 		zoneSelection = nil,
-		shotIdInput = shotIdInput,
-		fovInput = fovInput,
-		status = status,
-		actionButtons = {
-			capture = captureButton,
-			apply = applyButton,
-			default = defaultButton,
-			assign = assignButton,
-			moveUp = moveUpButton,
-			moveDown = moveDownButton,
-			fov = fovButton,
-			newZone = newZoneButton,
-		},
 		shots = {},
 		zones = {},
 		defaultShotId = nil,
@@ -190,33 +316,34 @@ function CameraSystemWidget.new(gui: DockWidgetPluginGui, callbacks: Callbacks):
 	}, CameraSystemWidget) :: Widget
 
 	widgetRef = widget
+
+	shotsTab.Activated:Connect(function()
+		local current = widgetRef
+		if current ~= nil then
+			current:setActiveTab("shots")
+		end
+	end)
+	zonesTab.Activated:Connect(function()
+		local current = widgetRef
+		if current ~= nil then
+			current:setActiveTab("zones")
+		end
+	end)
+
 	return widget
 end
 
-function CameraSystemWidget.setSelection(self: Widget, instance: Instance?)
-	local selectionKind = if instance == nil then nil else self.callbacks.classifySelection(instance)
-	if selectionKind == "shot" and instance ~= nil and instance:IsA("BasePart") then
-		self.shotSelection = instance
-		self.fovInput.Text = tostring(instance:GetAttribute("FieldOfView") or "")
-	elseif selectionKind == "zone" and instance ~= nil and instance:IsA("BasePart") then
-		self.zoneSelection = instance
-		self.shotIdInput.Text = tostring(instance:GetAttribute("ShotId") or "")
-	elseif selectionKind == nil then
-		self.shotSelection = nil
-		self.zoneSelection = nil
-	end
-	self:updateSelectionVisuals()
+function CameraSystemWidget.setActiveTab(self: Widget, tab: TabName)
+	self.activeTab = tab
+	local shotsActive = tab == "shots"
+	self.shotsContent.Visible = shotsActive
+	self.zonesContent.Visible = not shotsActive
+	styleTab(self.shotsTab, shotsActive)
+	styleTab(self.zonesTab, not shotsActive)
+	self:updatePanels()
 end
 
-function CameraSystemWidget.clearSelection(self: Widget)
-	self.shotSelection = nil
-	self.zoneSelection = nil
-	self.fovInput.Text = ""
-	self.shotIdInput.Text = ""
-	self:updateSelectionVisuals()
-end
-
-function CameraSystemWidget.updateSelectionVisuals(self: Widget)
+function CameraSystemWidget.updateRows(self: Widget)
 	for _, row in self.shotRows do
 		row.BackgroundColor3 = if self.rowInstances[row] == self.shotSelection
 			then CameraSystemStyle.accent
@@ -227,19 +354,70 @@ function CameraSystemWidget.updateSelectionVisuals(self: Widget)
 			then CameraSystemStyle.accent
 			else CameraSystemStyle.panel
 	end
-	local hasShot = self.shotSelection ~= nil
-	local hasZone = self.zoneSelection ~= nil
-	for name, button in self.actionButtons do
-		local enabled = if name == "assign"
-			then hasShot and hasZone
-			elseif name == "moveUp" or name == "moveDown" then hasZone
-			elseif name == "fov" or name == "capture" or name == "apply" or name == "default" then hasShot
-			elseif name == "newZone" then #self.shots > 0
-			else true
-		button.Active = enabled
-		button.AutoButtonColor = enabled
-		button.TextTransparency = if enabled then 0 else 0.5
+end
+
+function CameraSystemWidget.updatePanels(self: Widget)
+	local shot = self.shotSelection
+	if self.activeTab == "shots" and shot ~= nil then
+		if self.shotPanel:getEditingPart() ~= shot then
+			self.shotPanel:show(shot)
+		else
+			self.shotPanel:update(shot)
+		end
+	elseif self.shotPanel.root.Visible then
+		self.shotPanel:hide()
 	end
+
+	local zone = self.zoneSelection
+	if self.activeTab == "zones" and zone ~= nil then
+		local names: { string } = {}
+		for _, item in self.shots do
+			table.insert(names, item.Name)
+		end
+		local index = table.find(self.zones, zone)
+		local canMoveUp = index ~= nil and index > 1
+		local canMoveDown = index ~= nil and index < #self.zones
+		if self.zonePanel:getEditingPart() ~= zone then
+			self.zonePanel:show(zone, names, self.defaultShotId)
+		end
+		self.zonePanel:update(zone, names, self.defaultShotId, canMoveUp, canMoveDown)
+	elseif self.zonePanel.root.Visible then
+		self.zonePanel:hide()
+	end
+end
+
+function CameraSystemWidget.setSelection(self: Widget, instance: Instance?)
+	local selectionKind = if instance == nil then nil else self.callbacks.classifySelection(instance)
+	if selectionKind == "shot" and instance ~= nil and instance:IsA("BasePart") then
+		self.shotSelection = instance
+		self:setActiveTab("shots")
+	elseif selectionKind == "zone" and instance ~= nil and instance:IsA("BasePart") then
+		self.zoneSelection = instance
+		self:setActiveTab("zones")
+	elseif selectionKind == nil then
+		self:clearSelection()
+	end
+	self:updateRows()
+end
+
+function CameraSystemWidget.clearSelection(self: Widget)
+	self.shotSelection = nil
+	self.zoneSelection = nil
+	self.shotPanel:hide()
+	self.zonePanel:hide()
+	self:updateRows()
+end
+
+function CameraSystemWidget.closeShotPanel(self: Widget)
+	self.shotSelection = nil
+	self.shotPanel:hide()
+	self:updateRows()
+end
+
+function CameraSystemWidget.closeZonePanel(self: Widget)
+	self.zoneSelection = nil
+	self.zonePanel:hide()
+	self:updateRows()
 end
 
 function CameraSystemWidget.refresh(
@@ -263,36 +441,56 @@ function CameraSystemWidget.refresh(
 	table.clear(self.zoneRows)
 	table.clear(self.rowInstances)
 
-	for _, shot in shots do
-		local row = make("TextButton", self.gui:FindFirstChild("ScrollingFrame") :: Instance) :: TextButton
+	for index, shot in shots do
+		local row = make("TextButton", self.shotsContent) :: TextButton
 		row.Name = "Shot_" .. shot.Name
 		row.Text = string.format("Shot: %s%s", shot.Name, if shot.Name == defaultShotId then " (default)" else "")
 		row.Size = UDim2.new(1, -12, 0, 24)
-		styleButton(row)
+		row.LayoutOrder = index + 2
+		styleButton(row, CameraSystemStyle.panel)
 		self.rowInstances[row] = shot
 		row.Activated:Connect(function()
 			self.shotSelection = shot
+			self:setActiveTab("shots")
+			self:updateRows()
 			self.callbacks.onSelect(shot)
 		end)
 		table.insert(self.shotRows, row)
 	end
 
-	for _, zone in zones do
-		local row = make("TextButton", self.gui:FindFirstChild("ScrollingFrame") :: Instance) :: TextButton
+	for index, zone in zones do
+		local row = make("TextButton", self.zonesContent) :: TextButton
 		row.Name = "Zone_" .. zone.Name
 		row.Text = string.format("Zone: %s -> %s", zone.Name, tostring(zone:GetAttribute("ShotId") or "<unassigned>"))
 		row.Size = UDim2.new(1, -12, 0, 24)
-		styleButton(row)
+		row.LayoutOrder = index + 2
+		styleButton(row, CameraSystemStyle.panel)
 		self.rowInstances[row] = zone
 		row.Activated:Connect(function()
 			self.zoneSelection = zone
+			self:setActiveTab("zones")
+			self:updateRows()
 			self.callbacks.onSelect(zone)
 		end)
 		table.insert(self.zoneRows, row)
 	end
 
+	self.shotsEmpty.Visible = #shots == 0
+	self.zonesEmpty.Visible = #zones == 0
+	setButtonEnabled(self.newZoneButton, #shots > 0)
 	self.status.Text = if #errors == 0 then "Valid camera system" else table.concat(errors, "\n")
-	self:updateSelectionVisuals()
+
+	if self.shotSelection ~= nil and table.find(shots, self.shotSelection) == nil then
+		self.shotSelection = nil
+		self.shotPanel:hide()
+	end
+	if self.zoneSelection ~= nil and table.find(zones, self.zoneSelection) == nil then
+		self.zoneSelection = nil
+		self.zonePanel:hide()
+	end
+
+	self:updateRows()
+	self:updatePanels()
 end
 
 function CameraSystemWidget.closeDialog(self: Widget)
@@ -302,6 +500,43 @@ function CameraSystemWidget.closeDialog(self: Widget)
 	local dialog = self.dialog
 	self.dialog = nil
 	dialog:destroy()
+end
+
+function CameraSystemWidget.openConfirmDialog(self: Widget, title: string, message: string, onConfirm: () -> ())
+	self:closeDialog()
+	local created = CameraSystemDialog.new(self.gui, title, {
+		onCancel = function()
+			self.dialog = nil
+		end,
+		onConfirm = function()
+			self.dialog = nil
+			onConfirm()
+		end,
+	}, { confirmText = "Delete", cancelText = "Cancel" })
+	self.dialog = created
+	makeLabel(created.content, message, 1)
+end
+
+function CameraSystemWidget.requestDeleteShot(self: Widget, shot: BasePart)
+	local referencing: { string } = {}
+	for _, zone in self.zones do
+		if zone:GetAttribute("ShotId") == shot.Name then
+			table.insert(referencing, zone.Name)
+		end
+	end
+	if #referencing > 0 then
+		self.shotPanel:setError(string.format("Cannot delete: referenced by zones %s", formatNameList(referencing)))
+		return
+	end
+	self:openConfirmDialog("Delete Shot", string.format('Delete shot "%s"?', shot.Name), function()
+		self.callbacks.onDeleteShot(shot)
+	end)
+end
+
+function CameraSystemWidget.requestDeleteZone(self: Widget, zone: BasePart)
+	self:openConfirmDialog("Delete Zone", string.format('Delete zone "%s"?', zone.Name), function()
+		self.callbacks.onDeleteZone(zone)
+	end)
 end
 
 function CameraSystemWidget.openNewShotDialog(self: Widget)
@@ -470,7 +705,7 @@ function CameraSystemWidget.openNewZoneDialog(self: Widget)
 	local shotSelector = ShotSelector.new(created.content, evaluate)
 	shotSelector.root.LayoutOrder = 3
 	selector = shotSelector
-	shotSelector:setOptions(names, self.defaultShotId)
+	shotSelector:setOptions(names, self.defaultShotId, self.defaultShotId)
 
 	input.FocusLost:Connect(function(enterPressed)
 		local currentDialog = dialog

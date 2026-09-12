@@ -261,6 +261,74 @@ function CameraSystemModel.setDefaultShot(self: Model, shot: Part)
 	setWaypoint(self.changeHistoryService, "Camera System: End set default shot")
 end
 
+function CameraSystemModel.renameShot(self: Model, shot: Part, newName: string): ()
+	local ownedShot = self:_ownedShot(shot)
+	local shotName = requireNonEmptyName(newName)
+	local hierarchy = self:_hierarchy()
+	local existing = hierarchy.shots:FindFirstChild(shotName)
+	assert(existing == nil or existing == ownedShot, string.format('Shot "%s" already exists', shotName))
+
+	local previousName = ownedShot.Name
+	setWaypoint(self.changeHistoryService, "Camera System: Begin rename shot")
+	ownedShot.Name = shotName
+	for _, child in hierarchy.zones:GetChildren() do
+		if child:IsA("BasePart") and child:GetAttribute(SHOT_ID) == previousName then
+			child:SetAttribute(SHOT_ID, shotName)
+		end
+	end
+	if hierarchy.root:GetAttribute(DEFAULT_SHOT_ID) == previousName then
+		hierarchy.root:SetAttribute(DEFAULT_SHOT_ID, shotName)
+	end
+	setWaypoint(self.changeHistoryService, "Camera System: End rename shot")
+end
+
+function CameraSystemModel.renameZone(self: Model, zone: Part, newName: string): ()
+	local ownedZone = self:_ownedZone(zone)
+	local zoneName = requireNonEmptyName(newName)
+	local hierarchy = self:_hierarchy()
+	local existing = hierarchy.zones:FindFirstChild(zoneName)
+	assert(existing == nil or existing == ownedZone, string.format('Zone "%s" already exists', zoneName))
+
+	setWaypoint(self.changeHistoryService, "Camera System: Begin rename zone")
+	ownedZone.Name = zoneName
+	setWaypoint(self.changeHistoryService, "Camera System: End rename zone")
+end
+
+function CameraSystemModel.deleteShot(self: Model, shot: Part): ()
+	local ownedShot = self:_ownedShot(shot)
+	local hierarchy = self:_hierarchy()
+	local referencing: { string } = {}
+	for _, child in hierarchy.zones:GetChildren() do
+		if child:IsA("BasePart") and child:GetAttribute(SHOT_ID) == ownedShot.Name then
+			table.insert(referencing, child.Name)
+		end
+	end
+	assert(
+		#referencing == 0,
+		string.format('Shot "%s" is referenced by zones: %s', ownedShot.Name, table.concat(referencing, ", "))
+	)
+
+	local wasDefault = hierarchy.root:GetAttribute(DEFAULT_SHOT_ID) == ownedShot.Name
+	setWaypoint(self.changeHistoryService, "Camera System: Begin delete shot")
+	ownedShot:Destroy()
+	if wasDefault then
+		local remaining = self:listShots()
+		if #remaining > 0 then
+			hierarchy.root:SetAttribute(DEFAULT_SHOT_ID, remaining[1].Name)
+		else
+			hierarchy.root:SetAttribute(DEFAULT_SHOT_ID, nil)
+		end
+	end
+	setWaypoint(self.changeHistoryService, "Camera System: End delete shot")
+end
+
+function CameraSystemModel.deleteZone(self: Model, zone: Part): ()
+	local ownedZone = self:_ownedZone(zone)
+	setWaypoint(self.changeHistoryService, "Camera System: Begin delete zone")
+	ownedZone:Destroy()
+	setWaypoint(self.changeHistoryService, "Camera System: End delete zone")
+end
+
 function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame, size: Vector3, shot: Part?): Part
 	local zoneName = requireNonEmptyName(name)
 	local hierarchy = self:ensureHierarchy()
@@ -527,7 +595,9 @@ function CameraSystemModel.validate(self: Model): { string }
 
 	local defaultShotId = rootFolder:GetAttribute(DEFAULT_SHOT_ID)
 	local seenOrders: { [number]: BasePart? } = {}
-	if type(defaultShotId) ~= "string" or defaultShotId == "" or shots[defaultShotId] == nil then
+	if
+		next(shots) ~= nil and (type(defaultShotId) ~= "string" or defaultShotId == "" or shots[defaultShotId] == nil)
+	then
 		add("CameraSystem DefaultShotId must reference an existing shot")
 	end
 
