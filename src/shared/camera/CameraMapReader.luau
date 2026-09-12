@@ -1,6 +1,7 @@
 --!strict
 
 local CameraConfig = require(script.Parent.CameraConfig)
+local CameraSystemData = require(script.Parent.CameraSystemData)
 
 local CameraMapReader = {}
 
@@ -26,72 +27,57 @@ local function requireFolder(parent: Instance, name: string): Folder
 	return child :: Folder
 end
 
-local function requireString(instance: Instance, attributeName: string): string
-	local value = instance:GetAttribute(attributeName)
-	if type(value) ~= "string" or value == "" then
-		fail("Instance", instance.Name, string.format("deve ter o atributo %s como string nao vazia", attributeName))
+local function requireNonEmptyString(instanceName: string, value: string, attributeName: string): string
+	if value == "" then
+		fail("Instance", instanceName, string.format("deve ter o atributo %s como string nao vazia", attributeName))
 	end
-	return value :: string
+	return value
 end
 
-function CameraMapReader.read(rootName: string): CameraConfig.Config
-	local cameraSystem = workspace:WaitForChild(rootName)
-	if not cameraSystem:IsA("Folder") then
-		fail("Instance", cameraSystem.Name, "deve ser uma Folder")
+local function folderHasBasePart(folder: Folder): boolean
+	for _, child in folder:GetChildren() do
+		if child:IsA("BasePart") then
+			return true
+		end
 	end
-	local rootFolder = cameraSystem :: Folder
+	return false
+end
 
-	local shotsFolder = requireFolder(rootFolder, "Shots")
-	local zonesFolder = requireFolder(rootFolder, "Zones")
-	local defaultShotId = requireString(rootFolder, "DefaultShotId")
+local function toRuntimeConfig(raw: CameraSystemData.Config, rootFolder: Folder): CameraConfig.Config
 	local shots: { [CameraConfig.ShotId]: CameraConfig.Shot } = {}
-
-	for _, shotInstance in shotsFolder:GetChildren() do
-		if not shotInstance:IsA("BasePart") then
-			fail("Shot", shotInstance.Name, "deve ser uma BasePart")
+	for _, shot in raw.shots do
+		if shot.fieldOfView < 1 or shot.fieldOfView > 120 then
+			fail("Shot", shot.name, "deve ter FieldOfView entre 1 e 120")
 		end
-		local shot = shotInstance :: BasePart
-
-		local fieldOfView = shot:GetAttribute("FieldOfView")
-		if type(fieldOfView) ~= "number" or fieldOfView < 1 or fieldOfView > 120 then
-			fail("Shot", shot.Name, "deve ter FieldOfView entre 1 e 120")
-		end
-		shots[shot.Name] = {
-			cframe = shot.CFrame,
-			fieldOfView = fieldOfView :: number,
+		shots[shot.name] = {
+			cframe = shot.cframe,
+			fieldOfView = shot.fieldOfView,
 		}
 	end
 
-	if shots[defaultShotId] == nil then
+	local defaultShotId = raw.defaultShotId
+	if defaultShotId == "" or shots[defaultShotId] == nil then
 		fail("Folder", rootFolder.Name, string.format('DefaultShotId "%s" nao existe em Shots', defaultShotId))
 	end
 
 	local pendingZones: { PendingZone } = {}
-	for _, zoneInstance in zonesFolder:GetChildren() do
-		if not zoneInstance:IsA("BasePart") then
-			fail("Zone", zoneInstance.Name, "deve ser uma BasePart")
+	for _, zone in raw.zones do
+		local shotId = requireNonEmptyString(zone.name, zone.shotId, "ShotId")
+		if zone.order % 1 ~= 0 then
+			fail("Zone", zone.name, "deve ter Order como numero inteiro")
 		end
-		local zone = zoneInstance :: BasePart
-
-		local shotId = requireString(zone, "ShotId")
-		local order = zone:GetAttribute("Order")
-		if type(order) ~= "number" or order % 1 ~= 0 then
-			fail("Zone", zone.Name, "deve ter Order como numero inteiro")
-		end
-
-		local size = zone.Size
-		if size.X <= 0 or size.Y <= 0 or size.Z <= 0 then
-			fail("Zone", zone.Name, "deve ter Size com todos os eixos maiores que zero")
+		if zone.size.X <= 0 or zone.size.Y <= 0 or zone.size.Z <= 0 then
+			fail("Zone", zone.name, "deve ter Size com todos os eixos maiores que zero")
 		end
 
 		table.insert(pendingZones, {
-			name = zone.Name,
-			order = order :: number,
+			name = zone.name,
+			order = zone.order,
 			zone = {
-				id = zone.Name,
+				id = zone.name,
 				volume = {
-					cframe = zone.CFrame,
-					size = size,
+					cframe = zone.cframe,
+					size = zone.size,
 				},
 				shotId = shotId,
 			},
@@ -118,6 +104,30 @@ function CameraMapReader.read(rootName: string): CameraConfig.Config
 		shots = shots,
 		zones = zones,
 	}
+end
+
+function CameraMapReader.read(rootName: string): CameraConfig.Config
+	local cameraSystem = workspace:WaitForChild(rootName)
+	if not cameraSystem:IsA("Folder") then
+		fail("Instance", cameraSystem.Name, "deve ser uma Folder")
+	end
+	local rootFolder = cameraSystem :: Folder
+
+	local shotsFolder = requireFolder(rootFolder, "Shots")
+	local zonesFolder = requireFolder(rootFolder, "Zones")
+
+	local raw: CameraSystemData.Config
+	if folderHasBasePart(shotsFolder) or folderHasBasePart(zonesFolder) then
+		raw = CameraSystemData.capture(rootFolder)
+	else
+		local data = rootFolder:WaitForChild(CameraSystemData.DATA_NAME)
+		if not data:IsA("StringValue") then
+			fail("Instance", string.format("%s.%s", rootFolder.Name, data.Name), "deve ser um StringValue")
+		end
+		raw = CameraSystemData.decode((data :: StringValue).Value)
+	end
+
+	return toRuntimeConfig(raw, rootFolder)
 end
 
 return CameraMapReader

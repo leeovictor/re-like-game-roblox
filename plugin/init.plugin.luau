@@ -58,20 +58,54 @@ local function run(label: string, operation: () -> ())
 	refresh()
 end
 
-local function setPersistedPartsTransparency(transparency: number)
-	local root = Workspace:FindFirstChild("CameraSystem")
-	if root == nil or not root:IsA("Folder") then
+local function ensureModel()
+	if model == nil then
+		model = CameraSystemModel.new(Workspace, Selection, ChangeHistoryService)
+	end
+	return model
+end
+
+local function persistParts(): boolean
+	if model == nil then
+		return false
+	end
+	local currentModel = model
+	local success, failure = pcall(function()
+		local config = currentModel:captureConfig()
+		currentModel:writeData(config)
+	end)
+	if not success then
+		warn(string.format("Camera System: persist parts failed: %s", tostring(failure)))
+		return false
+	end
+	return true
+end
+
+local function removeParts(): boolean
+	if model == nil then
+		return false
+	end
+	local currentModel = model
+	local success, failure = pcall(function()
+		currentModel:destroyParts()
+	end)
+	if not success then
+		warn(string.format("Camera System: remove parts failed: %s", tostring(failure)))
+		return false
+	end
+	return true
+end
+
+local function normalizeInactiveState()
+	local existing = Workspace:FindFirstChild("CameraSystem")
+	if existing == nil or not existing:IsA("Folder") then
 		return
 	end
-	for _, folderName in { "Shots", "Zones" } do
-		local folder = root:FindFirstChild(folderName)
-		if folder ~= nil and folder:IsA("Folder") then
-			for _, child in folder:GetChildren() do
-				if child:IsA("BasePart") then
-					child.Transparency = transparency
-					child.Locked = true
-				end
-			end
+	local currentModel = ensureModel()
+	currentModel:ensureHierarchy()
+	if currentModel:hasParts() then
+		if persistParts() then
+			removeParts()
 		end
 	end
 end
@@ -85,16 +119,14 @@ local function deactivateEditor()
 	if preview ~= nil then
 		preview:clear()
 	end
-	if model ~= nil then
-		local success, failure = pcall(function()
-			(model :: any):setPartsVisible(false)
-		end)
-		if not success then
-			warn(string.format("Camera System: hide parts failed: %s", tostring(failure)))
-		end
+	if persistParts() then
+		removeParts()
 	end
-	if widget ~= nil and (widget :: any).gui.Enabled then
-		(widget :: any).gui.Enabled = false
+	if widget ~= nil then
+		widget:clearSelection()
+	end
+	if widget ~= nil and widget.gui.Enabled then
+		widget.gui.Enabled = false
 	end
 	editorActive = false
 	deactivating = false
@@ -103,7 +135,7 @@ end
 local function destroyEditor()
 	deactivateEditor()
 	if widget ~= nil then
-		(widget :: any):destroy()
+		widget:destroy()
 	end
 	widget = nil
 	preview = nil
@@ -115,9 +147,9 @@ local function activateEditor()
 		return
 	end
 
+	ensureModel()
+
 	if widget == nil then
-		model = CameraSystemModel.new(Workspace, Selection, ChangeHistoryService)
-		model:ensureHierarchy()
 		preview = CameraSystemPreview.new(Workspace)
 
 		local callbacks = {
@@ -226,7 +258,13 @@ local function activateEditor()
 	editorActive = true
 	local currentModel = model :: any
 	currentModel:ensureHierarchy()
-	currentModel:setPartsVisible(true)
+	if not currentModel:hasParts() then
+		local config = currentModel:readData()
+		if config ~= nil then
+			currentModel:materialize(config)
+		end
+	end
+	currentModel:showParts()
 	table.insert(
 		connections,
 		Selection.SelectionChanged:Connect(function()
@@ -275,4 +313,4 @@ toolbarButton.Click:Connect(function()
 end)
 
 pluginApi.Unloading:Connect(destroyEditor)
-setPersistedPartsTransparency(1)
+normalizeInactiveState()

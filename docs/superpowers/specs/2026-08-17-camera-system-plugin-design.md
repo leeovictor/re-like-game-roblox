@@ -11,6 +11,11 @@ As instancias persistidas no mapa serao a unica fonte de verdade. O plugin
 gerencia essas instancias durante a autoria e o runtime le a configuracao uma
 unica vez no inicio do cliente.
 
+> Atualizacao: a fonte de verdade persistida passou a ser
+> `Workspace.CameraSystem.Data` (JSON versionado) e as parts `Shots`/`Zones`
+> passaram a ser efemeras. Consulte
+> `2026-09-12-camera-system-persistence-design.md` para o design atual.
+
 ## Decisoes
 
 - A ferramenta sera um plugin leve dentro do Roblox Studio.

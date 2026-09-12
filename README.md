@@ -55,3 +55,108 @@ Build the place after static checks:
 ```bash
 rojo build -o /tmp/dungeon-game-canve.rbxlx default.project.json
 ```
+
+## Camera System Plugin
+
+The `plugin/` tree is a separate Roblox Studio plugin, `camera-system-plugin`,
+for authoring the persisted camera setup that the game reads at runtime. It is
+built from `plugin.project.json` and is never mapped into the game place. The
+plugin creates and edits `Workspace.CameraSystem`, a `Folder` with `Shots` and
+`Zones` child folders:
+
+- Each shot part stores the camera `CFrame` and a `FieldOfView` attribute
+  between 1 and 120.
+- Each zone part stores a `ShotId` attribute referencing a shot and an integer,
+  unique `Order` attribute that defines traversal priority.
+- `Workspace.CameraSystem` stores the `DefaultShotId` attribute.
+- `Workspace.CameraSystem.Data` stores the serialized JSON configuration (the
+  persisted source of truth). The `Shots`/`Zones` parts are ephemeral and only
+  exist while the editor is active.
+
+### Installing
+
+Build, archive, and install the plugin with the versioned script:
+
+```bash
+scripts/plugin-build.sh
+```
+
+`scripts/plugin-build.sh` builds `plugin.project.json`, archives the package
+under `PluginBackups/` (next to the Roblox `Plugins` folder, never inside it)
+with a timestamp and git SHA, keeps the five most recent versions, and copies
+the build into the Studio plugins folder. Use `--no-install` to only build and
+archive. Restart Roblox Studio to load the new package.
+
+To roll back, list or restore an archived build:
+
+```bash
+scripts/plugin-rollback.sh list
+scripts/plugin-rollback.sh previous
+scripts/plugin-rollback.sh camera-system-plugin-20260912-101530-abc1234.rbxmx
+```
+
+`PLUGIN_BACKUP_DIR` and `ROBLOX_PLUGINS_DIR` can be overridden through the
+environment; their defaults match the `Plugins` path documented in
+`AGENTS.md`.
+
+> Caveat: rolling back the plugin does not revert the place. A plugin version
+> older than `Data` only works on a place whose parts are materialized. Before
+> downgrading, open the place with the current version, activate the editor, and
+> save with the parts present.
+
+### Using
+
+1. Open the **Camera System** toolbar and click **Edit Camera System** to toggle
+   the dock widget. Clicking the button again (or closing the dock) deactivates
+   the editor without discarding the persisted hierarchy.
+2. Type a name in the **Actions** input and use **New Shot** or **New Zone**.
+   New shots copy the current viewport camera and its `FieldOfView`; new zones
+   start as a 10x10x10 part at the camera focus, receive the next `Order`, and
+   are assigned to the default shot when one exists.
+3. Select a shot or zone row in the panel, or pick the part in the viewport.
+   The panel and the Studio `Selection` stay in sync.
+4. With a shot selected, use **Capture Camera** to overwrite it from the
+   viewport camera, **Apply To Camera** to move the viewport camera to the shot,
+   **Set Default** to mark it as `DefaultShotId`, and **Set FOV** to apply the
+   value in the field-of-view input.
+5. With a zone selected, use **Assign Shot** to bind it to the selected shot and
+   **Move Up** / **Move Down** to swap `Order` with the adjacent zone.
+6. The status line reports validation errors: missing default shot, invalid
+   `FieldOfView`, dangling `ShotId`, invalid or duplicate `Order`, and
+   non-positive zone `Size`.
+
+Every mutation is recorded through `ChangeHistoryService`, so Studio undo and
+redo work as expected. Live markers are drawn under the non-archivable
+`Workspace.__CameraSystemPreview` folder and are never saved. While the editor is
+active, shots are visible and zones are translucent. Deactivating the editor
+serializes `Shots`/`Zones` into `Workspace.CameraSystem.Data` and removes the
+parts from the Workspace; activating it reads `Data` and recreates the parts.
+On plugin load, any leftover parts are serialized and removed. The runtime
+`CameraMapReader` prefers the `BasePart`s when they exist (editor active or
+legacy place) and otherwise reads `Data`, applying the same semantic validation
+as before.
+
+### Verifying the plugin
+
+Lint and build the plugin separately from the game:
+
+```bash
+selene --config selene.roblox.toml plugin
+rojo build -o /tmp/camera-system-plugin.rbxmx plugin.project.json
+```
+
+Typecheck it with its own sourcemap, because `default.project.json` does not map
+the plugin tree:
+
+```bash
+rojo sourcemap --include-non-scripts plugin.project.json --output /tmp/plugin-sourcemap.json
+
+luau-lsp analyze --platform roblox \
+  --settings typecheck/luau-lsp.roblox.json \
+  --base-luaurc typecheck/roblox.luaurc \
+  --definitions @roblox=typecheck/globalTypes.None.d.luau \
+  --sourcemap /tmp/plugin-sourcemap.json \
+  --formatter gnu \
+  plugin
+```
+

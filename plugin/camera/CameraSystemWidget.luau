@@ -175,6 +175,14 @@ function CameraSystemWidget.setSelection(self: Widget, instance: Instance?)
 	self:updateSelectionVisuals()
 end
 
+function CameraSystemWidget.clearSelection(self: Widget)
+	self.shotSelection = nil
+	self.zoneSelection = nil
+	self.fovInput.Text = ""
+	self.shotIdInput.Text = ""
+	self:updateSelectionVisuals()
+end
+
 function CameraSystemWidget.updateSelectionVisuals(self: Widget)
 	for _, row in self.shotRows do
 		row.BackgroundColor3 = if self.rowInstances[row] == self.shotSelection

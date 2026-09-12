@@ -1,6 +1,9 @@
 {
   "name": "camera-system-plugin",
   "tree": {
-    "$path": "plugin"
+    "$path": "plugin",
+    "CameraSystemData": {
+      "$path": "src/shared/camera/CameraSystemData.luau"
+    }
   }
 }

@@ -1,5 +1,7 @@
 --!strict
 
+local CameraSystemData = require(script.Parent.Parent.CameraSystemData)
+
 local CAMERA_SYSTEM_NAME = "CameraSystem"
 local SHOTS_NAME = "Shots"
 local ZONES_NAME = "Zones"
@@ -210,7 +212,7 @@ function CameraSystemModel.createShot(self: Model, name: string, camera: Camera)
 	shot.CanCollide = false
 	shot.CanTouch = false
 	shot.CanQuery = false
-	shot.Transparency = 1
+	shot.Transparency = EDITOR_SHOT_TRANSPARENCY
 	shot.Locked = false
 	shot:SetAttribute(FIELD_OF_VIEW, camera.FieldOfView)
 	shot.Parent = hierarchy.shots
@@ -278,7 +280,7 @@ function CameraSystemModel.createZone(self: Model, name: string, cframe: CFrame,
 	zone.CanCollide = false
 	zone.CanTouch = false
 	zone.CanQuery = false
-	zone.Transparency = 1
+	zone.Transparency = EDITOR_ZONE_TRANSPARENCY
 	zone.Locked = false
 	zone:SetAttribute(ORDER, nextOrder)
 
@@ -332,26 +334,113 @@ function CameraSystemModel.reorderZone(self: Model, zone: Part, delta: number)
 	setWaypoint(self.changeHistoryService, "Camera System: End reorder zone")
 end
 
-function CameraSystemModel.setPartsVisible(self: Model, visible: boolean)
+function CameraSystemModel.showParts(self: Model)
 	local hierarchy = self:_hierarchy()
-	setWaypoint(self.changeHistoryService, "Camera System: Begin set visibility")
-	local shotTransparency = if visible then EDITOR_SHOT_TRANSPARENCY else 1
-	local zoneTransparency = if visible then EDITOR_ZONE_TRANSPARENCY else 1
+	setWaypoint(self.changeHistoryService, "Camera System: Begin show parts")
 	for _, child in hierarchy.shots:GetChildren() do
 		if child:IsA("BasePart") then
 			local part = child :: BasePart
-			part.Transparency = shotTransparency
-			part.Locked = not visible
+			part.Transparency = EDITOR_SHOT_TRANSPARENCY
+			part.Locked = false
 		end
 	end
 	for _, child in hierarchy.zones:GetChildren() do
 		if child:IsA("BasePart") then
 			local part = child :: BasePart
-			part.Transparency = zoneTransparency
-			part.Locked = not visible
+			part.Transparency = EDITOR_ZONE_TRANSPARENCY
+			part.Locked = false
 		end
 	end
-	setWaypoint(self.changeHistoryService, "Camera System: End set visibility")
+	setWaypoint(self.changeHistoryService, "Camera System: End show parts")
+end
+
+function CameraSystemModel.hasParts(self: Model): boolean
+	return #self:listShots() > 0 or #self:listZones() > 0
+end
+
+function CameraSystemModel.captureConfig(self: Model): CameraSystemData.Config
+	return CameraSystemData.capture(self:ensureHierarchy().root)
+end
+
+function CameraSystemModel.readData(self: Model): CameraSystemData.Config?
+	local hierarchy = self:ensureHierarchy()
+	local data = hierarchy.root:FindFirstChild(CameraSystemData.DATA_NAME)
+	if data == nil then
+		return nil
+	end
+	if not data:IsA("StringValue") then
+		error("CameraSystem.Data must be a StringValue", 2)
+	end
+	return CameraSystemData.decode(data.Value)
+end
+
+function CameraSystemModel.writeData(self: Model, config: CameraSystemData.Config)
+	local hierarchy = self:ensureHierarchy()
+	local existing = hierarchy.root:FindFirstChild(CameraSystemData.DATA_NAME)
+	if existing ~= nil and not existing:IsA("StringValue") then
+		error("CameraSystem.Data must be a StringValue", 2)
+	end
+
+	setWaypoint(self.changeHistoryService, "Camera System: Begin write data")
+	local data: StringValue
+	if existing == nil then
+		local created = Instance.new("StringValue")
+		created.Name = CameraSystemData.DATA_NAME
+		created.Parent = hierarchy.root
+		data = created
+	else
+		data = existing :: StringValue
+	end
+	data.Value = CameraSystemData.encode(config)
+	setWaypoint(self.changeHistoryService, "Camera System: End write data")
+end
+
+function CameraSystemModel.materialize(self: Model, config: CameraSystemData.Config)
+	local hierarchy = self:ensureHierarchy()
+	setWaypoint(self.changeHistoryService, "Camera System: Begin materialize")
+	hierarchy.root:SetAttribute(DEFAULT_SHOT_ID, config.defaultShotId)
+	for _, shot in config.shots do
+		local part = Instance.new("Part")
+		part.Name = shot.name
+		part.CFrame = shot.cframe
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Transparency = EDITOR_SHOT_TRANSPARENCY
+		part.Locked = false
+		part:SetAttribute(FIELD_OF_VIEW, shot.fieldOfView)
+		part.Parent = hierarchy.shots
+	end
+	for _, zone in config.zones do
+		local part = Instance.new("Part")
+		part.Name = zone.name
+		part.CFrame = zone.cframe
+		part.Size = zone.size
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Transparency = EDITOR_ZONE_TRANSPARENCY
+		part.Locked = false
+		part:SetAttribute(SHOT_ID, zone.shotId)
+		part:SetAttribute(ORDER, zone.order)
+		part.Parent = hierarchy.zones
+	end
+	setWaypoint(self.changeHistoryService, "Camera System: End materialize")
+end
+
+function CameraSystemModel.destroyParts(self: Model)
+	local hierarchy = self:_hierarchy()
+	setWaypoint(self.changeHistoryService, "Camera System: Begin destroy parts")
+	for _, folder in { hierarchy.shots, hierarchy.zones } do
+		for _, child in folder:GetChildren() do
+			if child:IsA("BasePart") then
+				child:Destroy()
+			end
+		end
+	end
+	setWaypoint(self.changeHistoryService, "Camera System: End destroy parts")
 end
 
 function CameraSystemModel._ownedShot(self: Model, shot: Part): Part

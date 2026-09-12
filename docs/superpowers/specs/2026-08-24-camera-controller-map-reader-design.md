@@ -4,6 +4,15 @@ Data: 2026-08-24
 Status: Aprovado pelo usuario para especificacao  
 Commit: nao criar
 
+> Atualizacao: o `CameraMapReader` passou a ler
+> `Workspace.CameraSystem.Data` (JSON versionado) quando `Shots`/`Zones` nao tem
+> `BasePart`, mantendo as parts como fonte preferencial (edicao/legado). O
+> contrato publico e a validacao semantica continuam iguais. Consulte
+> `2026-09-12-camera-system-persistence-design.md` para o design atual; as
+> afirmacoes deste documento sobre a leitura direta de `Shots`/`Zones`/
+> `DefaultShotId` e sobre "sem alteracoes em `CameraMapReader`" ficam
+> supersedidas.
+
 ## Objetivo
 
 Melhorar a arquitetura do sistema de camera tornando `CameraMapReader` uma

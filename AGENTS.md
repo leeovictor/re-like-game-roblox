@@ -26,12 +26,13 @@
 
 - Versoes fixadas em `rokit.toml` e `aftman.toml`: Rojo `7.7.0`, Selene `0.29.0`, `luau-lsp 1.69.0`, Wally `0.3.2` e StyLua `2.5.2`. Prefira `rokit install`; `aftman install` e alternativa.
 - Execute `wally install` apos clonar ou alterar `wally.toml`. `Packages/` e gerado, ignorado pelo Git e mapeado para `ReplicatedStorage.Packages`. Nao edite esse diretorio manualmente.
-- Ao alterar qualquer codigo em `plugin/`, construa o plugin separadamente e mova o pacote atualizado para a pasta de plugins do Roblox Studio:
+- Ao alterar qualquer codigo em `plugin/`, use o script de build versionado, que arquiva a versao anterior em `PluginBackups/` e instala o pacote atualizado na pasta de plugins do Roblox Studio:
 
 ```bash
-rojo build -o /tmp/camera-system-plugin.rbxmx plugin.project.json
-mv /tmp/camera-system-plugin.rbxmx /mnt/c/Users/leona/AppData/Local/Roblox/Plugins/camera-system-plugin.rbxmx
+scripts/plugin-build.sh
 ```
+
+- Para listar ou restaurar builds arquivadas, use `scripts/plugin-rollback.sh list`, `scripts/plugin-rollback.sh previous` ou `scripts/plugin-rollback.sh <arquivo>.rbxmx`.
 
 ## Git e Commits
 
